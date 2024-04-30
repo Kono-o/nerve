@@ -1,15 +1,15 @@
 use glfw::*;
 
-pub enum FPS {
-   Vsync,
-   Max,
+pub enum Vsync {
+   On,
+   Off,
 }
 pub struct NerveCanvasBuilder {
    pub ogl_version: (u32, u32),
    pub title: String,
    pub width: u32,
    pub height: u32,
-   pub fps: FPS,
+   pub fps: Vsync,
 }
 
 impl Default for NerveCanvasBuilder {
@@ -19,7 +19,7 @@ impl Default for NerveCanvasBuilder {
          title: "<Nerve-Canvas>".to_string(),
          width: 1280,
          height: 720,
-         fps: FPS::Vsync,
+         fps: Vsync::On,
       }
    }
 }
@@ -42,8 +42,8 @@ impl NerveCanvasBuilder {
                   window.set_framebuffer_size_polling(true);
                   gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
                   glfw.set_swap_interval(match self.fps {
-                     FPS::Vsync => SwapInterval::Adaptive,
-                     FPS::Max => SwapInterval::None,
+                     Vsync::On => SwapInterval::Adaptive,
+                     Vsync::Off => SwapInterval::None,
                   });
                   NerveCanvas::from(glfw, window, events)
                }
@@ -53,6 +53,10 @@ impl NerveCanvasBuilder {
    }
 }
 
+pub struct NerveEvents {
+   pub key: Vec<(Key, Is)>,
+   pub mouse: Vec<(Mouse, Is)>,
+}
 pub struct NerveCanvas {
    glfw: Glfw,
    window: PWindow,
@@ -75,37 +79,27 @@ impl NerveCanvas {
          delta: 0.0,
       }
    }
-   pub fn alive(&self) -> bool {
-      !self.window.should_close()
-   }
-   pub fn kill(&mut self) {
-      self.window.set_should_close(true)
-   }
 
    pub fn mouse_pos(&self) -> (u32, u32) {
       let (x, y) = self.window.get_cursor_pos();
       return (x as u32, y as u32);
    }
 
-   pub fn key_events(&self) -> Vec<(Key, Is)> {
-      let mut events = Vec::new();
-      for (_, event) in flush_messages(&self.events) {
+   pub fn events(&self) -> NerveEvents {
+      let mut key = Vec::new();
+      let mut mouse = Vec::new();
+      for (_f, event) in flush_messages(&self.events) {
+         println!("{:?}", event);
          match event {
-            WindowEvent::Key(k, _, a, _) => events.push((k, Is::from(a))),
+            WindowEvent::Key(k, _, a, _) => key.push((k, Is::from(a))),
+            WindowEvent::MouseButton(m, a, _) => mouse.push((Mouse::from(m), Is::from(a))),
             _ => {}
          };
       }
-      events
+      NerveEvents { key, mouse }
    }
 
-   pub fn set_size(&mut self, width: u32, height: u32) {
-      self.window.set_size(width as i32, height as i32)
-   }
-   pub fn time(&self) -> f64 {
-      self.glfw.get_time()
-   }
-
-   fn fps(&mut self) {
+   fn time_calc(&mut self) {
       let current = self.time();
       self.frame += 1;
       self.delta = current - self.prev_time;
@@ -116,17 +110,68 @@ impl NerveCanvas {
          self.prev_sec = current;
       }
    }
+}
 
+impl NerveCanvas {
    pub fn pre(&mut self) {
-      self.fps();
+      self.time_calc();
    }
 
    pub fn post(&mut self) {
       self.window.swap_buffers();
-      self.glfw.poll_events()
+      self.glfw.poll_events();
+   }
+
+   pub fn alive(&self) -> bool {
+      !self.window.should_close()
+   }
+
+   pub fn kill(&mut self) {
+      self.window.set_should_close(true)
+   }
+
+   pub fn time(&self) -> f64 {
+      self.glfw.get_time()
+   }
+
+   pub fn set_size(&mut self, width: u32, height: u32) {
+      self.window.set_size(width as i32, height as i32)
+   }
+
+   pub fn set_vsync(&mut self, vsync: Vsync) {
+      self.glfw.set_swap_interval(match vsync {
+         Vsync::On => SwapInterval::Adaptive,
+         Vsync::Off => SwapInterval::None,
+      })
    }
 }
+#[derive(Debug)]
+pub enum Mouse {
+   Left,
+   Right,
+   Middle,
+   Button4,
+   Button5,
+   Button6,
+   Button7,
+   Button8,
+}
 
+impl Mouse {
+   fn from(mouse: MouseButton) -> Self {
+      match mouse {
+         MouseButton::Button1 => Self::Left,
+         MouseButton::Button2 => Self::Right,
+         MouseButton::Button3 => Self::Middle,
+         MouseButton::Button4 => Self::Button4,
+         MouseButton::Button5 => Self::Button5,
+         MouseButton::Button6 => Self::Button6,
+         MouseButton::Button7 => Self::Button7,
+         MouseButton::Button8 => Self::Button8,
+      }
+   }
+}
+#[derive(Debug)]
 pub enum Is {
    Pressed,
    Released,
@@ -136,9 +181,9 @@ pub enum Is {
 impl Is {
    fn from(act: Action) -> Self {
       match act {
-         Action::Release => Is::Released,
-         Action::Press => Is::Pressed,
-         Action::Repeat => Is::Held,
+         Action::Release => Self::Released,
+         Action::Press => Self::Pressed,
+         Action::Repeat => Self::Held,
       }
    }
 }
