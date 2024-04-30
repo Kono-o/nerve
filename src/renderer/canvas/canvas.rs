@@ -56,7 +56,11 @@ impl NerveCanvasBuilder {
 pub struct NerveCanvas {
    glfw: Glfw,
    window: PWindow,
-   pub events: GlfwReceiver<(f64, WindowEvent)>,
+   events: GlfwReceiver<(f64, WindowEvent)>,
+   pub frame: u64,
+   prev_time: f64,
+   prev_sec: f64,
+   pub delta: f64,
 }
 
 impl NerveCanvas {
@@ -65,19 +69,76 @@ impl NerveCanvas {
          glfw,
          window,
          events,
+         frame: 0,
+         prev_time: 0.0,
+         prev_sec: 0.0,
+         delta: 0.0,
       }
    }
-
    pub fn alive(&self) -> bool {
       !self.window.should_close()
    }
+   pub fn kill(&mut self) {
+      self.window.set_should_close(true)
+   }
 
+   pub fn mouse_pos(&self) -> (u32, u32) {
+      let (x, y) = self.window.get_cursor_pos();
+      return (x as u32, y as u32);
+   }
+
+   pub fn key_events(&self) -> Vec<(Key, Is)> {
+      let mut events = Vec::new();
+      for (_, event) in flush_messages(&self.events) {
+         match event {
+            WindowEvent::Key(k, _, a, _) => events.push((k, Is::from(a))),
+            _ => {}
+         };
+      }
+      events
+   }
+
+   pub fn set_size(&mut self, width: u32, height: u32) {
+      self.window.set_size(width as i32, height as i32)
+   }
    pub fn time(&self) -> f64 {
       self.glfw.get_time()
+   }
+
+   fn fps(&mut self) {
+      let current = self.time();
+      self.frame += 1;
+      self.delta = current - self.prev_time;
+      self.prev_time = current;
+      if current - self.prev_sec >= 1.0 {
+         println!("fps: {}", self.frame);
+         self.frame = 0;
+         self.prev_sec = current;
+      }
+   }
+
+   pub fn pre(&mut self) {
+      self.fps();
    }
 
    pub fn post(&mut self) {
       self.window.swap_buffers();
       self.glfw.poll_events()
+   }
+}
+
+pub enum Is {
+   Pressed,
+   Released,
+   Held,
+}
+
+impl Is {
+   fn from(act: Action) -> Self {
+      match act {
+         Action::Release => Is::Released,
+         Action::Press => Is::Pressed,
+         Action::Repeat => Is::Held,
+      }
    }
 }

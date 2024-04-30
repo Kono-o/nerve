@@ -1,9 +1,7 @@
 mod canvas;
-mod render;
+pub use glfw::Key;
 
 pub use self::canvas::NerveCanvasBuilder;
 pub use self::canvas::NerveCanvas;
-pub use self::render::NerveRender;
-
 pub use self::canvas::FPS;
-pub use self::render::RGBA;
+pub use self::canvas::Is;

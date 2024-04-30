@@ -1,26 +1,18 @@
-use gl::types::*;
+use gl::types::{GLchar, GLenum, GLint, GLuint};
 
-pub struct RGBA(pub f32, pub f32, pub f32, pub f32);
+#[derive(Clone, Copy)]
+pub struct NerveMaterial {
+   program: GLuint,
+}
 
-pub struct NerveRender;
-
-impl NerveRender {
-   pub fn set_fill(color: RGBA) {
-      unsafe { gl::ClearColor(color.0, color.1, color.2, color.3) }
-   }
-   pub fn fill() {
-      unsafe { gl::Clear(gl::COLOR_BUFFER_BIT) }
-   }
-
-   pub fn new_material(vert_path: &str, frag_path: &str) -> GLuint {
+impl NerveMaterial {
+   pub fn new(vert_path: &str, frag_path: &str) -> NerveMaterial {
       let mut success = gl::FALSE as GLint;
       let mut info_log = Vec::with_capacity(512);
 
       let mut compile_shader = |path: &str, shader_type: GLenum| {
-         let path = format!("assets/shaders/{}", path);
          let src =
-            std::ffi::CString::new(std::fs::read_to_string(path.clone()).unwrap().as_bytes())
-               .unwrap();
+            std::ffi::CString::new(std::fs::read_to_string(path).unwrap().as_bytes()).unwrap();
          unsafe {
             let shader = gl::CreateShader(shader_type);
             gl::ShaderSource(shader, 1, &src.as_ptr(), std::ptr::null());
@@ -68,12 +60,12 @@ impl NerveRender {
          }
          gl::DeleteShader(vert_shader);
          gl::DeleteShader(frag_shader);
-         return material;
+         return NerveMaterial { program: material };
       }
    }
-   pub fn delete_material(material: GLuint) {
+   pub fn kill(&self) {
       unsafe {
-         gl::DeleteProgram(material);
+         gl::DeleteProgram(self.program);
       }
    }
 }
