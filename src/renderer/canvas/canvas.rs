@@ -89,7 +89,6 @@ impl NerveCanvas {
       let mut key = Vec::new();
       let mut mouse = Vec::new();
       for (_f, event) in flush_messages(&self.events) {
-         println!("{:?}", event);
          match event {
             WindowEvent::Key(k, _, a, _) => key.push((k, Is::from(a))),
             WindowEvent::MouseButton(m, a, _) => mouse.push((Mouse::from(m), Is::from(a))),
