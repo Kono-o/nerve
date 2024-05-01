@@ -1,81 +1,40 @@
 use glfw::*;
+use crate::{Fps, Is, Mouse, NerveEvents};
 
-pub enum Vsync {
-   On,
-   Off,
-}
-pub struct NerveCanvasBuilder {
-   pub ogl_version: (u32, u32),
-   pub title: String,
-   pub width: u32,
-   pub height: u32,
-   pub fps: Vsync,
-}
-
-impl Default for NerveCanvasBuilder {
-   fn default() -> Self {
-      Self {
-         ogl_version: (3, 3),
-         title: "<Nerve-Canvas>".to_string(),
-         width: 1280,
-         height: 720,
-         fps: Vsync::On,
-      }
-   }
-}
-
-impl NerveCanvasBuilder {
-   pub fn build(&self) -> NerveCanvas {
-      match init(glfw::fail_on_errors) {
-         Err(error) => panic!("glfw: {}", error),
-         Ok(mut glfw) => {
-            glfw.window_hint(WindowHint::ContextVersion(
-               self.ogl_version.0,
-               self.ogl_version.1,
-            ));
-            glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Core));
-            match glfw.create_window(self.width, self.height, &self.title, WindowMode::Windowed) {
-               None => panic!("canvas: failed to build window."),
-               Some((mut window, events)) => {
-                  window.make_current();
-                  window.set_key_polling(true);
-                  window.set_framebuffer_size_polling(true);
-                  gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
-                  glfw.set_swap_interval(match self.fps {
-                     Vsync::On => SwapInterval::Adaptive,
-                     Vsync::Off => SwapInterval::None,
-                  });
-                  NerveCanvas::from(glfw, window, events)
-               }
-            }
-         }
-      }
-   }
-}
-
-pub struct NerveEvents {
-   pub key: Vec<(Key, Is)>,
-   pub mouse: Vec<(Mouse, Is)>,
-}
 pub struct NerveCanvas {
    glfw: Glfw,
    window: PWindow,
    events: GlfwReceiver<(f64, WindowEvent)>,
-   pub frame: u64,
+   is_fullscreen: bool,
+   prev_pos: (i32, i32),
+   prev_size: (i32, i32),
    prev_time: f64,
    prev_sec: f64,
+   frame: u64,
+
+   pub fps: u32,
    pub delta: f64,
 }
 
 impl NerveCanvas {
-   fn from(glfw: Glfw, window: PWindow, events: GlfwReceiver<(f64, WindowEvent)>) -> Self {
+   pub(crate) fn make(
+      glfw: Glfw,
+      window: PWindow,
+      events: GlfwReceiver<(f64, WindowEvent)>,
+      is_fullscreen: bool,
+   ) -> Self {
       Self {
          glfw,
          window,
          events,
-         frame: 0,
+         is_fullscreen,
          prev_time: 0.0,
          prev_sec: 0.0,
+         prev_pos: (0, 0),
+         prev_size: (0, 0),
+         frame: 0,
+
+         fps: 0,
          delta: 0.0,
       }
    }
@@ -85,7 +44,7 @@ impl NerveCanvas {
       return (x as u32, y as u32);
    }
 
-   pub fn events(&self) -> NerveEvents {
+   pub fn events(&mut self) -> NerveEvents {
       let mut key = Vec::new();
       let mut mouse = Vec::new();
       for (_f, event) in flush_messages(&self.events) {
@@ -104,7 +63,8 @@ impl NerveCanvas {
       self.delta = current - self.prev_time;
       self.prev_time = current;
       if current - self.prev_sec >= 1.0 {
-         println!("fps: {}", self.frame);
+         self.fps = self.frame as u32;
+         println!("fps: {}", self.fps);
          self.frame = 0;
          self.prev_sec = current;
       }
@@ -137,52 +97,41 @@ impl NerveCanvas {
       self.window.set_size(width as i32, height as i32)
    }
 
-   pub fn set_vsync(&mut self, vsync: Vsync) {
+   pub fn toggle_fullscreen(&mut self) {
+      if self.is_fullscreen {
+         self.window.set_monitor(
+            WindowMode::Windowed,
+            self.prev_pos.0,
+            self.prev_pos.1,
+            self.prev_size.0 as u32,
+            self.prev_size.1 as u32,
+            None,
+         )
+      } else {
+         self.prev_pos = self.window.get_pos();
+         self.prev_size = self.window.get_size();
+
+         self.glfw.with_primary_monitor(|_, m| {
+            let monitor = m.unwrap();
+
+            let mode = monitor.get_video_mode().unwrap();
+
+            self.window.set_monitor(
+               WindowMode::FullScreen(&monitor),
+               0,
+               0,
+               mode.width,
+               mode.height,
+               Some(mode.refresh_rate),
+            );
+         })
+      }
+      self.is_fullscreen = !self.is_fullscreen;
+   }
+   pub fn set_vsync(&mut self, vsync: Fps) {
       self.glfw.set_swap_interval(match vsync {
-         Vsync::On => SwapInterval::Adaptive,
-         Vsync::Off => SwapInterval::None,
+         Fps::Vsync => SwapInterval::Adaptive,
+         Fps::Max => SwapInterval::None,
       })
-   }
-}
-#[derive(Debug)]
-pub enum Mouse {
-   Left,
-   Right,
-   Middle,
-   Button4,
-   Button5,
-   Button6,
-   Button7,
-   Button8,
-}
-
-impl Mouse {
-   fn from(mouse: MouseButton) -> Self {
-      match mouse {
-         MouseButton::Button1 => Self::Left,
-         MouseButton::Button2 => Self::Right,
-         MouseButton::Button3 => Self::Middle,
-         MouseButton::Button4 => Self::Button4,
-         MouseButton::Button5 => Self::Button5,
-         MouseButton::Button6 => Self::Button6,
-         MouseButton::Button7 => Self::Button7,
-         MouseButton::Button8 => Self::Button8,
-      }
-   }
-}
-#[derive(Debug)]
-pub enum Is {
-   Pressed,
-   Released,
-   Held,
-}
-
-impl Is {
-   fn from(act: Action) -> Self {
-      match act {
-         Action::Release => Self::Released,
-         Action::Press => Self::Pressed,
-         Action::Repeat => Self::Held,
-      }
    }
 }
