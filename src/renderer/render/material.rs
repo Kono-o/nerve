@@ -68,4 +68,8 @@ impl NerveMaterial {
          gl::DeleteProgram(self.program);
       }
    }
+
+   pub fn set(&self) {
+      unsafe { gl::UseProgram(self.program) }
+   }
 }
