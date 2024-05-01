@@ -4,9 +4,9 @@ pub enum PolygonMode {
    WireFrame,
    Filled,
 }
-pub struct NerveRender;
-impl NerveRender {
-   pub fn set_fill(col: RGBA) {
+pub struct NerveRenderer;
+impl NerveRenderer {
+   pub fn set_bg(col: RGBA) {
       unsafe { gl::ClearColor(col.0, col.1, col.2, col.3) }
    }
    pub fn fill() {

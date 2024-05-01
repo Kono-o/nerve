@@ -3,7 +3,7 @@ mod rgba;
 mod material;
 mod mesh;
 
-pub use self::render::NerveRender;
+pub use self::render::NerveRenderer;
 pub use self::render::PolygonMode;
 
 pub use self::rgba::RGBA;

@@ -1,5 +1,5 @@
 use glfw::*;
-use crate::{Fps, Is, Mouse, NerveEvents, NerveRender};
+use crate::{Fps, Is, Mouse, NerveEvents, NerveRenderer};
 
 pub struct NerveCanvas {
    glfw: Glfw,
@@ -74,7 +74,7 @@ impl NerveCanvas {
 impl NerveCanvas {
    pub fn pre(&mut self) {
       self.time_calc();
-      NerveRender::fill();
+      NerveRenderer::fill();
    }
 
    pub fn post(&mut self) {

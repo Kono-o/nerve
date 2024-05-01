@@ -47,4 +47,12 @@ impl NerveMesh {
          gl::DrawArrays(gl::TRIANGLES, 0, 3);
       }
    }
+
+   pub fn kill(&self) {
+      self.material.kill();
+      unsafe {
+         gl::DeleteVertexArrays(1, self.vao as *const GLuint);
+         gl::DeleteBuffers(1, self.vbo as *const GLuint);
+      }
+   }
 }
