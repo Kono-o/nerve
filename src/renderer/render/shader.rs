@@ -1,12 +1,12 @@
 use gl::types::{GLchar, GLenum, GLint, GLuint};
 
 #[derive(Clone, Copy)]
-pub struct NerveMaterial {
-   program: GLuint,
+pub struct NerveShader {
+   program_id: GLuint,
 }
 
-impl NerveMaterial {
-   pub fn new(vert_path: &str, frag_path: &str) -> NerveMaterial {
+impl NerveShader {
+   pub fn new(vert_path: &str, frag_path: &str) -> NerveShader {
       let mut success = gl::FALSE as GLint;
       let mut info_log = Vec::with_capacity(512);
 
@@ -40,15 +40,15 @@ impl NerveMaterial {
       let frag_shader = compile_shader(frag_path, gl::FRAGMENT_SHADER);
 
       unsafe {
-         let material = gl::CreateProgram();
-         gl::AttachShader(material, vert_shader);
-         gl::AttachShader(material, frag_shader);
-         gl::LinkProgram(material);
+         let program = gl::CreateProgram();
+         gl::AttachShader(program, vert_shader);
+         gl::AttachShader(program, frag_shader);
+         gl::LinkProgram(program);
 
-         gl::GetProgramiv(material, gl::LINK_STATUS, &mut success);
+         gl::GetProgramiv(program, gl::LINK_STATUS, &mut success);
          if success != gl::TRUE as GLint {
             gl::GetProgramInfoLog(
-               material,
+               program,
                512,
                std::ptr::null_mut(),
                info_log.as_mut_ptr() as *mut GLchar,
@@ -60,16 +60,18 @@ impl NerveMaterial {
          }
          gl::DeleteShader(vert_shader);
          gl::DeleteShader(frag_shader);
-         return NerveMaterial { program: material };
+
+         return NerveShader {
+            program_id: program,
+         };
       }
+   }
+   pub fn set(&self) {
+      unsafe { gl::UseProgram(self.program_id) }
    }
    pub fn kill(&self) {
       unsafe {
-         gl::DeleteProgram(self.program);
+         gl::DeleteProgram(self.program_id);
       }
-   }
-
-   pub fn set(&self) {
-      unsafe { gl::UseProgram(self.program) }
    }
 }

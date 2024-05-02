@@ -13,6 +13,7 @@ pub struct NerveCanvas {
    frame: u64,
 
    pub fps: u32,
+   pub time: f64,
    pub delta: f64,
 }
 
@@ -35,6 +36,7 @@ impl NerveCanvas {
          frame: 0,
 
          fps: 0,
+         time: 0.0,
          delta: 0.0,
       }
    }
@@ -51,6 +53,9 @@ impl NerveCanvas {
          match event {
             WindowEvent::Key(k, _, a, _) => key.push((k, Is::from(a))),
             WindowEvent::MouseButton(m, a, _) => mouse.push((Mouse::from(m), Is::from(a))),
+            WindowEvent::FramebufferSize(width, height) if false => unsafe {
+               gl::Viewport(0, 0, width, height)
+            },
             _ => {}
          };
       }
@@ -58,7 +63,9 @@ impl NerveCanvas {
    }
 
    fn time_calc(&mut self) {
-      let current = self.time();
+      self.time = self.glfw.get_time();
+
+      let current = self.time;
       self.frame += 1;
       self.delta = current - self.prev_time;
       self.prev_time = current;
@@ -88,10 +95,6 @@ impl NerveCanvas {
 
    pub fn kill(&mut self) {
       self.window.set_should_close(true)
-   }
-
-   pub fn time(&self) -> f64 {
-      self.glfw.get_time()
    }
 
    pub fn set_size(&mut self, width: u32, height: u32) {

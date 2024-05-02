@@ -1,13 +1,11 @@
+mod color;
 mod render;
-mod rgba;
-mod material;
+mod shader;
 mod mesh;
 
+pub use self::color::*;
 pub use self::render::NerveRenderer;
 pub use self::render::PolygonMode;
 
-pub use self::rgba::RGBA;
-
+pub use self::shader::NerveShader;
 pub use self::mesh::NerveMesh;
-
-pub use self::material::NerveMaterial;
