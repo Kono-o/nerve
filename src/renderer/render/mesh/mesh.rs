@@ -4,9 +4,11 @@ use gl::types::*;
 use crate::NerveShader;
 
 pub struct NerveMesh {
-   shader: NerveShader,
-   vao_id: GLuint,
-   vbo_id: GLuint,
+   pub(crate) shader: NerveShader,
+   pub(crate) has_indices: bool,
+   pub(crate) vert_count: u32,
+   pub(crate) vao_id: GLuint,
+   pub(crate) vbo_id: GLuint,
 }
 
 impl NerveMesh {
@@ -63,6 +65,8 @@ impl NerveMesh {
          gl::BindVertexArray(0); //                                     deselect a vao by selecting 0, which is a unreachable GL_id
          Self {
             shader: material,
+            has_indices: true,
+            vert_count: vertices.len() as u32,
             vao_id: vao,
             vbo_id: vbo,
          }
@@ -73,7 +77,16 @@ impl NerveMesh {
       unsafe {
          self.shader.set();
          gl::BindVertexArray(self.vao_id);
-         gl::DrawElements(gl::TRIANGLES, 3, gl::UNSIGNED_INT, std::ptr::null());
+         if self.has_indices {
+            gl::DrawElements(
+               gl::TRIANGLES,
+               self.vert_count as GLsizei,
+               gl::UNSIGNED_INT,
+               std::ptr::null(),
+            );
+         } else {
+            gl::DrawArrays(gl::TRIANGLES, 0, self.vert_count as GLsizei);
+         }
       }
    }
 
