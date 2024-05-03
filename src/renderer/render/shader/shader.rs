@@ -1,3 +1,6 @@
+use std::ffi::CString;
+use std::path::PathBuf;
+use std::str::FromStr;
 use cgmath::{Matrix, Matrix4};
 use gl::types::{GLchar, GLenum, GLint, GLuint};
 
@@ -12,8 +15,10 @@ impl NerveShader {
       let mut info_log = Vec::with_capacity(512);
 
       let mut compile_shader = |path: &str, shader_type: GLenum| {
-         let src =
-            std::ffi::CString::new(std::fs::read_to_string(path).unwrap().as_bytes()).unwrap();
+         if !PathBuf::from_str(path).unwrap().exists() {
+            panic!("{path} does not exist!")
+         }
+         let src = CString::new(std::fs::read_to_string(path).unwrap().as_bytes()).unwrap();
          unsafe {
             let shader = gl::CreateShader(shader_type);
             gl::ShaderSource(shader, 1, &src.as_ptr(), std::ptr::null());
@@ -71,9 +76,21 @@ impl NerveShader {
       unsafe { gl::UseProgram(self.program_id) }
    }
 
-   pub fn set_uniform_mat4(&self, location: u32, mat4: Matrix4<f32>) {
+   fn get_uniform_loc(&self, name: &str) -> GLint {
       unsafe {
-         gl::UniformMatrix4fv(location as GLint, 1, gl::FALSE, mat4.as_ptr());
+         let c_name = CString::new(name).unwrap();
+         let loc = gl::GetUniformLocation(self.program_id, c_name.as_ptr());
+         if loc == -1 {
+            panic!("uniform with name {name} does not exist!")
+         } else {
+            return loc;
+         }
+      }
+   }
+   pub(crate) fn set_mat4(&self, u_name: &str, mat4: Matrix4<f32>) {
+      unsafe {
+         let location = self.get_uniform_loc(u_name);
+         gl::UniformMatrix4fv(location, 1, gl::FALSE, mat4.as_ptr());
       }
    }
    pub fn kill(&self) {

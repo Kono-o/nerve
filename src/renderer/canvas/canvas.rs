@@ -1,5 +1,5 @@
 use glfw::*;
-use crate::{Fps, Is, Mouse, NerveRenderer};
+use crate::{Is, Mouse, NerveCamera, NerveRenderer};
 use crate::renderer::canvas::events::{
    key_to_bitmap, KeyBitMap, ButtonState, MouseBitMap, mouse_to_bitmap,
 };
@@ -21,6 +21,7 @@ pub struct NerveCanvas {
    prev_sec: f64,
    frame: u64,
 
+   pub cam: NerveCamera,
    pub fps: u32,
    pub time: f64,
    pub delta: f64,
@@ -32,11 +33,13 @@ impl NerveCanvas {
       window: PWindow,
       events: GlfwReceiver<(f64, WindowEvent)>,
       is_fullscreen: bool,
+      camera: NerveCamera,
    ) -> Self {
       Self {
          glfw,
          window,
          events,
+         cam: camera,
          key_bit_map: KeyBitMap(
             [ButtonState {
                pressed: false,
@@ -56,8 +59,8 @@ impl NerveCanvas {
          is_fullscreen,
          prev_time: 0.0,
          prev_sec: 0.0,
-         prev_pos: (0, 0),
-         prev_size: (0, 0),
+         prev_pos: (200, 200),
+         prev_size: (720, 720),
          frame: 0,
 
          fps: 0,
@@ -66,9 +69,8 @@ impl NerveCanvas {
       }
    }
 
-   pub fn mouse_pos(&self) -> (u32, u32) {
-      let (x, y) = self.window.get_cursor_pos();
-      return (x as u32, y as u32);
+   pub fn set_cam(&mut self, cam: NerveCamera) {
+      self.cam = cam
    }
 
    fn catch_buttons(&mut self) {
@@ -144,6 +146,9 @@ impl NerveCanvas {
       self.reset_buttons();
    }
 
+   pub fn size(&self) -> (i32, i32) {
+      self.window.get_size()
+   }
    pub fn alive(&self) -> bool {
       !self.window.should_close()
    }
@@ -172,6 +177,11 @@ impl NerveCanvas {
          Is::Released => mouse_state_in_bitmap.released,
          Is::Held => mouse_state_in_bitmap.held,
       };
+   }
+
+   pub fn mouse_pos(&self) -> (u32, u32) {
+      let (x, y) = self.window.get_cursor_pos();
+      return (x as u32, y as u32);
    }
 
    pub fn toggle_fullscreen(&mut self) {

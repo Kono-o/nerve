@@ -11,8 +11,18 @@ impl NerveRenderer {
       unsafe { gl::ClearColor(color.0, color.1, color.2, color.3) }
    }
 
+   pub fn enable_depth(enable: bool) {
+      unsafe {
+         if enable {
+            gl::Enable(gl::DEPTH_TEST)
+         } else {
+            gl::Disable(gl::DEPTH_TEST)
+         }
+      }
+   }
+
    pub fn fill() {
-      unsafe { gl::Clear(gl::COLOR_BUFFER_BIT) }
+      unsafe { gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT) }
    }
 
    pub fn polygon_mode(mode: PolygonMode) {

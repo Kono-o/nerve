@@ -1,5 +1,6 @@
+use cgmath::{Deg, perspective, Vector3};
 use glfw::*;
-use crate::NerveCanvas;
+use crate::{CamProj, NerveCamera, NerveCanvas};
 
 pub struct CanvasSize {
    pub width: u32,
@@ -17,7 +18,7 @@ pub enum Fps {
 }
 
 pub struct NerveCanvasBuilder {
-   pub ogl_version: (u32, u32),
+   pub opengl_version: (u32, u32),
    pub title: String,
    pub mode: CanvasMode,
    pub fps: Fps,
@@ -26,7 +27,7 @@ pub struct NerveCanvasBuilder {
 impl Default for NerveCanvasBuilder {
    fn default() -> Self {
       Self {
-         ogl_version: (3, 3),
+         opengl_version: (3, 3),
          title: "<Nerve-Canvas>".to_string(),
          mode: CanvasMode::Windowed(CanvasSize {
             width: 960,
@@ -59,9 +60,9 @@ fn window_init(window: &mut PWindow) {
 
 impl NerveCanvasBuilder {
    pub fn build(&self) -> NerveCanvas {
-      let mut glfw = glfw_init(self.ogl_version);
+      let mut glfw = glfw_init(self.opengl_version);
       let mut is_fullscreen = false;
-
+      let camera;
       let (mut window, events) = glfw.with_primary_monitor(|glfw, monitor| match monitor {
          None => panic!("no monitor found"),
          Some(mut monitor) => {
@@ -91,6 +92,29 @@ impl NerveCanvasBuilder {
          Fps::Vsync => SwapInterval::Adaptive,
          Fps::Max => SwapInterval::None,
       });
-      NerveCanvas::make(glfw, window, events, is_fullscreen)
+
+      let (width, height) = window.get_size();
+      let (widthf, heightf) = (width as f32, height as f32);
+
+      let proj_matrix = perspective(Deg(50.0), widthf / heightf, 0.01, 1000.0);
+
+      camera = NerveCamera {
+         size: (width as u32, width as u32),
+         projection: CamProj::Perspective,
+         fov: 50.0,
+         clip: (0.01, 1000.0),
+         proj_matrix,
+         position: Vector3 {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+         },
+         rotation: Vector3 {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+         },
+      };
+      NerveCanvas::make(glfw, window, events, is_fullscreen, camera)
    }
 }

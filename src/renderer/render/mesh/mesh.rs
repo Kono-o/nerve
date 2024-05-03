@@ -1,6 +1,7 @@
-use cgmath::{Matrix4, Rad, SquareMatrix, vec3, Vector3};
+use std::ffi::CString;
+use cgmath::{Deg, Matrix, Matrix4, perspective, Rad, SquareMatrix, vec3, Vector3};
 use gl::types::*;
-use crate::NerveShader;
+use crate::{NerveCanvas, NerveShader};
 
 pub struct NerveMesh {
    pub(crate) shader: NerveShader,
@@ -44,12 +45,20 @@ impl NerveMesh {
       self.transform = pos_matrix * scale_matrix * rot_matrix;
    }
 
-   pub fn draw(&mut self) {
+   pub fn draw_to(&mut self, canvas: &NerveCanvas) {
       unsafe {
          self.calc_transform();
-
          self.shader.set();
-         self.shader.set_uniform_mat4(0, self.transform);
+
+         self.shader.set_mat4("u_Model", self.transform);
+         self.shader.set_mat4("u_Projection", canvas.cam.proj_matrix);
+
+         gl::UniformMatrix4fv(
+            2,
+            1,
+            gl::FALSE,
+            &Matrix4::from_translation(vec3(0., 0., -3.))[0][0],
+         );
 
          gl::BindVertexArray(self.vao_id);
          if self.has_indices {
