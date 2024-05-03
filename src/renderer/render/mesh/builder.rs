@@ -182,6 +182,7 @@ impl NerveMesher {
          indices_count,
          vao_id: vao,
          vbo_id: vbo,
+         ..Default::default()
       }
    }
 }

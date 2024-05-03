@@ -205,10 +205,10 @@ impl NerveCanvas {
       }
       self.is_fullscreen = !self.is_fullscreen;
    }
-   pub fn set_vsync(&mut self, vsync: Fps) {
-      self.glfw.set_swap_interval(match vsync {
-         Fps::Vsync => SwapInterval::Adaptive,
-         Fps::Max => SwapInterval::None,
+   pub fn set_vsync(&mut self, enabled: bool) {
+      self.glfw.set_swap_interval(match enabled {
+         true => SwapInterval::Adaptive,
+         false => SwapInterval::None,
       })
    }
 }

@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 glfw = "0.55.0"
 gl = "0.14.0"
+cgmath = "0.18.0"

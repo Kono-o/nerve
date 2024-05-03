@@ -1,8 +1,9 @@
+use cgmath::{Matrix, Matrix4};
 use gl::types::{GLchar, GLenum, GLint, GLuint};
 
 #[derive(Clone, Copy)]
 pub struct NerveShader {
-   program_id: GLuint,
+   pub(crate) program_id: GLuint,
 }
 
 impl NerveShader {
@@ -69,9 +70,10 @@ impl NerveShader {
    pub fn set(&self) {
       unsafe { gl::UseProgram(self.program_id) }
    }
-   pub fn uniform(&self, uniform: &mut (f32, f32, f32)) {
+
+   pub fn set_uniform_mat4(&self, location: u32, mat4: Matrix4<f32>) {
       unsafe {
-         gl::Uniform3f(0, uniform.0, uniform.1, uniform.2);
+         gl::UniformMatrix4fv(location as GLint, 1, gl::FALSE, mat4.as_ptr());
       }
    }
    pub fn kill(&self) {

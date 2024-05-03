@@ -1,5 +1,4 @@
-use std::ffi::c_void;
-use std::mem::size_of;
+use cgmath::{Matrix4, Rad, SquareMatrix, vec3, Vector3};
 use gl::types::*;
 use crate::NerveShader;
 
@@ -10,12 +9,48 @@ pub struct NerveMesh {
    pub(crate) indices_count: u32,
    pub(crate) vao_id: GLuint,
    pub(crate) vbo_id: GLuint,
+
+   pub(crate) transform: Matrix4<f32>,
+   pub(crate) position: Vector3<f32>,
+   pub(crate) rotation: Vector3<f32>,
+   pub(crate) scale: Vector3<f32>,
 }
 
+impl Default for NerveMesh {
+   fn default() -> Self {
+      Self {
+         shader: NerveShader { program_id: 0 },
+         has_indices: false,
+         vert_count: 0,
+         indices_count: 0,
+         vao_id: 0,
+         vbo_id: 0,
+         transform: Matrix4::identity(),
+         position: vec3(0.0, 0.0, 0.0),
+         rotation: vec3(0.0, 0.0, 0.0),
+         scale: vec3(1.0, 1.0, 1.0),
+      }
+   }
+}
 impl NerveMesh {
-   pub fn draw(&self) {
+   fn calc_transform(&mut self) {
+      let pos_matrix = Matrix4::<f32>::from_translation(self.position);
+      let rot_matrix = Matrix4::<f32>::from_angle_x(Rad(self.rotation.x))
+         * Matrix4::<f32>::from_angle_y(Rad(self.rotation.y))
+         * Matrix4::<f32>::from_angle_z(Rad(self.rotation.z));
+      let scale_matrix =
+         Matrix4::<f32>::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z);
+
+      self.transform = pos_matrix * scale_matrix * rot_matrix;
+   }
+
+   pub fn draw(&mut self) {
       unsafe {
+         self.calc_transform();
+
          self.shader.set();
+         self.shader.set_uniform_mat4(0, self.transform);
+
          gl::BindVertexArray(self.vao_id);
          if self.has_indices {
             gl::DrawElements(
