@@ -69,6 +69,11 @@ impl NerveShader {
    pub fn set(&self) {
       unsafe { gl::UseProgram(self.program_id) }
    }
+   pub fn uniform(&self, uniform: &mut (f32, f32, f32)) {
+      unsafe {
+         gl::Uniform3f(0, uniform.0, uniform.1, uniform.2);
+      }
+   }
    pub fn kill(&self) {
       unsafe {
          gl::DeleteProgram(self.program_id);
