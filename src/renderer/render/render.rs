@@ -1,6 +1,7 @@
 use crate::RGB;
 
 pub enum PolygonMode {
+   Points,
    WireFrame,
    Filled,
 }
@@ -21,19 +22,24 @@ impl NerveRenderer {
       }
    }
 
+   pub fn resize(width: i32, height: i32) {
+      unsafe { gl::Viewport(0, 0, width, height) }
+   }
    pub fn fill() {
       unsafe { gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT) }
    }
 
    pub fn polygon_mode(mode: PolygonMode) {
       unsafe {
-         gl::PolygonMode(
-            gl::FRONT_AND_BACK,
-            match mode {
-               PolygonMode::WireFrame => gl::LINE,
-               PolygonMode::Filled => gl::FILL,
-            },
-         )
+         match mode {
+            PolygonMode::WireFrame => gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE),
+            PolygonMode::Filled => gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL),
+
+            PolygonMode::Points => {
+               gl::PointSize(10.0);
+               gl::PolygonMode(gl::FRONT_AND_BACK, gl::POINT)
+            }
+         }
       }
    }
 }

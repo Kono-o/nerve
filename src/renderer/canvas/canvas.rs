@@ -68,11 +68,6 @@ impl NerveCanvas {
          delta: 0.0,
       }
    }
-
-   pub fn set_cam(&mut self, cam: NerveCamera) {
-      self.cam = cam
-   }
-
    fn catch_buttons(&mut self) {
       for (_f, event) in flush_messages(&self.events) {
          match event {
@@ -99,11 +94,11 @@ impl NerveCanvas {
                }
                self.mouse_to_be_reset.push(m);
             }
+            WindowEvent::FramebufferSize(w, h) => NerveRenderer::resize(w, h),
             _ => {}
          };
       }
    }
-
    fn reset_buttons(&mut self) {
       for key in &self.keys_to_be_reset {
          let key_state_in_bitmap = &mut self.key_bit_map.0[key_to_bitmap(key)];
@@ -116,7 +111,6 @@ impl NerveCanvas {
          mouse_state_in_bitmap.released = false;
       }
    }
-
    fn time_calc(&mut self) {
       self.time = self.glfw.get_time();
 
@@ -139,28 +133,27 @@ impl NerveCanvas {
       self.catch_buttons();
       NerveRenderer::fill();
    }
-
    pub fn post(&mut self) {
       self.window.swap_buffers();
       self.glfw.poll_events();
       self.reset_buttons();
    }
 
-   pub fn size(&self) -> (i32, i32) {
-      self.window.get_size()
-   }
    pub fn alive(&self) -> bool {
       !self.window.should_close()
    }
-
    pub fn kill(&mut self) {
       self.window.set_should_close(true)
    }
-
+   pub fn size(&self) -> (i32, i32) {
+      self.window.get_size()
+   }
    pub fn set_size(&mut self, width: u32, height: u32) {
       self.window.set_size(width as i32, height as i32)
    }
-
+   pub fn set_cam(&mut self, cam: NerveCamera) {
+      self.cam = cam
+   }
    pub fn key(&self, key: Key, action: Is) -> bool {
       let key_state_in_bitmap = &self.key_bit_map.0[key_to_bitmap(&key)];
       return match action {
@@ -169,7 +162,6 @@ impl NerveCanvas {
          Is::Held => key_state_in_bitmap.held,
       };
    }
-
    pub fn mouse(&self, mouse: Mouse, action: Is) -> bool {
       let mouse_state_in_bitmap = &self.mouse_bit_map.0[mouse_to_bitmap(&mouse)];
       return match action {
@@ -178,12 +170,10 @@ impl NerveCanvas {
          Is::Held => mouse_state_in_bitmap.held,
       };
    }
-
    pub fn mouse_pos(&self) -> (u32, u32) {
       let (x, y) = self.window.get_cursor_pos();
       return (x as u32, y as u32);
    }
-
    pub fn toggle_fullscreen(&mut self) {
       if self.is_fullscreen {
          self.window.set_monitor(
