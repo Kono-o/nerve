@@ -24,7 +24,7 @@ pub struct NerveCanvas {
    pub cam: NerveCamera,
    pub fps: u32,
    pub time: f64,
-   pub delta: f64,
+   pub delta: f32,
 }
 
 impl NerveCanvas {
@@ -94,7 +94,11 @@ impl NerveCanvas {
                }
                self.mouse_to_be_reset.push(m);
             }
-            WindowEvent::FramebufferSize(w, h) => NerveRenderer::resize(w, h),
+            WindowEvent::FramebufferSize(w, h) => {
+               NerveRenderer::resize(w, h);
+               self.cam.resize(w as u32, h as u32);
+               self.cam.recalc_proj()
+            }
             _ => {}
          };
       }
@@ -116,7 +120,7 @@ impl NerveCanvas {
 
       let current = self.time;
       self.frame += 1;
-      self.delta = current - self.prev_time;
+      self.delta = (current - self.prev_time) as f32;
       self.prev_time = current;
       if current - self.prev_sec >= 1.0 {
          self.fps = self.frame as u32;
@@ -132,6 +136,7 @@ impl NerveCanvas {
       self.time_calc();
       self.catch_buttons();
       NerveRenderer::fill();
+      //self.cam.recalc_view();
    }
    pub fn post(&mut self) {
       self.window.swap_buffers();

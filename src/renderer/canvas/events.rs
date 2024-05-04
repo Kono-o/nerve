@@ -1,4 +1,4 @@
-use glfw::{Action, Key, MouseButton};
+use glfw::{Key, MouseButton};
 
 #[derive(Copy, Clone)]
 pub(crate) struct ButtonState {
@@ -180,14 +180,4 @@ pub enum Is {
    Pressed,
    Released,
    Held,
-}
-
-impl Is {
-   pub(crate) fn from(act: Action) -> Self {
-      match act {
-         Action::Release => Self::Released,
-         Action::Press => Self::Pressed,
-         Action::Repeat => Self::Held,
-      }
-   }
 }

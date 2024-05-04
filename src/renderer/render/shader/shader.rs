@@ -72,8 +72,12 @@ impl NerveShader {
          };
       }
    }
-   pub fn set(&self) {
+   pub(crate) fn set(&self) {
       unsafe { gl::UseProgram(self.program_id) }
+   }
+
+   pub(crate) fn unset(&self) {
+      unsafe { gl::UseProgram(0) }
    }
 
    fn get_uniform_loc(&self, name: &str) -> GLint {
@@ -95,6 +99,7 @@ impl NerveShader {
    }
    pub fn kill(&self) {
       unsafe {
+         self.unset();
          gl::DeleteProgram(self.program_id);
       }
    }

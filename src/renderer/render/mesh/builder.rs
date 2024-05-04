@@ -94,7 +94,7 @@ impl NerveMesher {
          let stride = stride * size_of::<GLfloat>() as GLsizei;
          let mut attr_id = 0;
          let mut attr_offset = 0;
-         let mut nullptr = std::ptr::null();
+         let nullptr = std::ptr::null();
 
          if pos_exists {
             gl::VertexAttribPointer(
@@ -150,7 +150,7 @@ impl NerveMesher {
          }
 
          match &self.indices {
-            Indices(Data::Vec(vec)) => unsafe {
+            Indices(Data::Vec(vec)) => {
                has_indices = true;
 
                let mut indices: [i32; 500] = [0; 500];
@@ -168,7 +168,7 @@ impl NerveMesher {
                   &indices[0] as *const i32 as *const c_void,
                   gl::DYNAMIC_DRAW,
                );
-            },
+            }
             _ => {}
          }
          gl::BindBuffer(gl::ARRAY_BUFFER, 0);

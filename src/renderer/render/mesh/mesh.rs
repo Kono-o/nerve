@@ -1,65 +1,51 @@
-use std::ffi::CString;
-use cgmath::{Deg, Matrix, Matrix4, perspective, Rad, SquareMatrix, vec3, Vector3};
 use gl::types::*;
 use crate::{NerveCanvas, NerveShader};
+use crate::renderer::Transform;
 
+#[derive(Clone)]
 pub struct NerveMesh {
+   pub visible: bool,
+   pub(crate) alive: bool,
    pub(crate) shader: NerveShader,
+   pub transform: Transform,
+
    pub(crate) has_indices: bool,
    pub(crate) vert_count: u32,
    pub(crate) indices_count: u32,
    pub(crate) vao_id: GLuint,
    pub(crate) vbo_id: GLuint,
-
-   pub(crate) transform: Matrix4<f32>,
-   pub(crate) position: Vector3<f32>,
-   pub(crate) rotation: Vector3<f32>,
-   pub(crate) scale: Vector3<f32>,
 }
 
 impl Default for NerveMesh {
    fn default() -> Self {
       Self {
+         visible: true,
+         alive: true,
          shader: NerveShader { program_id: 0 },
+         transform: Transform::default(),
          has_indices: false,
          vert_count: 0,
          indices_count: 0,
          vao_id: 0,
          vbo_id: 0,
-         transform: Matrix4::identity(),
-         position: vec3(0.0, 0.0, 0.0),
-         rotation: vec3(0.0, 0.0, 0.0),
-         scale: vec3(1.0, 1.0, 1.0),
       }
    }
 }
 impl NerveMesh {
-   fn calc_transform(&mut self) {
-      let pos_matrix = Matrix4::<f32>::from_translation(self.position);
-      let rot_matrix = Matrix4::<f32>::from_angle_x(Rad(self.rotation.x))
-         * Matrix4::<f32>::from_angle_y(Rad(self.rotation.y))
-         * Matrix4::<f32>::from_angle_z(Rad(self.rotation.z));
-      let scale_matrix =
-         Matrix4::<f32>::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z);
-
-      self.transform = pos_matrix * scale_matrix * rot_matrix;
-   }
-
    pub fn draw_to(&mut self, canvas: &NerveCanvas) {
+      if !self.visible || !self.alive {
+         return;
+      }
+      self.transform.calc_matrix();
+      self.shader.set();
+
+      self
+         .shader
+         .set_mat4("u_MeshTransform", self.transform.matrix);
+      self.shader.set_mat4("u_CamView", canvas.cam.view_matrix);
+      self.shader.set_mat4("u_CamProj", canvas.cam.proj_matrix);
+
       unsafe {
-         self.calc_transform();
-         self.shader.set();
-
-         self.shader.set_mat4("u_Model", self.transform);
-         self.shader.set_mat4("u_Projection", canvas.cam.proj_matrix);
-
-         gl::UniformMatrix4fv(
-            2,
-            1,
-            gl::FALSE,
-            &Matrix4::from_translation(vec3(0., 0., -3.))[0][0],
-         );
-
          gl::BindVertexArray(self.vao_id);
          if self.has_indices {
             gl::DrawElements(
@@ -74,11 +60,13 @@ impl NerveMesh {
       }
    }
 
-   pub fn kill(&self) {
-      self.shader.kill();
+   pub fn kill(&mut self) {
+      self.alive = false;
       unsafe {
-         gl::DeleteVertexArrays(1, self.vao_id as *const GLuint);
-         gl::DeleteBuffers(1, self.vbo_id as *const GLuint);
+         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+         gl::BindVertexArray(0);
+         gl::DeleteVertexArrays(1, &self.vao_id);
+         gl::DeleteBuffers(1, &self.vbo_id);
       }
    }
 }

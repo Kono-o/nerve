@@ -1,6 +1,7 @@
-use cgmath::{Deg, perspective, Vector3};
+use cgmath::{Deg, Matrix4, perspective, SquareMatrix, vec3, Vector3};
 use glfw::*;
 use crate::{CamProj, NerveCamera, NerveCanvas};
+use crate::renderer::Transform;
 
 pub struct CanvasSize {
    pub width: u32,
@@ -104,15 +105,12 @@ impl NerveCanvasBuilder {
          fov: 50.0,
          clip: (0.01, 1000.0),
          proj_matrix,
-         position: Vector3 {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-         },
-         rotation: Vector3 {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
+         view_matrix: Matrix4::from_translation(vec3(0.0, 0.0, -5.0)),
+         transform: Transform {
+            matrix: Matrix4::identity(),
+            position: vec3(0.0, 0.0, -5.0),
+            rotation: vec3(0.0, 0.0, 0.0),
+            scale: vec3(0.0, 0.0, 0.0),
          },
       };
       NerveCanvas::make(glfw, window, events, is_fullscreen, camera)
