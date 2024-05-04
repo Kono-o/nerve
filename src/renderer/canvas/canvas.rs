@@ -15,6 +15,10 @@ pub struct NerveCanvas {
    mouse_to_be_reset: Vec<Mouse>,
 
    is_fullscreen: bool,
+   size: (i32, i32),
+   prev_mouse_pos: (u32, u32),
+   mouse_pos_offset: (i32, i32),
+
    prev_pos: (i32, i32),
    prev_size: (i32, i32),
    prev_time: f64,
@@ -35,6 +39,7 @@ impl NerveCanvas {
       is_fullscreen: bool,
       camera: NerveCamera,
    ) -> Self {
+      let size = window.get_size();
       Self {
          glfw,
          window,
@@ -56,7 +61,11 @@ impl NerveCanvas {
          ),
          keys_to_be_reset: Vec::new(),
          mouse_to_be_reset: Vec::new(),
+
          is_fullscreen,
+         size,
+         prev_mouse_pos: ((size.0 / 2) as u32, (size.1 / 2) as u32),
+         mouse_pos_offset: (0, 0),
          prev_time: 0.0,
          prev_sec: 0.0,
          prev_pos: (200, 200),
@@ -97,7 +106,8 @@ impl NerveCanvas {
             WindowEvent::FramebufferSize(w, h) => {
                NerveRenderer::resize(w, h);
                self.cam.resize(w as u32, h as u32);
-               self.cam.recalc_proj()
+               self.cam.recalc_proj();
+               self.size = (w, h)
             }
             _ => {}
          };
@@ -124,16 +134,25 @@ impl NerveCanvas {
       self.prev_time = current;
       if current - self.prev_sec >= 1.0 {
          self.fps = self.frame as u32;
-         println!("fps: {}", self.fps);
          self.frame = 0;
          self.prev_sec = current;
       }
+   }
+   fn mouse_offset_calc(&mut self) {
+      let (x, y) = self.mouse_pos();
+      self.mouse_pos_offset = (
+         x as i32 - self.prev_mouse_pos.0 as i32,
+         self.prev_mouse_pos.1 as i32 - y as i32,
+      );
+      self.prev_mouse_pos.0 = x;
+      self.prev_mouse_pos.1 = y;
    }
 }
 
 impl NerveCanvas {
    pub fn pre(&mut self) {
       self.time_calc();
+      self.mouse_offset_calc();
       self.catch_buttons();
       NerveRenderer::fill();
       self.cam.recalc_view();
@@ -179,6 +198,9 @@ impl NerveCanvas {
       let (x, y) = self.window.get_cursor_pos();
       return (x as u32, y as u32);
    }
+   pub fn mouse_pos_offset(&self) -> (i32, i32) {
+      return self.mouse_pos_offset;
+   }
    pub fn toggle_fullscreen(&mut self) {
       if self.is_fullscreen {
          self.window.set_monitor(
@@ -188,7 +210,7 @@ impl NerveCanvas {
             self.prev_size.0 as u32,
             self.prev_size.1 as u32,
             None,
-         )
+         );
       } else {
          self.prev_pos = self.window.get_pos();
          self.prev_size = self.window.get_size();

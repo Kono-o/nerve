@@ -1,4 +1,4 @@
-use cgmath::{Deg, Matrix4, perspective, SquareMatrix, vec3, Vector3};
+use cgmath::{Deg, Matrix4, perspective, Rad, SquareMatrix, vec3, Vector3};
 use glfw::*;
 use crate::{CamProj, NerveCamera, NerveCanvas, NerveRenderer};
 use crate::renderer::Transform;
@@ -18,18 +18,18 @@ pub enum Fps {
    Max,
 }
 
-pub struct NerveCanvasBuilder {
+pub struct NerveCanvasBuilder<'a> {
    pub opengl_version: (u32, u32),
-   pub title: String,
+   pub title: &'a str,
    pub mode: CanvasMode,
    pub fps: Fps,
 }
 
-impl Default for NerveCanvasBuilder {
+impl Default for NerveCanvasBuilder<'_> {
    fn default() -> Self {
       Self {
          opengl_version: (3, 3),
-         title: "<Nerve-Canvas>".to_string(),
+         title: "<Nerve-Canvas>",
          mode: CanvasMode::Windowed(CanvasSize {
             width: 960,
             height: 540,
@@ -59,11 +59,10 @@ fn window_init(window: &mut PWindow) {
    gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
 }
 
-impl NerveCanvasBuilder {
+impl NerveCanvasBuilder<'_> {
    pub fn build(&self) -> NerveCanvas {
       let mut glfw = glfw_init(self.opengl_version);
       let mut is_fullscreen = false;
-      let camera;
       let (mut window, events) = glfw.with_primary_monitor(|glfw, monitor| match monitor {
          None => panic!("no monitor found"),
          Some(mut monitor) => {
@@ -95,26 +94,13 @@ impl NerveCanvasBuilder {
       });
 
       let (width, height) = window.get_size();
-      let (widthf, heightf) = (width as f32, height as f32);
-      let fov = 50.0;
-      let proj_matrix = perspective(Deg(fov), widthf / heightf, 0.01, 1000.0);
-
-      camera = NerveCamera {
-         size: (width as u32, height as u32),
-         projection: CamProj::Perspective,
-         fov,
-         ortho_scale: 2.0,
-         clip: (0.01, 1000.0),
-         proj_matrix,
-         view_matrix: Matrix4::from_translation(vec3(0.0, 0.0, -5.0)),
-         transform: Transform {
-            matrix: Matrix4::identity(),
-            position: vec3(0.0, 0.0, 5.0),
-            rotation: vec3(0.0, 0.0, 0.0),
-            scale: vec3(0.0, 0.0, 0.0),
-         },
-      };
       NerveRenderer::enable_depth(true);
-      NerveCanvas::make(glfw, window, events, is_fullscreen, camera)
+      NerveCanvas::make(
+         glfw,
+         window,
+         events,
+         is_fullscreen,
+         NerveCamera::default(width, height),
+      )
    }
 }
