@@ -141,11 +141,11 @@ impl NerveCanvas {
    fn mouse_offset_calc(&mut self) {
       let (x, y) = self.mouse_pos();
       self.mouse_pos_offset = (
-         x as i32 - self.prev_mouse_pos.0 as i32,
+         x - self.prev_mouse_pos.0 as i32,
          self.prev_mouse_pos.1 as i32 - y as i32,
       );
-      self.prev_mouse_pos.0 = x;
-      self.prev_mouse_pos.1 = y;
+      self.prev_mouse_pos.0 = x as u32;
+      self.prev_mouse_pos.1 = y as u32;
    }
 }
 
@@ -194,9 +194,9 @@ impl NerveCanvas {
          Is::Held => mouse_state_in_bitmap.held,
       };
    }
-   pub fn mouse_pos(&self) -> (u32, u32) {
+   pub fn mouse_pos(&self) -> (i32, i32) {
       let (x, y) = self.window.get_cursor_pos();
-      return (x as u32, y as u32);
+      return (x as i32, y as i32);
    }
    pub fn mouse_pos_offset(&self) -> (i32, i32) {
       return self.mouse_pos_offset;
@@ -232,7 +232,6 @@ impl NerveCanvas {
       }
       self.is_fullscreen = !self.is_fullscreen;
    }
-
    pub fn set_vsync(&mut self, enabled: bool) {
       self.glfw.set_swap_interval(match enabled {
          true => SwapInterval::Adaptive,

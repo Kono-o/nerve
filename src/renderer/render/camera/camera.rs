@@ -21,7 +21,7 @@ pub struct NerveCamera {
    pub(crate) front: Vector3<f32>,
    pub(crate) proj_matrix: Matrix4<f32>,
    pub(crate) view_matrix: Matrix4<f32>,
-   pub transform: Transform,
+   pub(crate) transform: Transform,
 }
 
 impl NerveCamera {
@@ -31,13 +31,14 @@ impl NerveCamera {
       let proj_matrix = perspective(Deg(fov), widthf / heightf, 0.01, 1000.0);
 
       let pos = vec3(0.0, 0.0, 5.0);
-      let rot = vec3(0.0, 20.0, 0.0);
+      let rot = vec3(0.0, -90.0, 0.0);
 
       let pos_inverse = Matrix4::from_translation(vec3(-pos.x, -pos.y, -pos.z));
       let rot_inverse = Matrix4::<f32>::from_angle_x(Rad::from(Deg(-rot.x)))
          * Matrix4::<f32>::from_angle_y(Rad::from(Deg(-rot.y)))
          * Matrix4::<f32>::from_angle_z(Rad::from(Deg(-rot.z)));
       let view_matrix = pos_inverse * rot_inverse;
+
       Self {
          size: (width as u32, height as u32),
          projection: CamProj::Perspective,
@@ -82,17 +83,47 @@ impl NerveCamera {
    }
 
    pub(crate) fn recalc_view(&mut self) {
-      let pos_inverse = Matrix4::from_translation(vec3(
-         -self.transform.pos.x,
-         -self.transform.pos.y,
-         -self.transform.pos.z,
-      ));
-      let rot_inverse = Matrix4::<f32>::from_angle_x(Rad::from(Deg(-self.transform.rot.x)))
-         * Matrix4::<f32>::from_angle_y(Rad::from(Deg(-self.transform.rot.y)))
-         * Matrix4::<f32>::from_angle_z(Rad::from(Deg(-self.transform.rot.z)));
-      self.view_matrix = pos_inverse * rot_inverse;
+      self.update_front();
+      let eye = point3(
+         self.transform.pos.x,
+         self.transform.pos.y,
+         self.transform.pos.z,
+      );
+      let centre = point3(
+         self.front.x + eye.x,
+         self.front.y + eye.y,
+         self.front.z + eye.z,
+      );
+      self.view_matrix = Matrix4::look_at_rh(eye, centre, vec3(0.0, 1.0, 0.0));
+   }
+   pub fn fly_forw(&mut self, speed: f32) {
+      self.transform.pos += speed * self.front;
+   }
+   pub fn fly_back(&mut self, speed: f32) {
+      self.transform.pos -= speed * self.front;
+   }
+   pub fn fly_left(&mut self, speed: f32) {
+      self.transform.pos -= speed * self.front.cross(vec3(0.0, 1.0, 0.0).normalize());
+   }
+   pub fn fly_right(&mut self, speed: f32) {
+      self.transform.pos += speed * self.front.cross(vec3(0.0, 1.0, 0.0).normalize());
+   }
+   pub fn fly_up(&mut self, speed: f32) {
+      self.transform.translate_y(speed);
+   }
+   pub fn fly_down(&mut self, speed: f32) {
+      self.transform.translate_y(-speed);
    }
 
+   pub fn spin_pitch(&mut self, speed: f32) {
+      self.transform.rotate_x(speed)
+   }
+   pub fn spin_yaw(&mut self, speed: f32) {
+      self.transform.rotate_y(speed)
+   }
+   pub fn spin_roll(&mut self, speed: f32) {
+      self.transform.rotate_z(speed)
+   }
    pub fn resize(&mut self, width: u32, height: u32) {
       self.size.0 = width;
       self.size.1 = height
@@ -105,5 +136,14 @@ impl NerveCamera {
    pub fn set_fov(&mut self, fov: f32) {
       self.fov = fov;
       self.recalc_proj()
+   }
+   fn update_front(&mut self) {
+      let pitch_cos = self.transform.rot.x.to_radians().cos();
+      self.front = vec3(
+         self.transform.rot.y.to_radians().cos() * pitch_cos,
+         self.transform.rot.x.to_radians().sin(),
+         self.transform.rot.y.to_radians().sin() * pitch_cos,
+      )
+      .normalize();
    }
 }
