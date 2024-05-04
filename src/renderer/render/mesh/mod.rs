@@ -1,12 +1,12 @@
 mod mesh;
-mod builder;
+mod mesher;
 mod attr;
 
 pub use self::mesh::NerveMesh;
 pub use self::attr::*;
 
-pub use self::builder::NerveMesher;
-pub use self::builder::PositionAttr;
-pub use self::builder::ColorAttr;
-pub use self::builder::UVMapAttr;
-pub use self::builder::Indices;
+pub use self::mesher::NerveMesher;
+pub use self::mesher::PositionAttr;
+pub use self::mesher::ColorAttr;
+pub use self::mesher::UVMapAttr;
+pub use self::mesher::Indices;

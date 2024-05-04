@@ -42,4 +42,13 @@ impl NerveRenderer {
          }
       }
    }
+   pub fn enable_msaa(enable: bool) {
+      unsafe {
+         if enable {
+            gl::Enable(gl::MULTISAMPLE)
+         } else {
+            gl::Disable(gl::MULTISAMPLE)
+         }
+      }
+   }
 }

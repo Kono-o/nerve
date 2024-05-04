@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use std::mem::size_of;
 use gl::types::{GLfloat, GLint, GLsizei, GLsizeiptr};
-use crate::{Data, DataFormat, Float32x2, Float32x3, Int32, NerveMesh, NerveShader};
+use crate::{Data, DataFormat, Float32x2, Float32x3, Int32, NerveMesh, NerveShader, Transform};
 
 pub struct PositionAttr(pub Data<Float32x3>);
 pub struct ColorAttr(pub Data<Float32x3>);
@@ -12,6 +12,7 @@ pub struct CustomAttr<T: DataFormat>(pub Data<T>);
 
 pub struct NerveMesher {
    pub shader: NerveShader,
+   pub transform: Transform,
    pub pos_attr: PositionAttr,
    pub color_attr: ColorAttr,
    pub uv_attr: UVMapAttr,
@@ -19,7 +20,7 @@ pub struct NerveMesher {
 }
 
 impl NerveMesher {
-   pub fn build(&self) -> NerveMesh {
+   pub fn build(&mut self) -> NerveMesh {
       let (mut vbo, mut vao, mut ebo) = (0, 0, 0);
       let mut has_indices = false;
 
@@ -174,7 +175,7 @@ impl NerveMesher {
          gl::BindBuffer(gl::ARRAY_BUFFER, 0);
          gl::BindVertexArray(0);
       }
-
+      let _ = self.transform.calc_matrix();
       NerveMesh {
          shader: self.shader,
          has_indices,
@@ -182,6 +183,7 @@ impl NerveMesher {
          indices_count,
          vao_id: vao,
          vbo_id: vbo,
+         transform: self.transform.clone(),
          ..Default::default()
       }
    }

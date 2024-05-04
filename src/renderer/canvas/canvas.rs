@@ -136,7 +136,7 @@ impl NerveCanvas {
       self.time_calc();
       self.catch_buttons();
       NerveRenderer::fill();
-      //self.cam.recalc_view();
+      self.cam.recalc_view();
    }
    pub fn post(&mut self) {
       self.window.swap_buffers();
@@ -156,8 +156,8 @@ impl NerveCanvas {
    pub fn set_size(&mut self, width: u32, height: u32) {
       self.window.set_size(width as i32, height as i32)
    }
-   pub fn set_cam(&mut self, cam: NerveCamera) {
-      self.cam = cam
+   pub fn set_cam(&mut self, camera: NerveCamera) {
+      self.cam = camera
    }
    pub fn key(&self, key: Key, action: Is) -> bool {
       let key_state_in_bitmap = &self.key_bit_map.0[key_to_bitmap(&key)];
@@ -210,6 +210,7 @@ impl NerveCanvas {
       }
       self.is_fullscreen = !self.is_fullscreen;
    }
+
    pub fn set_vsync(&mut self, enabled: bool) {
       self.glfw.set_swap_interval(match enabled {
          true => SwapInterval::Adaptive,

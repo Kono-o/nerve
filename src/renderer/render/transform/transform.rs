@@ -1,5 +1,5 @@
 use std::ops::Add;
-use cgmath::{Matrix4, Rad, SquareMatrix, vec3, Vector3};
+use cgmath::{Deg, Matrix4, Rad, SquareMatrix, vec3, Vector3};
 
 #[derive(Clone)]
 pub struct Transform {
@@ -33,11 +33,30 @@ impl Default for Transform {
 }
 
 impl Transform {
+   pub fn with_pos(x: f32, y: f32, z: f32) -> Self {
+      Self {
+         position: vec3(x, y, z),
+         ..Default::default()
+      }
+   }
+   pub fn with_rot(x: f32, y: f32, z: f32) -> Self {
+      Self {
+         rotation: vec3(x, y, z),
+         ..Default::default()
+      }
+   }
+   pub fn with_scale(x: f32, y: f32, z: f32) -> Self {
+      Self {
+         scale: vec3(x, y, z),
+         ..Default::default()
+      }
+   }
+
    pub(crate) fn calc_matrix(&mut self) {
       let pos_matrix = Matrix4::<f32>::from_translation(self.position);
-      let rot_matrix = Matrix4::<f32>::from_angle_x(Rad(self.rotation.x))
-         * Matrix4::<f32>::from_angle_y(Rad(self.rotation.y))
-         * Matrix4::<f32>::from_angle_z(Rad(self.rotation.z));
+      let rot_matrix = Matrix4::<f32>::from_angle_x(Rad::from(Deg(self.rotation.x)))
+         * Matrix4::<f32>::from_angle_y(Rad::from(Deg(self.rotation.y)))
+         * Matrix4::<f32>::from_angle_z(Rad::from(Deg(self.rotation.z)));
       let scale_matrix =
          Matrix4::<f32>::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z);
 

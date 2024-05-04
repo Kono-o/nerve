@@ -1,4 +1,4 @@
-use cgmath::{Deg, Matrix4, ortho, perspective, Vector3};
+use cgmath::*;
 use crate::renderer::Transform;
 
 pub struct ClipDist {
@@ -15,6 +15,7 @@ pub struct NerveCamera {
    pub(crate) size: (u32, u32),
    pub(crate) projection: CamProj,
    pub(crate) fov: f32,
+   pub(crate) ortho_scale: f32,
    pub(crate) clip: (f32, f32),
 
    pub(crate) proj_matrix: Matrix4<f32>,
@@ -31,20 +32,33 @@ impl NerveCamera {
             self.clip.0,
             self.clip.1,
          ),
-         CamProj::Orthographic => ortho(
-            -1.0,
-            self.size.0 as f32 / self.size.1 as f32,
-            -1.0,
-            1.0,
-            self.clip.0,
-            self.clip.1,
-         ),
+         CamProj::Orthographic => {
+            let bound_w = (self.size.0 as f32 / self.size.1 as f32) * self.ortho_scale;
+            let bound_h = self.ortho_scale;
+            ortho(
+               -bound_w,
+               bound_w,
+               -bound_h,
+               bound_h,
+               self.clip.0,
+               self.clip.1,
+            )
+         }
       }
    }
 
    pub(crate) fn recalc_view(&mut self) {
       self.transform.calc_matrix();
-      self.view_matrix = self.transform.matrix
+      let cam_pos = point3(
+         self.transform.position.x,
+         self.transform.position.y,
+         self.transform.position.z,
+      );
+
+      let target = point3(0.0, 0.0, 0.0);
+      //let direction = (self.transform.position - target).normalize();
+
+      self.view_matrix = Matrix4::look_at_rh(cam_pos, target, vec3(0.0, 1.0, 0.0));
    }
 
    pub fn resize(&mut self, width: u32, height: u32) {

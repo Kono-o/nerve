@@ -1,6 +1,6 @@
 use cgmath::{Deg, Matrix4, perspective, SquareMatrix, vec3, Vector3};
 use glfw::*;
-use crate::{CamProj, NerveCamera, NerveCanvas};
+use crate::{CamProj, NerveCamera, NerveCanvas, NerveRenderer};
 use crate::renderer::Transform;
 
 pub struct CanvasSize {
@@ -45,7 +45,7 @@ fn glfw_init(v: (u32, u32)) -> Glfw {
       Ok(mut glfw) => {
          glfw.window_hint(WindowHint::ContextVersion(v.0, v.1));
          glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Core));
-         return glfw;
+         glfw
       }
    }
 }
@@ -96,23 +96,25 @@ impl NerveCanvasBuilder {
 
       let (width, height) = window.get_size();
       let (widthf, heightf) = (width as f32, height as f32);
-
-      let proj_matrix = perspective(Deg(50.0), widthf / heightf, 0.01, 1000.0);
+      let fov = 50.0;
+      let proj_matrix = perspective(Deg(fov), widthf / heightf, 0.01, 1000.0);
 
       camera = NerveCamera {
-         size: (width as u32, width as u32),
+         size: (width as u32, height as u32),
          projection: CamProj::Perspective,
-         fov: 50.0,
+         fov,
+         ortho_scale: 2.0,
          clip: (0.01, 1000.0),
          proj_matrix,
          view_matrix: Matrix4::from_translation(vec3(0.0, 0.0, -5.0)),
          transform: Transform {
             matrix: Matrix4::identity(),
-            position: vec3(0.0, 0.0, -5.0),
+            position: vec3(0.0, 0.0, 5.0),
             rotation: vec3(0.0, 0.0, 0.0),
             scale: vec3(0.0, 0.0, 0.0),
          },
       };
+      NerveRenderer::enable_depth(true);
       NerveCanvas::make(glfw, window, events, is_fullscreen, camera)
    }
 }
