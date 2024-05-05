@@ -2,7 +2,6 @@ use gl::types::*;
 use crate::{NerveCanvas, NerveShader};
 use crate::renderer::Transform;
 
-#[derive(Clone)]
 pub struct NerveMesh {
    pub visible: bool,
    pub(crate) alive: bool,
@@ -59,7 +58,23 @@ impl NerveMesh {
          }
       }
    }
+   pub fn set_shader(&mut self, shader: NerveShader) {
+      self.shader = shader
+   }
 
+   pub fn mimic(&mut self) -> Self {
+      Self {
+         visible: self.visible,
+         alive: self.alive,
+         shader: self.shader,
+         transform: self.transform.clone(),
+         has_indices: self.has_indices,
+         vert_count: self.vert_count,
+         indices_count: self.indices_count,
+         vao_id: self.vao_id,
+         vbo_id: self.vbo_id,
+      }
+   }
    pub fn kill(&mut self) {
       self.alive = false;
       unsafe {

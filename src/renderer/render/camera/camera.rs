@@ -115,13 +115,13 @@ impl NerveCamera {
       self.transform.translate_y(-speed);
    }
 
-   pub fn spin_pitch(&mut self, speed: f32) {
+   pub fn spin_x(&mut self, speed: f32) {
       self.transform.rotate_x(speed)
    }
-   pub fn spin_yaw(&mut self, speed: f32) {
+   pub fn spin_y(&mut self, speed: f32) {
       self.transform.rotate_y(speed)
    }
-   pub fn spin_roll(&mut self, speed: f32) {
+   pub fn spin_z(&mut self, speed: f32) {
       self.transform.rotate_z(speed)
    }
    pub fn resize(&mut self, width: u32, height: u32) {

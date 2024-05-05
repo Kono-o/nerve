@@ -5,6 +5,7 @@ pub enum PolygonMode {
    WireFrame,
    Filled,
 }
+
 pub struct NerveRenderer;
 impl NerveRenderer {
    pub fn set_bg(color: RGB) {
