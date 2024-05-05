@@ -4,10 +4,10 @@ use crate::renderer::Transform;
 
 pub struct NerveMesh {
    pub visible: bool,
-   pub(crate) alive: bool,
-   pub(crate) shader: NerveShader,
    pub transform: Transform,
 
+   pub(crate) alive: bool,
+   pub(crate) shader: NerveShader,
    pub(crate) has_indices: bool,
    pub(crate) vert_count: u32,
    pub(crate) indices_count: u32,

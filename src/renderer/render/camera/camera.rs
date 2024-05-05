@@ -5,7 +5,6 @@ pub struct ClipDist {
    pub near: f32,
    pub far: f32,
 }
-
 pub enum CamProj {
    Orthographic,
    Perspective,
@@ -56,9 +55,7 @@ impl NerveCamera {
          },
       }
    }
-}
 
-impl NerveCamera {
    pub(crate) fn recalc_proj(&mut self) {
       self.proj_matrix = match self.projection {
          CamProj::Perspective => perspective(
@@ -81,7 +78,6 @@ impl NerveCamera {
          }
       }
    }
-
    pub(crate) fn recalc_view(&mut self) {
       self.update_front();
       let eye = point3(
@@ -96,6 +92,33 @@ impl NerveCamera {
       );
       self.view_matrix = Matrix4::look_at_rh(eye, centre, vec3(0.0, 1.0, 0.0));
    }
+
+   fn update_front(&mut self) {
+      let pitch_cos = self.transform.rot.x.to_radians().cos();
+      self.front = vec3(
+         self.transform.rot.y.to_radians().cos() * pitch_cos,
+         self.transform.rot.x.to_radians().sin(),
+         self.transform.rot.y.to_radians().sin() * pitch_cos,
+      )
+      .normalize();
+   }
+}
+
+impl NerveCamera {
+   pub fn resize(&mut self, width: i32, height: i32) {
+      self.size.0 = width as u32;
+      self.size.1 = height as u32;
+      self.recalc_proj()
+   }
+   pub fn set_proj(&mut self, proj: CamProj) {
+      self.projection = proj;
+      self.recalc_proj()
+   }
+   pub fn set_fov(&mut self, fov: f32) {
+      self.fov = fov;
+      self.recalc_proj()
+   }
+
    pub fn fly_forw(&mut self, speed: f32) {
       self.transform.pos += speed * self.front;
    }
@@ -123,27 +146,5 @@ impl NerveCamera {
    }
    pub fn spin_z(&mut self, speed: f32) {
       self.transform.rotate_z(speed)
-   }
-   pub fn resize(&mut self, width: u32, height: u32) {
-      self.size.0 = width;
-      self.size.1 = height
-   }
-   pub fn set_proj(&mut self, proj: CamProj) {
-      self.projection = proj;
-      self.recalc_proj()
-   }
-
-   pub fn set_fov(&mut self, fov: f32) {
-      self.fov = fov;
-      self.recalc_proj()
-   }
-   fn update_front(&mut self) {
-      let pitch_cos = self.transform.rot.x.to_radians().cos();
-      self.front = vec3(
-         self.transform.rot.y.to_radians().cos() * pitch_cos,
-         self.transform.rot.x.to_radians().sin(),
-         self.transform.rot.y.to_radians().sin() * pitch_cos,
-      )
-      .normalize();
    }
 }

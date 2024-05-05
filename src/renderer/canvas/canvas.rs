@@ -26,6 +26,7 @@ pub struct NerveCanvas {
    frame: u64,
 
    pub cam: NerveCamera,
+   pub renderer: NerveRenderer,
    pub fps: u32,
    pub time: f64,
    pub delta: f32,
@@ -37,14 +38,16 @@ impl NerveCanvas {
       window: PWindow,
       events: GlfwReceiver<(f64, WindowEvent)>,
       is_fullscreen: bool,
-      camera: NerveCamera,
    ) -> Self {
       let size = window.get_size();
+      let mut renderer = NerveRenderer::default();
+      renderer.init();
+
       Self {
          glfw,
          window,
          events,
-         cam: camera,
+
          key_bit_map: KeyBitMap(
             [ButtonState {
                pressed: false,
@@ -72,12 +75,14 @@ impl NerveCanvas {
          prev_size: (720, 720),
          frame: 0,
 
+         cam: NerveCamera::default(size.0, size.1),
+         renderer,
          fps: 0,
          time: 0.0,
          delta: 0.0,
       }
    }
-   fn catch_buttons(&mut self) {
+   fn catch_events(&mut self) {
       for (_f, event) in flush_messages(&self.events) {
          match event {
             WindowEvent::Key(k, _, a, _) => {
@@ -104,10 +109,9 @@ impl NerveCanvas {
                self.mouse_to_be_reset.push(m);
             }
             WindowEvent::FramebufferSize(w, h) => {
-               NerveRenderer::resize(w, h);
-               self.cam.resize(w as u32, h as u32);
-               self.cam.recalc_proj();
-               self.size = (w, h)
+               self.size = (w, h);
+               self.renderer.resize(w, h);
+               self.cam.resize(w, h);
             }
             _ => {}
          };
@@ -147,20 +151,27 @@ impl NerveCanvas {
       self.prev_mouse_pos.0 = x as u32;
       self.prev_mouse_pos.1 = y as u32;
    }
+
+   fn pre_update(&mut self) {
+      self.time_calc();
+      self.catch_events();
+      self.mouse_offset_calc();
+      self.cam.recalc_view();
+      self.renderer.draw_bg();
+   }
+   fn post_update(&mut self) {
+      self.window.swap_buffers();
+      self.reset_buttons();
+      self.glfw.poll_events();
+   }
 }
 
 impl NerveCanvas {
    pub fn pre(&mut self) {
-      self.time_calc();
-      self.mouse_offset_calc();
-      self.catch_buttons();
-      NerveRenderer::fill();
-      self.cam.recalc_view();
+      self.pre_update()
    }
    pub fn post(&mut self) {
-      self.window.swap_buffers();
-      self.glfw.poll_events();
-      self.reset_buttons();
+      self.post_update()
    }
 
    pub fn alive(&self) -> bool {
@@ -172,34 +183,21 @@ impl NerveCanvas {
    pub fn size(&self) -> (i32, i32) {
       self.window.get_size()
    }
-   pub fn set_size(&mut self, width: u32, height: u32) {
+
+   pub fn resize(&mut self, width: u32, height: u32) {
       self.window.set_size(width as i32, height as i32)
    }
    pub fn set_cam(&mut self, camera: NerveCamera) {
       self.cam = camera
    }
-   pub fn key(&self, key: Key, action: Is) -> bool {
-      let key_state_in_bitmap = &self.key_bit_map.0[key_to_bitmap(&key)];
-      return match action {
-         Is::Pressed => key_state_in_bitmap.pressed,
-         Is::Released => key_state_in_bitmap.released,
-         Is::Held => key_state_in_bitmap.held,
-      };
+   pub fn set_renderer(&mut self, renderer: NerveRenderer) {
+      self.renderer = renderer
    }
-   pub fn mouse(&self, mouse: Mouse, action: Is) -> bool {
-      let mouse_state_in_bitmap = &self.mouse_bit_map.0[mouse_to_bitmap(&mouse)];
-      return match action {
-         Is::Pressed => mouse_state_in_bitmap.pressed,
-         Is::Released => mouse_state_in_bitmap.released,
-         Is::Held => mouse_state_in_bitmap.held,
-      };
-   }
-   pub fn mouse_pos(&self) -> (i32, i32) {
-      let (x, y) = self.window.get_cursor_pos();
-      return (x as i32, y as i32);
-   }
-   pub fn mouse_pos_offset(&self) -> (i32, i32) {
-      return self.mouse_pos_offset;
+   pub fn set_vsync(&mut self, enabled: bool) {
+      self.glfw.set_swap_interval(match enabled {
+         true => SwapInterval::Adaptive,
+         false => SwapInterval::None,
+      })
    }
    pub fn toggle_fullscreen(&mut self) {
       if self.is_fullscreen {
@@ -232,10 +230,28 @@ impl NerveCanvas {
       }
       self.is_fullscreen = !self.is_fullscreen;
    }
-   pub fn set_vsync(&mut self, enabled: bool) {
-      self.glfw.set_swap_interval(match enabled {
-         true => SwapInterval::Adaptive,
-         false => SwapInterval::None,
-      })
+
+   pub fn key(&self, key: Key, action: Is) -> bool {
+      let key_state_in_bitmap = &self.key_bit_map.0[key_to_bitmap(&key)];
+      return match action {
+         Is::Pressed => key_state_in_bitmap.pressed,
+         Is::Released => key_state_in_bitmap.released,
+         Is::Held => key_state_in_bitmap.held,
+      };
+   }
+   pub fn mouse(&self, mouse: Mouse, action: Is) -> bool {
+      let mouse_state_in_bitmap = &self.mouse_bit_map.0[mouse_to_bitmap(&mouse)];
+      return match action {
+         Is::Pressed => mouse_state_in_bitmap.pressed,
+         Is::Released => mouse_state_in_bitmap.released,
+         Is::Held => mouse_state_in_bitmap.held,
+      };
+   }
+   pub fn mouse_pos(&self) -> (i32, i32) {
+      let (x, y) = self.window.get_cursor_pos();
+      return (x as i32, y as i32);
+   }
+   pub fn mouse_pos_offset(&self) -> (i32, i32) {
+      return self.mouse_pos_offset;
    }
 }

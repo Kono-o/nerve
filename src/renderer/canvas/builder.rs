@@ -7,12 +7,10 @@ pub struct CanvasSize {
    pub width: u32,
    pub height: u32,
 }
-
 pub enum CanvasMode {
    Windowed(CanvasSize),
    FullScreen,
 }
-
 pub enum Fps {
    Vsync,
    Max,
@@ -23,6 +21,25 @@ pub struct NerveCanvasBuilder<'a> {
    pub title: &'a str,
    pub mode: CanvasMode,
    pub fps: Fps,
+}
+
+fn glfw_init(v: (u32, u32)) -> Glfw {
+   match init(glfw::fail_on_errors) {
+      Err(error) => panic!("glfw: {}", error),
+      Ok(mut glfw) => {
+         glfw.window_hint(WindowHint::ContextVersion(v.0, v.1));
+         glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Core));
+         glfw
+      }
+   }
+}
+fn window_init(window: &mut PWindow) {
+   window.make_current();
+   //window.set_key_polling(true);
+   window.set_framebuffer_size_polling(true);
+   //window.set_mouse_button_polling(true);
+   window.set_all_polling(true);
+   gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
 }
 
 impl Default for NerveCanvasBuilder<'_> {
@@ -38,27 +55,6 @@ impl Default for NerveCanvasBuilder<'_> {
       }
    }
 }
-
-fn glfw_init(v: (u32, u32)) -> Glfw {
-   match init(glfw::fail_on_errors) {
-      Err(error) => panic!("glfw: {}", error),
-      Ok(mut glfw) => {
-         glfw.window_hint(WindowHint::ContextVersion(v.0, v.1));
-         glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Core));
-         glfw
-      }
-   }
-}
-
-fn window_init(window: &mut PWindow) {
-   window.make_current();
-   //window.set_key_polling(true);
-   window.set_framebuffer_size_polling(true);
-   //window.set_mouse_button_polling(true);
-   window.set_all_polling(true);
-   gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
-}
-
 impl NerveCanvasBuilder<'_> {
    pub fn build(&self) -> NerveCanvas {
       let mut glfw = glfw_init(self.opengl_version);
@@ -94,13 +90,6 @@ impl NerveCanvasBuilder<'_> {
       });
 
       let (width, height) = window.get_size();
-      NerveRenderer::enable_depth(true);
-      NerveCanvas::make(
-         glfw,
-         window,
-         events,
-         is_fullscreen,
-         NerveCamera::default(width, height),
-      )
+      NerveCanvas::make(glfw, window, events, is_fullscreen)
    }
 }
