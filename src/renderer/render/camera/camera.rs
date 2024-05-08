@@ -25,6 +25,7 @@ pub struct NerveCamera {
 
 impl NerveCamera {
    pub(crate) fn default(width: i32, height: i32) -> Self {
+      
       let (widthf, heightf) = (width as f32, height as f32);
       let fov = 50.0;
       let proj_matrix = perspective(Deg(fov), widthf / heightf, 0.01, 1000.0);

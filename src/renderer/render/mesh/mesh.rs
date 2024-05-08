@@ -41,8 +41,12 @@ impl NerveMesh {
       self
          .shader
          .set_mat4("u_MeshTransform", self.transform.matrix);
-      self.shader.set_mat4("u_CamView", canvas.cam.view_matrix);
-      self.shader.set_mat4("u_CamProj", canvas.cam.proj_matrix);
+      self
+         .shader
+         .set_mat4("u_CamView", canvas.scene.cam.view_matrix);
+      self
+         .shader
+         .set_mat4("u_CamProj", canvas.scene.cam.proj_matrix);
 
       unsafe {
          gl::BindVertexArray(self.vao_id);

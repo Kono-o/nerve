@@ -1,10 +1,10 @@
 use glfw::*;
-use crate::{Is, Mouse, NerveCamera, NerveRenderer};
+use crate::{Is, Mouse, NerveCamera, NerveRenderer, Scene};
 use crate::renderer::canvas::events::{
    key_to_bitmap, KeyBitMap, ButtonState, MouseBitMap, mouse_to_bitmap,
 };
 
-pub struct NerveCanvas {
+pub struct NerveCanvas<T: Scene> {
    glfw: Glfw,
    window: PWindow,
    events: GlfwReceiver<(f64, WindowEvent)>,
@@ -25,21 +25,21 @@ pub struct NerveCanvas {
    prev_sec: f64,
    frame: u64,
 
-   pub cam: NerveCamera,
+   pub scene: T,
    pub renderer: NerveRenderer,
    pub fps: u32,
    pub time: f64,
    pub delta: f32,
 }
 
-impl NerveCanvas {
+impl NerveCanvas<_> {
    pub(crate) fn make(
       glfw: Glfw,
       window: PWindow,
       events: GlfwReceiver<(f64, WindowEvent)>,
       is_fullscreen: bool,
    ) -> Self {
-      let size = window.get_size();
+      let (w, h) = window.get_size();
       let mut renderer = NerveRenderer::default();
       renderer.init();
 
@@ -67,7 +67,7 @@ impl NerveCanvas {
 
          is_fullscreen,
          size,
-         prev_mouse_pos: ((size.0 / 2) as u32, (size.1 / 2) as u32),
+         prev_mouse_pos: ((w / 2) as u32, (h / 2) as u32),
          mouse_pos_offset: (0, 0),
          prev_time: 0.0,
          prev_sec: 0.0,
@@ -75,7 +75,7 @@ impl NerveCanvas {
          prev_size: (720, 720),
          frame: 0,
 
-         cam: NerveCamera::default(size.0, size.1),
+         scene: NerveScene::new(w, h),
          renderer,
          fps: 0,
          time: 0.0,
@@ -111,7 +111,7 @@ impl NerveCanvas {
             WindowEvent::FramebufferSize(w, h) => {
                self.size = (w, h);
                self.renderer.resize(w, h);
-               self.cam.resize(w, h);
+               self.scene.cam.resize(w, h);
             }
             _ => {}
          };
@@ -156,7 +156,7 @@ impl NerveCanvas {
       self.time_calc();
       self.catch_events();
       self.mouse_offset_calc();
-      self.cam.recalc_view();
+      self.scene.cam.recalc_view();
       self.renderer.draw_bg();
    }
    fn post_update(&mut self) {
@@ -188,7 +188,7 @@ impl NerveCanvas {
       self.window.set_size(width as i32, height as i32)
    }
    pub fn set_cam(&mut self, camera: NerveCamera) {
-      self.cam = camera
+      self.scene.cam = camera
    }
    pub fn set_renderer(&mut self, renderer: NerveRenderer) {
       self.renderer = renderer
