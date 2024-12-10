@@ -1,5 +1,6 @@
 use gl::types::*;
 use crate::{NerveCanvas, NerveShader};
+use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::renderer::Transform;
 
 pub struct NerveMesh {
@@ -10,9 +11,9 @@ pub struct NerveMesh {
    pub(crate) shader: NerveShader,
    pub(crate) has_indices: bool,
    pub(crate) vert_count: u32,
-   pub(crate) indices_count: u32,
-   pub(crate) vao_id: GLuint,
-   pub(crate) vbo_id: GLuint,
+   pub(crate) ind_count: u32,
+   pub(crate) vert_object: GLVerts,
+   pub(crate) index_object: GLIndices,
 }
 
 impl Default for NerveMesh {
@@ -24,9 +25,9 @@ impl Default for NerveMesh {
          transform: Transform::default(),
          has_indices: false,
          vert_count: 0,
-         indices_count: 0,
-         vao_id: 0,
-         vbo_id: 0,
+         ind_count: 0,
+         vert_object: GLVerts::new(),
+         index_object: GLIndices::new(),
       }
    }
 }
@@ -44,12 +45,13 @@ impl NerveMesh {
       self.shader.set_mat4("u_CamView", canvas.cam.view_matrix);
       self.shader.set_mat4("u_CamProj", canvas.cam.proj_matrix);
 
+      self.vert_object.bind();
+      self.index_object.bind();
       unsafe {
-         gl::BindVertexArray(self.vao_id);
          if self.has_indices {
             gl::DrawElements(
                gl::TRIANGLES,
-               self.indices_count as GLsizei,
+               self.ind_count as GLsizei,
                gl::UNSIGNED_INT,
                std::ptr::null(),
             );
@@ -62,26 +64,32 @@ impl NerveMesh {
       self.shader = shader
    }
 
-   pub fn mimic(&mut self) -> Self {
-      Self {
+   pub fn mimic(&mut self) -> NerveMesh {
+      NerveMesh {
          visible: self.visible,
+         transform: self.transform.clone(),
          alive: self.alive,
          shader: self.shader,
-         transform: self.transform.clone(),
          has_indices: self.has_indices,
          vert_count: self.vert_count,
-         indices_count: self.indices_count,
-         vao_id: self.vao_id,
-         vbo_id: self.vbo_id,
+         ind_count: self.ind_count,
+         vert_object: GLVerts {
+            vao: self.vert_object.vao,
+            vbo: self.vert_object.vbo,
+            attrib_id: self.vert_object.attrib_id,
+            local_offset: self.vert_object.local_offset,
+         },
+         index_object: GLIndices {
+            ebo: self.index_object.ebo,
+         },
       }
    }
+
    pub fn kill(&mut self) {
       self.alive = false;
       unsafe {
-         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-         gl::BindVertexArray(0);
-         gl::DeleteVertexArrays(1, &self.vao_id);
-         gl::DeleteBuffers(1, &self.vbo_id);
+         self.vert_object.delete();
+         self.index_object.delete();
       }
    }
 }

@@ -1,12 +1,14 @@
 mod mesh;
-mod mesher;
 mod attr;
+mod mesher;
+mod glbuffers;
 
-pub use self::mesh::NerveMesh;
-pub use self::attr::*;
+pub use mesh::NerveMesh;
+pub use attr::*;
 
-pub use self::mesher::NerveMesher;
-pub use self::mesher::PositionAttr;
-pub use self::mesher::ColorAttr;
-pub use self::mesher::UVMapAttr;
-pub use self::mesher::Indices;
+pub use mesher::NerveMesher;
+pub use mesher::PositionAttr;
+pub use mesher::ColorAttr;
+pub use mesher::UVMapAttr;
+pub use mesher::CustomAttr;
+pub use mesher::Indices;

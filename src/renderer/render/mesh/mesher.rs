@@ -1,188 +1,125 @@
-use std::ffi::c_void;
 use std::mem::size_of;
-use gl::types::{GLfloat, GLint, GLsizei, GLsizeiptr};
-use crate::{Data, DataFormat, Float32x2, Float32x3, Int32, NerveMesh, NerveShader, Transform};
+use gl::types::{GLfloat, GLsizei};
+use crate::*;
+use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
 
-pub struct PositionAttr(pub Data<Float32x3>);
-pub struct ColorAttr(pub Data<Float32x3>);
-pub struct UVMapAttr(pub Data<Float32x2>);
-pub struct Indices(pub Data<Int32>);
+pub struct PositionAttr(pub AttrData<Float32x3>);
+pub struct ColorAttr(pub AttrData<Float32x3>);
+pub struct UVMapAttr(pub AttrData<Float32x2>);
+pub struct Indices(pub AttrData<Int32>);
 
-pub struct CustomAttr<T: DataFormat>(pub Data<T>);
+pub struct CustomAttr<T: DataFormat>(pub AttrData<T>);
 
 pub struct NerveMesher {
    pub shader: NerveShader,
    pub transform: Transform,
-   pub pos_attr: PositionAttr,
-   pub color_attr: ColorAttr,
-   pub uv_attr: UVMapAttr,
+   pub pos_attr: PositionAttr, //Float32x3
+   pub color_attr: ColorAttr,  //Float32x3
+   pub uv_attr: UVMapAttr,     //Int32
+   pub custom_attr_i32: CustomAttr<Int32>,
+   pub custom_attr_i8x2: CustomAttr<Int8x2>,
    pub indices: Indices,
+}
+impl Default for NerveMesher {
+   fn default() -> Self {
+      NerveMesher {
+         shader: NerveShader { program_id: 0 },
+         transform: Default::default(),
+         pos_attr: PositionAttr(AttrData::Empty),
+         color_attr: ColorAttr(AttrData::Empty),
+         uv_attr: UVMapAttr(AttrData::Empty),
+         custom_attr_i32: CustomAttr(AttrData::Empty),
+         custom_attr_i8x2: CustomAttr(AttrData::Empty),
+         indices: Indices(AttrData::Empty),
+      }
+   }
 }
 
 impl NerveMesher {
    pub fn build(&mut self) -> NerveMesh {
-      let (mut vbo, mut vao, mut ebo) = (0, 0, 0);
-      let mut has_indices = false;
+      let mut gl_vert_obj = GLVerts::new();
+      let mut gl_indices_obj = GLIndices::new();
 
-      unsafe {
-         gl::GenVertexArrays(1, &mut vao);
-         gl::GenBuffers(1, &mut vbo);
+      let mut pos_data = self.pos_attr.0.got_data();
+      let mut col_data = self.color_attr.0.got_data();
+      let mut uvm_data = self.uv_attr.0.got_data();
+      let mut ind_data = self.indices.0.got_data();
 
-         gl::BindVertexArray(vao);
-         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-      }
+      let mut pcu_vec = Vec::new();
 
-      let mut pos_vec = &Vec::new();
-      let mut pos_exists = false;
-      let mut col_vec = &Vec::new();
-      let mut col_exists = false;
-      let mut uvm_vec = &Vec::new();
-      let mut uvm_exists = false;
-
-      let mut stride = 0;
-      match &self.pos_attr {
-         PositionAttr(Data::Vec(v)) => {
-            pos_exists = true;
-            stride += 3;
-            pos_vec = v
-         }
-         _ => {}
-      }
-      match &self.color_attr {
-         ColorAttr(Data::Vec(v)) => {
-            col_exists = true;
-            stride += 3;
-            col_vec = v
-         }
-         _ => {}
-      }
-      match &self.uv_attr {
-         UVMapAttr(Data::Vec(v)) => {
-            uvm_exists = true;
-            stride += 3;
-            uvm_vec = v
-         }
-         _ => {}
-      }
-
-      let mut buffer_vec = Vec::new();
       let mut vert_count: u32 = 0;
-      let mut indices_count = 0;
-      for (i, pos) in pos_vec.iter().enumerate() {
-         vert_count += 1;
-         buffer_vec.push(pos.0);
-         buffer_vec.push(pos.1);
-         buffer_vec.push(pos.2);
-         if col_exists {
-            buffer_vec.push(col_vec[i].0);
-            buffer_vec.push(col_vec[i].1);
-            buffer_vec.push(col_vec[i].2);
+      let mut ind_count = 0;
+      let mut has_indices = false;
+      let mut stride = 0;
+
+      if pos_data.is_some() {
+         let pos_data = pos_data.unwrap();
+         stride += 3;
+         let (mut col_exists, mut uvm_exists) = (false, false);
+         let mut col_vec = &Vec::new();
+         let mut uvm_vec = &Vec::new();
+         if col_data.is_some() {
+            col_exists = true;
+            col_vec = col_data.unwrap();
+            stride += 3;
          }
-         if uvm_exists {
-            buffer_vec.push(uvm_vec[i].0);
-            buffer_vec.push(uvm_vec[i].1);
+         if uvm_data.is_some() {
+            uvm_exists = true;
+            uvm_vec = uvm_data.unwrap();
+            stride += 2;
          }
-      }
-
-      unsafe {
-         gl::BufferData(
-            gl::ARRAY_BUFFER,
-            (buffer_vec.len() * size_of::<GLfloat>()) as GLsizeiptr,
-            &buffer_vec[0] as *const f32 as *const c_void,
-            gl::DYNAMIC_DRAW,
-         );
-
-         let stride = stride * size_of::<GLfloat>() as GLsizei;
-         let mut attr_id = 0;
-         let mut attr_offset = 0;
-         let nullptr = std::ptr::null();
-
-         if pos_exists {
-            gl::VertexAttribPointer(
-               attr_id,
-               3,
-               gl::FLOAT,
-               gl::FALSE,
-               stride,
-               match attr_offset {
-                  0 => nullptr,
-                  _ => attr_offset as *const c_void,
-               },
-            );
-            gl::EnableVertexAttribArray(attr_id);
-            attr_id += 1;
-            attr_offset = 3 * size_of::<GLfloat>();
-         }
-         if col_exists {
-            gl::VertexAttribPointer(
-               attr_id,
-               3,
-               gl::FLOAT,
-               gl::FALSE,
-               stride,
-               match attr_offset {
-                  0 => nullptr,
-                  _ => attr_offset as *const c_void,
-               },
-            );
-            gl::EnableVertexAttribArray(attr_id);
-            attr_id += 1;
-            attr_offset = attr_offset + (3 * size_of::<GLfloat>());
-         }
-
-         if uvm_exists {
-            gl::VertexAttribPointer(
-               attr_id,
-               2,
-               gl::FLOAT,
-               gl::FALSE,
-               stride,
-               match attr_offset {
-                  0 => nullptr,
-                  _ => attr_offset as *const c_void,
-               },
-            );
-            gl::EnableVertexAttribArray(attr_id);
-            attr_id += 1;
-            attr_offset = attr_offset + (2 * size_of::<GLfloat>());
-
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-            gl::BindVertexArray(0);
-         }
-
-         match &self.indices {
-            Indices(Data::Vec(vec)) => {
-               has_indices = true;
-
-               let mut indices: [i32; 500] = [0; 500];
-
-               for (i, index) in vec.iter().enumerate() {
-                  indices[i] = *index;
-                  indices_count += 1;
-               }
-
-               gl::GenBuffers(1, &mut ebo);
-               gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
-               gl::BufferData(
-                  gl::ELEMENT_ARRAY_BUFFER,
-                  (indices.len() * size_of::<GLint>()) as GLsizeiptr,
-                  &indices[0] as *const i32 as *const c_void,
-                  gl::DYNAMIC_DRAW,
-               );
+         for (i, pos) in pos_data.iter().enumerate() {
+            vert_count += 1;
+            pcu_vec.push(pos.0);
+            pcu_vec.push(pos.1);
+            pcu_vec.push(pos.2);
+            if col_exists {
+               pcu_vec.push(col_vec[i].0);
+               pcu_vec.push(col_vec[i].1);
+               pcu_vec.push(col_vec[i].2);
             }
-            _ => {}
+            if uvm_exists {
+               pcu_vec.push(uvm_vec[i].0);
+               pcu_vec.push(uvm_vec[i].1);
+            }
          }
-         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-         gl::BindVertexArray(0);
+         gl_vert_obj.bind();
+         gl_vert_obj.fill(&pcu_vec);
+         stride = stride * size_of::<GLfloat>() as GLsizei;
+         //POS
+         gl_vert_obj.gen_ptr(3, gl::FLOAT, stride);
+         //COL
+         if col_exists {
+            gl_vert_obj.gen_ptr(3, gl::FLOAT, stride);
+         }
+         //UVM
+         if uvm_exists {
+            gl_vert_obj.gen_ptr(2, gl::FLOAT, stride);
+         }
+         gl_vert_obj.unbind();
+
+         if ind_data.is_some() {
+            has_indices = true;
+            let ind_data = ind_data.unwrap();
+
+            let mut ind_vec = Vec::new();
+            for (i, index) in ind_data.iter().enumerate() {
+               ind_count += 1;
+               ind_vec.push(*index);
+            }
+            gl_indices_obj.bind();
+            gl_indices_obj.fill(&ind_vec);
+            gl_indices_obj.unbind();
+         }
       }
-      let _ = self.transform.calc_matrix();
+      self.transform.calc_matrix();
       NerveMesh {
          shader: self.shader,
          has_indices,
          vert_count,
-         indices_count,
-         vao_id: vao,
-         vbo_id: vbo,
+         ind_count,
+         vert_object: gl_vert_obj,
+         index_object: gl_indices_obj,
          transform: self.transform.clone(),
          ..Default::default()
       }

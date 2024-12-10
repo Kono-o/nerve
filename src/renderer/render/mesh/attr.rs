@@ -107,7 +107,16 @@ impl DataFormat for Float64x3 {}
 pub type Float64x4 = (f64, f64, f64, f64);
 impl DataFormat for Float64x4 {}
 
-pub enum Data<T: DataFormat> {
-   None,
+pub enum AttrData<T: DataFormat> {
+   Empty,
    Vec(Vec<T>),
+}
+
+impl<T: DataFormat> AttrData<T> {
+   pub(crate) fn got_data(&self) -> Option<&Vec<T>> {
+      match self {
+         AttrData::Vec(v) => Some(v),
+         _ => None,
+      }
+   }
 }
