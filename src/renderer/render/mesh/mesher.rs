@@ -1,5 +1,3 @@
-use std::mem::size_of;
-use gl::types::{GLfloat, GLsizei};
 use crate::*;
 use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
 
@@ -14,10 +12,8 @@ pub struct NerveMesher {
    pub shader: NerveShader,
    pub transform: Transform,
    pub pos_attr: PositionAttr, //Float32x3
-   pub color_attr: ColorAttr,  //Float32x3
-   pub uv_attr: UVMapAttr,     //Int32
-   pub custom_attr_i32: CustomAttr<Int32>,
-   pub custom_attr_i8x2: CustomAttr<Int8x2>,
+   pub col_attr: ColorAttr,    //Float32x3
+   pub uvm_attr: UVMapAttr,    //Int32
    pub indices: Indices,
 }
 impl Default for NerveMesher {
@@ -26,10 +22,8 @@ impl Default for NerveMesher {
          shader: NerveShader { program_id: 0 },
          transform: Default::default(),
          pos_attr: PositionAttr(AttrData::Empty),
-         color_attr: ColorAttr(AttrData::Empty),
-         uv_attr: UVMapAttr(AttrData::Empty),
-         custom_attr_i32: CustomAttr(AttrData::Empty),
-         custom_attr_i8x2: CustomAttr(AttrData::Empty),
+         col_attr: ColorAttr(AttrData::Empty),
+         uvm_attr: UVMapAttr(AttrData::Empty),
          indices: Indices(AttrData::Empty),
       }
    }
@@ -40,70 +34,76 @@ impl NerveMesher {
       let mut gl_vert_obj = GLVerts::new();
       let mut gl_indices_obj = GLIndices::new();
 
-      let mut pos_data = self.pos_attr.0.got_data();
-      let mut col_data = self.color_attr.0.got_data();
-      let mut uvm_data = self.uv_attr.0.got_data();
-      let mut ind_data = self.indices.0.got_data();
+      let mut pos_data = self.pos_attr.0.get();
+      let mut col_data = self.col_attr.0.get();
+      let mut uvm_data = self.uvm_attr.0.get();
+      let mut ind_data = self.indices.0.get();
 
+      let (mut pos_bytes, mut pos_elems) = (0, 0);
+      let (mut col_bytes, mut col_elems) = (0, 0);
+      let (mut uvm_bytes, mut uvm_elems) = (0, 0);
+      let (mut col_exists, mut uvm_exists) = (false, false);
+
+      let mut pos_vec = &Vec::new();
+      let mut col_vec = &Vec::new();
+      let mut uvm_vec = &Vec::new();
       let mut pcu_vec = Vec::new();
 
       let mut vert_count: u32 = 0;
-      let mut ind_count = 0;
       let mut has_indices = false;
+      let mut ind_count = 0;
       let mut stride = 0;
 
       if pos_data.is_some() {
-         let pos_data = pos_data.unwrap();
-         stride += 3;
-         let (mut col_exists, mut uvm_exists) = (false, false);
-         let mut col_vec = &Vec::new();
-         let mut uvm_vec = &Vec::new();
+         pos_vec = pos_data.unwrap();
+         (pos_bytes, pos_elems) = get_format(&pos_vec[0]);
+         stride += pos_elems * pos_bytes;
+
          if col_data.is_some() {
-            col_exists = true;
             col_vec = col_data.unwrap();
-            stride += 3;
+            (col_bytes, col_elems) = get_format(&col_vec[0]);
+            stride += col_elems * col_bytes;
+            col_exists = true;
          }
          if uvm_data.is_some() {
-            uvm_exists = true;
             uvm_vec = uvm_data.unwrap();
-            stride += 2;
+            (uvm_bytes, uvm_elems) = get_format(&uvm_vec[0]);
+            stride += uvm_elems * uvm_bytes;
+            uvm_exists = true;
          }
-         for (i, pos) in pos_data.iter().enumerate() {
+         for (i, pos) in pos_vec.iter().enumerate() {
             vert_count += 1;
-            pcu_vec.push(pos.0);
-            pcu_vec.push(pos.1);
-            pcu_vec.push(pos.2);
+            pcu_vec.push(pos.0.to_bits());
+            pcu_vec.push(pos.1.to_bits());
+            pcu_vec.push(pos.2.to_bits());
             if col_exists {
-               pcu_vec.push(col_vec[i].0);
-               pcu_vec.push(col_vec[i].1);
-               pcu_vec.push(col_vec[i].2);
+               pcu_vec.push(col_vec[i].0.to_bits());
+               pcu_vec.push(col_vec[i].1.to_bits());
+               pcu_vec.push(col_vec[i].2.to_bits());
             }
             if uvm_exists {
-               pcu_vec.push(uvm_vec[i].0);
-               pcu_vec.push(uvm_vec[i].1);
+               pcu_vec.push(uvm_vec[i].0.to_bits());
+               pcu_vec.push(uvm_vec[i].1.to_bits());
             }
          }
          gl_vert_obj.bind();
          gl_vert_obj.fill(&pcu_vec);
-         stride = stride * size_of::<GLfloat>() as GLsizei;
          //POS
-         gl_vert_obj.gen_ptr(3, gl::FLOAT, stride);
-         //COL
-         if col_exists {
-            gl_vert_obj.gen_ptr(3, gl::FLOAT, stride);
-         }
-         //UVM
-         if uvm_exists {
-            gl_vert_obj.gen_ptr(2, gl::FLOAT, stride);
+         gl_vert_obj.gen_ptr(pos_elems, gl::FLOAT, stride);
+         match (col_exists, uvm_exists) {
+            //COL UVM
+            (true, _) => gl_vert_obj.gen_ptr(col_elems, gl::FLOAT, stride),
+            (_, true) => gl_vert_obj.gen_ptr(uvm_elems, gl::FLOAT, stride),
+            _ => {}
          }
          gl_vert_obj.unbind();
 
          if ind_data.is_some() {
-            has_indices = true;
             let ind_data = ind_data.unwrap();
+            has_indices = true;
 
             let mut ind_vec = Vec::new();
-            for (i, index) in ind_data.iter().enumerate() {
+            for index in ind_data.iter() {
                ind_count += 1;
                ind_vec.push(*index);
             }

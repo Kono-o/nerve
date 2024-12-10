@@ -4,6 +4,7 @@ mod mesher;
 mod glbuffers;
 
 pub use mesh::NerveMesh;
+pub use mesh::DrawMode;
 pub use attr::*;
 
 pub use mesher::NerveMesher;

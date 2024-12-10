@@ -3,9 +3,28 @@ use crate::{NerveCanvas, NerveShader};
 use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::renderer::Transform;
 
+pub enum DrawMode {
+   Points,
+   Lines,
+   Triangles,
+   Strip,
+}
+
+impl DrawMode {
+   pub(crate) fn gl_enum(&self) -> GLenum {
+      match self {
+         DrawMode::Points => gl::POINTS,
+         DrawMode::Lines => gl::LINES,
+         DrawMode::Triangles => gl::TRIANGLES,
+         DrawMode::Strip => gl::TRIANGLE_STRIP,
+      }
+   }
+}
+
 pub struct NerveMesh {
    pub visible: bool,
    pub transform: Transform,
+   pub draw_mode: DrawMode,
 
    pub(crate) alive: bool,
    pub(crate) shader: NerveShader,
@@ -28,6 +47,7 @@ impl Default for NerveMesh {
          ind_count: 0,
          vert_object: GLVerts::new(),
          index_object: GLIndices::new(),
+         draw_mode: DrawMode::Triangles,
       }
    }
 }
@@ -50,13 +70,13 @@ impl NerveMesh {
       unsafe {
          if self.has_indices {
             gl::DrawElements(
-               gl::TRIANGLES,
+               self.draw_mode.gl_enum(),
                self.ind_count as GLsizei,
                gl::UNSIGNED_INT,
                std::ptr::null(),
             );
          } else {
-            gl::DrawArrays(gl::TRIANGLES, 0, self.vert_count as GLsizei);
+            gl::DrawArrays(self.draw_mode.gl_enum(), 0, self.vert_count as GLsizei);
          }
       }
    }
@@ -68,6 +88,7 @@ impl NerveMesh {
       NerveMesh {
          visible: self.visible,
          transform: self.transform.clone(),
+         draw_mode: DrawMode::Triangles,
          alive: self.alive,
          shader: self.shader,
          has_indices: self.has_indices,
