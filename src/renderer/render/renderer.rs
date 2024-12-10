@@ -19,6 +19,7 @@ pub struct NerveRenderer {
    pub msaa_samples: u32,
    pub culling: bool,
    pub cull_face: Cull,
+   pub poly_mode: PolyMode,
 }
 
 impl Default for NerveRenderer {
@@ -31,6 +32,7 @@ impl Default for NerveRenderer {
          msaa_samples: 4,
          culling: true,
          cull_face: Cull::AntiClock,
+         poly_mode: PolyMode::Filled,
       }
    }
 }
@@ -44,6 +46,19 @@ impl NerveRenderer {
    }
    pub fn set_cull_face(&mut self, cull_face: Cull) {
       self.cull_face = cull_face
+   }
+   pub fn set_poly_mode(&mut self, mode: PolyMode) {
+      self.poly_mode = mode;
+      unsafe {
+         match self.poly_mode {
+            PolyMode::WireFrame => gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE),
+            PolyMode::Filled => gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL),
+            PolyMode::Points => {
+               gl::PointSize(10.0);
+               gl::PolygonMode(gl::FRONT_AND_BACK, gl::POINT)
+            }
+         }
+      }
    }
 
    pub fn enable_depth(&mut self, enable: bool) {
@@ -96,18 +111,6 @@ impl NerveRenderer {
             match self.depth {
                true => gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT),
                false => gl::Clear(gl::COLOR_BUFFER_BIT),
-            }
-         }
-      }
-   }
-   pub(crate) fn set_poly_mode(mode: PolyMode) {
-      unsafe {
-         match mode {
-            PolyMode::WireFrame => gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE),
-            PolyMode::Filled => gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL),
-            PolyMode::Points => {
-               gl::PointSize(10.0);
-               gl::PolygonMode(gl::FRONT_AND_BACK, gl::POINT)
             }
          }
       }

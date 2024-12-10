@@ -1,7 +1,5 @@
-use cgmath::{Deg, Matrix4, perspective, Rad, SquareMatrix, vec3, Vector3};
 use glfw::*;
-use crate::{CamProj, NerveCamera, NerveCanvas, NerveRenderer};
-use crate::renderer::Transform;
+use crate::NerveCanvas;
 
 pub struct CanvasSize {
    pub width: u32,
@@ -35,10 +33,8 @@ fn glfw_init(v: (u32, u32)) -> Glfw {
 }
 fn window_init(window: &mut PWindow) {
    window.make_current();
-   //window.set_key_polling(true);
-   window.set_framebuffer_size_polling(true);
-   //window.set_mouse_button_polling(true);
    window.set_all_polling(true);
+   window.set_framebuffer_size_polling(true);
    gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
 }
 
@@ -88,8 +84,6 @@ impl NerveCanvasBuilder<'_> {
          Fps::Vsync => SwapInterval::Adaptive,
          Fps::Max => SwapInterval::None,
       });
-
-      let (width, height) = window.get_size();
       NerveCanvas::make(glfw, window, events, is_fullscreen)
    }
 }

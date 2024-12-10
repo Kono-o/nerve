@@ -193,7 +193,7 @@ impl NerveCanvas {
    pub fn set_renderer(&mut self, renderer: NerveRenderer) {
       self.renderer = renderer
    }
-   pub fn set_vsync(&mut self, enabled: bool) {
+   pub fn enable_vsync(&mut self, enabled: bool) {
       self.glfw.set_swap_interval(match enabled {
          true => SwapInterval::Adaptive,
          false => SwapInterval::None,
