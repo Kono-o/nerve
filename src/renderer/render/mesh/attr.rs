@@ -1,52 +1,59 @@
 use std::any::TypeId;
 
+macro_rules! attribute {
+   ($attr:ident, $type:ty) => {
+      pub struct $attr(pub AttrData<$type>);
+      impl $attr {
+         pub fn from(vec: Vec<$type>) -> $attr {
+            $attr(AttrData::Vec(vec))
+         }
+
+         pub fn empty() -> $attr {
+            $attr(AttrData::Empty)
+         }
+      }
+   };
+}
+
 pub trait DataFormat {}
+macro_rules! data_format {
+   ($type_n: ident,$type_s: ty) => {
+      pub type $type_n = $type_s;
+      impl DataFormat for $type_n {}
+   };
+}
 
-pub type Uint8x2 = (u8, u8);
-impl DataFormat for Uint8x2 {}
-pub type Uint8x4 = (u8, u8, u8, u8);
-impl DataFormat for Uint8x4 {}
+attribute!(PositionAttr, Float32x3);
+attribute!(ColorAttr, Float32x3);
+attribute!(UVMapAttr, Float32x2);
+attribute!(NormalAttr, Float32x3);
+attribute!(Indices, Int32);
 
-pub type Int8x2 = (i8, i8);
-impl DataFormat for Int8x2 {}
-pub type Int8x4 = (i8, i8, i8, i8);
-impl DataFormat for Int8x4 {}
+data_format!(Uint8x2, (u8, u8));
+data_format!(Uint8x4, (u8, u8, u8, u8));
 
-pub type Uint32 = u32;
-impl DataFormat for Uint32 {}
-pub type Uint32x2 = (u32, u32);
-impl DataFormat for Uint32x2 {}
-pub type Uint32x3 = (u32, u32, u32);
-impl DataFormat for Uint32x3 {}
-pub type Uint32x4 = (u32, u32, u32, u32);
-impl DataFormat for Uint32x4 {}
+data_format!(Int8x2, (i8, i8));
+data_format!(Int8x4, (i8, i8, i8, i8));
 
-pub type Int32 = i32;
-impl DataFormat for Int32 {}
-pub type Int32x2 = (i32, i32);
-impl DataFormat for Int32x2 {}
-pub type Int32x3 = (i32, i32, i32);
-impl DataFormat for Int32x3 {}
-pub type Int32x4 = (i32, i32, i32, i32);
-impl DataFormat for Int32x4 {}
+data_format!(Uint32, u32);
+data_format!(Uint32x2, (u32, u32));
+data_format!(Uint32x3, (u32, u32, u32));
+data_format!(Uint32x4, (u32, u32, u32, u32));
 
-pub type Float32 = f32;
-impl DataFormat for Float32 {}
-pub type Float32x2 = (f32, f32);
-impl DataFormat for Float32x2 {}
-pub type Float32x3 = (f32, f32, f32);
-impl DataFormat for Float32x3 {}
-pub type Float32x4 = (f32, f32, f32, f32);
-impl DataFormat for Float32x4 {}
+data_format!(Int32, i32);
+data_format!(Int32x2, (i32, i32));
+data_format!(Int32x3, (i32, i32, i32));
+data_format!(Int32x4, (i32, i32, i32, i32));
 
-pub type Float64 = f64;
-impl DataFormat for Float64 {}
-pub type Float64x2 = (f64, f64);
-impl DataFormat for Float64x2 {}
-pub type Float64x3 = (f64, f64, f64);
-impl DataFormat for Float64x3 {}
-pub type Float64x4 = (f64, f64, f64, f64);
-impl DataFormat for Float64x4 {}
+data_format!(Float32, f32);
+data_format!(Float32x2, (f32, f32));
+data_format!(Float32x3, (f32, f32, f32));
+data_format!(Float32x4, (f32, f32, f32, f32));
+
+data_format!(Float64, f64);
+data_format!(Float64x2, (f64, f64));
+data_format!(Float64x3, (f64, f64, f64));
+data_format!(Float64x4, (f64, f64, f64, f64));
 
 // returns (bytes in 1 element, no of elements)
 pub(crate) fn get_format<T: DataFormat + 'static>(_t: &T) -> (usize, usize) {

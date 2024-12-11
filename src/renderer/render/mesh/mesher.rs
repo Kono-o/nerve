@@ -1,19 +1,13 @@
-use crate::*;
+use crate::renderer::render::mesh::attr::{get_format, AttrData};
 use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
-
-pub struct PositionAttr(pub AttrData<Float32x3>);
-pub struct ColorAttr(pub AttrData<Float32x3>);
-pub struct UVMapAttr(pub AttrData<Float32x2>);
-pub struct Indices(pub AttrData<Int32>);
-
-pub struct CustomAttr<T: DataFormat>(pub AttrData<T>);
+use crate::*;
 
 pub struct NerveMesher {
    pub shader: NerveShader,
    pub transform: Transform,
-   pub pos_attr: PositionAttr, //Float32x3
-   pub col_attr: ColorAttr,    //Float32x3
-   pub uvm_attr: UVMapAttr,    //Int32
+   pub pos_attr: PositionAttr,
+   pub col_attr: ColorAttr,
+   pub uvm_attr: UVMapAttr,
    pub indices: Indices,
 }
 impl Default for NerveMesher {
@@ -34,17 +28,20 @@ impl NerveMesher {
       let mut gl_vert_obj = GLVerts::new();
       let mut gl_indices_obj = GLIndices::new();
 
-      let mut pos_data = self.pos_attr.0.get();
-      let mut col_data = self.col_attr.0.get();
-      let mut uvm_data = self.uvm_attr.0.get();
-      let mut ind_data = self.indices.0.get();
+      let pos_data = self.pos_attr.0.get();
+      let col_data = self.col_attr.0.get();
+      let uvm_data = self.uvm_attr.0.get();
+      let ind_data = self.indices.0.get();
 
-      let (mut pos_bytes, mut pos_elems) = (0, 0);
-      let (mut col_bytes, mut col_elems) = (0, 0);
-      let (mut uvm_bytes, mut uvm_elems) = (0, 0);
+      let pos_bytes;
+      let col_bytes;
+      let uvm_bytes;
+      let pos_elems;
+      let mut col_elems = 0;
+      let mut uvm_elems = 0;
       let (mut col_exists, mut uvm_exists) = (false, false);
 
-      let mut pos_vec = &Vec::new();
+      let pos_vec;
       let mut col_vec = &Vec::new();
       let mut uvm_vec = &Vec::new();
       let mut pcu_vec = Vec::new();

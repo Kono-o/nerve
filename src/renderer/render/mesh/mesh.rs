@@ -1,7 +1,7 @@
-use gl::types::*;
-use crate::{NerveCanvas, NerveShader};
 use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::renderer::Transform;
+use crate::{NerveCanvas, NerveShader};
+use gl::types::*;
 
 pub enum DrawMode {
    Points,
@@ -108,9 +108,7 @@ impl NerveMesh {
 
    pub fn kill(&mut self) {
       self.alive = false;
-      unsafe {
-         self.vert_object.delete();
-         self.index_object.delete();
-      }
+      self.vert_object.delete();
+      self.index_object.delete();
    }
 }
