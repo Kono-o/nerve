@@ -8,6 +8,7 @@ pub struct NerveMesher {
    pub pos_attr: PositionAttr,
    pub col_attr: ColorAttr,
    pub uvm_attr: UVMapAttr,
+   pub nrm_attr: NormalAttr,
    pub indices: Indices,
 }
 impl Default for NerveMesher {
@@ -18,6 +19,7 @@ impl Default for NerveMesher {
          pos_attr: PositionAttr(AttrData::Empty),
          col_attr: ColorAttr(AttrData::Empty),
          uvm_attr: UVMapAttr(AttrData::Empty),
+         nrm_attr: NormalAttr(AttrData::Empty),
          indices: Indices(AttrData::Empty),
       }
    }
@@ -33,12 +35,15 @@ impl NerveMesher {
       let uvm_data = self.uvm_attr.0.get();
       let ind_data = self.indices.0.get();
 
+      let pos_enum;
       let pos_bytes;
       let col_bytes;
       let uvm_bytes;
       let pos_elems;
       let mut col_elems = 0;
       let mut uvm_elems = 0;
+      let mut col_enum = gl::FLOAT;
+      let mut uvm_enum = gl::FLOAT;
       let (mut col_exists, mut uvm_exists) = (false, false);
 
       let pos_vec;
@@ -53,18 +58,18 @@ impl NerveMesher {
 
       if pos_data.is_some() {
          pos_vec = pos_data.unwrap();
-         (pos_bytes, pos_elems) = get_format(&pos_vec[0]);
+         (pos_enum, pos_bytes, pos_elems) = get_format(&pos_vec[0]);
          stride += pos_elems * pos_bytes;
 
          if col_data.is_some() {
             col_vec = col_data.unwrap();
-            (col_bytes, col_elems) = get_format(&col_vec[0]);
+            (col_enum, col_bytes, col_elems) = get_format(&col_vec[0]);
             stride += col_elems * col_bytes;
             col_exists = true;
          }
          if uvm_data.is_some() {
             uvm_vec = uvm_data.unwrap();
-            (uvm_bytes, uvm_elems) = get_format(&uvm_vec[0]);
+            (uvm_enum, uvm_bytes, uvm_elems) = get_format(&uvm_vec[0]);
             stride += uvm_elems * uvm_bytes;
             uvm_exists = true;
          }
@@ -86,11 +91,11 @@ impl NerveMesher {
          gl_vert_obj.bind();
          gl_vert_obj.fill(&pcu_vec);
          //POS
-         gl_vert_obj.gen_ptr(pos_elems, gl::FLOAT, stride);
+         gl_vert_obj.gen_ptr(pos_elems, pos_enum, stride);
          match (col_exists, uvm_exists) {
             //COL UVM
-            (true, _) => gl_vert_obj.gen_ptr(col_elems, gl::FLOAT, stride),
-            (_, true) => gl_vert_obj.gen_ptr(uvm_elems, gl::FLOAT, stride),
+            (true, _) => gl_vert_obj.gen_ptr(col_elems, col_enum, stride),
+            (_, true) => gl_vert_obj.gen_ptr(uvm_elems, uvm_enum, stride),
             _ => {}
          }
          gl_vert_obj.unbind();

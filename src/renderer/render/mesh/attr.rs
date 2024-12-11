@@ -1,3 +1,4 @@
+use gl::types::GLenum;
 use std::any::TypeId;
 
 macro_rules! attribute {
@@ -6,6 +7,10 @@ macro_rules! attribute {
       impl $attr {
          pub fn from(vec: Vec<$type>) -> $attr {
             $attr(AttrData::Vec(vec))
+         }
+
+         pub fn from_array(array: &[$type]) -> $attr {
+            $attr(AttrData::Vec(Vec::from(array)))
          }
 
          pub fn empty() -> $attr {
@@ -55,51 +60,81 @@ data_format!(Float64x2, (f64, f64));
 data_format!(Float64x3, (f64, f64, f64));
 data_format!(Float64x4, (f64, f64, f64, f64));
 
+macro_rules! is {
+   ($id: expr, $ty: ty) => {
+      match id == TypeId::of::<ty>() {
+         true => true,
+         false => false,
+      };
+   };
+}
+
 // returns (bytes in 1 element, no of elements)
-pub(crate) fn get_format<T: DataFormat + 'static>(_t: &T) -> (usize, usize) {
+pub(crate) fn get_format<T: DataFormat + 'static>(_t: &T) -> (GLenum, usize, usize) {
    let id = TypeId::of::<T>();
-   if id == TypeId::of::<Uint8x2>() {
-      (1, 2)
-   } else if id == TypeId::of::<Uint8x4>() {
-      (1, 4)
-   } else if id == TypeId::of::<Int8x2>() {
-      (1, 2)
+
+   let int8 = gl::BYTE;
+   let uint8 = gl::UNSIGNED_BYTE;
+
+   let int32 = gl::INT;
+   let uint32 = gl::UNSIGNED_INT;
+
+   let float32 = gl::FLOAT;
+   let float64 = gl::DOUBLE;
+
+   //INT8
+   if id == TypeId::of::<Int8x2>() {
+      (int8, 1, 2)
    } else if id == TypeId::of::<Int8x4>() {
-      (1, 4)
-   } else if id == TypeId::of::<Uint32>() {
-      (4, 1)
-   } else if id == TypeId::of::<Uint32x2>() {
-      (4, 2)
-   } else if id == TypeId::of::<Uint32x3>() {
-      (4, 3)
-   } else if id == TypeId::of::<Uint32x4>() {
-      (4, 4)
-   } else if id == TypeId::of::<Int32>() {
-      (4, 1)
+      (int8, 1, 4)
+   }
+   //UINT8
+   else if id == TypeId::of::<Uint8x2>() {
+      (uint8, 1, 2)
+   } else if id == TypeId::of::<Uint8x4>() {
+      (uint8, 1, 4)
+   }
+   //INT32
+   else if id == TypeId::of::<Int32>() {
+      (int32, 4, 1)
    } else if id == TypeId::of::<Int32x2>() {
-      (4, 2)
+      (int32, 4, 2)
    } else if id == TypeId::of::<Int32x3>() {
-      (4, 3)
+      (int32, 4, 3)
    } else if id == TypeId::of::<Int32x4>() {
-      (4, 4)
-   } else if id == TypeId::of::<Float32>() {
-      (4, 1)
+      (int32, 4, 4)
+   }
+   //UINT32
+   else if id == TypeId::of::<Uint32>() {
+      (uint32, 4, 1)
+   } else if id == TypeId::of::<Uint32x2>() {
+      (uint32, 4, 2)
+   } else if id == TypeId::of::<Uint32x3>() {
+      (uint32, 4, 3)
+   } else if id == TypeId::of::<Uint32x4>() {
+      (uint32, 4, 4)
+   }
+   //FLOAT32
+   else if id == TypeId::of::<Float32>() {
+      (float32, 4, 1)
    } else if id == TypeId::of::<Float32x2>() {
-      (4, 2)
+      (float32, 4, 2)
    } else if id == TypeId::of::<Float32x3>() {
-      (4, 3)
+      (float32, 4, 3)
    } else if id == TypeId::of::<Float32x4>() {
-      (4, 4)
-   } else if id == TypeId::of::<Float64>() {
-      (8, 1)
+      (float32, 4, 4)
+   }
+   //FLOAT64
+   else if id == TypeId::of::<Float64>() {
+      (float64, 8, 1)
    } else if id == TypeId::of::<Float64x2>() {
-      (8, 2)
+      (float64, 8, 2)
    } else if id == TypeId::of::<Float64x3>() {
-      (8, 3)
+      (float64, 8, 3)
    } else if id == TypeId::of::<Float64x4>() {
-      (8, 4)
+      (float64, 8, 4)
    } else {
-      (0, 0)
+      (uint8, 0, 0)
    }
 }
 
