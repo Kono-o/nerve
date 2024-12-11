@@ -1,80 +1,98 @@
 use gl::types::GLenum;
 use std::any::TypeId;
+use std::fmt::Display;
 
 macro_rules! attribute {
-   ($attr:ident, $type:ty) => {
-      pub struct $attr(pub AttrData<$type>);
+   ($attr:ident, $typ:ty) => {
+      pub struct $attr(pub AttrData<$typ>);
       impl $attr {
-         pub fn from(vec: Vec<$type>) -> $attr {
+         pub fn from(vec: Vec<$typ>) -> $attr {
             $attr(AttrData::Vec(vec))
          }
 
-         pub fn from_array(array: &[$type]) -> $attr {
+         pub fn from_array(array: &[$typ]) -> $attr {
             $attr(AttrData::Vec(Vec::from(array)))
          }
 
          pub fn empty() -> $attr {
             $attr(AttrData::Empty)
          }
+
+         pub fn is_empty(&self) -> bool {
+            match self.0 {
+               AttrData::Vec(_) => false,
+               AttrData::Empty => true,
+            }
+         }
+         pub fn has_data(&self) -> bool {
+            match self.0 {
+               AttrData::Vec(_) => true,
+               AttrData::Empty => false,
+            }
+         }
+         pub fn data(&self) -> (&Vec<$typ>, GLenum, usize, usize) {
+            let data = self.0.get().unwrap();
+            let (ty, bytes, elements) = get_format(&data[0]);
+            (data, ty, bytes, elements)
+         }
       }
    };
 }
 
-pub trait DataFormat {}
-macro_rules! data_format {
-   ($type_n: ident,$type_s: ty) => {
-      pub type $type_n = $type_s;
-      impl DataFormat for $type_n {}
-   };
+attribute!(PositionAttr, (f32, f32, f32));
+attribute!(ColorAttr, (f32, f32, f32));
+attribute!(UVMapAttr, (f32, f32));
+attribute!(NormalAttr, (f32, f32, f32));
+attribute!(Indices, i32);
+
+pub struct CustomAttr<T: DataFormat>(pub AttrData<T>);
+
+impl<D: DataFormat + 'static> CustomAttr<D> {
+   pub fn from(vec: Vec<D>) -> CustomAttr<D> {
+      CustomAttr(AttrData::Vec(vec))
+   }
+
+   pub fn from_array<U: Clone + Display + DataFormat>(array: &[U]) -> CustomAttr<U> {
+      let mut vec = Vec::from(array);
+
+      CustomAttr(AttrData::Vec(vec))
+   }
+
+   pub fn empty() -> CustomAttr<D> {
+      CustomAttr(AttrData::Empty)
+   }
+
+   pub fn is_empty(&self) -> bool {
+      match self.0 {
+         AttrData::Vec(_) => false,
+         AttrData::Empty => true,
+      }
+   }
+   pub fn has_data(&self) -> bool {
+      match self.0 {
+         AttrData::Vec(_) => true,
+         AttrData::Empty => false,
+      }
+   }
+   pub fn data(&self) -> (&Vec<D>, GLenum, usize, usize) {
+      let data = self.0.get().unwrap();
+      let (ty, bytes, elements) = get_format(&data[0]);
+      (data, ty, bytes, elements)
+   }
 }
 
-attribute!(PositionAttr, Float32x3);
-attribute!(ColorAttr, Float32x3);
-attribute!(UVMapAttr, Float32x2);
-attribute!(NormalAttr, Float32x3);
-attribute!(Indices, Int32);
-
-data_format!(Uint8x2, (u8, u8));
-data_format!(Uint8x4, (u8, u8, u8, u8));
-
-data_format!(Int8x2, (i8, i8));
-data_format!(Int8x4, (i8, i8, i8, i8));
-
-data_format!(Uint32, u32);
-data_format!(Uint32x2, (u32, u32));
-data_format!(Uint32x3, (u32, u32, u32));
-data_format!(Uint32x4, (u32, u32, u32, u32));
-
-data_format!(Int32, i32);
-data_format!(Int32x2, (i32, i32));
-data_format!(Int32x3, (i32, i32, i32));
-data_format!(Int32x4, (i32, i32, i32, i32));
-
-data_format!(Float32, f32);
-data_format!(Float32x2, (f32, f32));
-data_format!(Float32x3, (f32, f32, f32));
-data_format!(Float32x4, (f32, f32, f32, f32));
-
-data_format!(Float64, f64);
-data_format!(Float64x2, (f64, f64));
-data_format!(Float64x3, (f64, f64, f64));
-data_format!(Float64x4, (f64, f64, f64, f64));
-
-macro_rules! is {
-   ($id: expr, $ty: ty) => {
-      match id == TypeId::of::<ty>() {
-         true => true,
-         false => false,
-      };
-   };
-}
-
-// returns (bytes in 1 element, no of elements)
+// returns (type in gl enum, bytes in 1 element, no of elements)
 pub(crate) fn get_format<T: DataFormat + 'static>(_t: &T) -> (GLenum, usize, usize) {
    let id = TypeId::of::<T>();
 
    let int8 = gl::BYTE;
    let uint8 = gl::UNSIGNED_BYTE;
+
+   let int8 = gl::BYTE;
+   let uint8 = gl::UNSIGNED_BYTE;
+
+   let int16 = gl::SHORT;
+   let uint16 = gl::UNSIGNED_SHORT;
 
    let int32 = gl::INT;
    let uint32 = gl::UNSIGNED_INT;
@@ -82,61 +100,136 @@ pub(crate) fn get_format<T: DataFormat + 'static>(_t: &T) -> (GLenum, usize, usi
    let float32 = gl::FLOAT;
    let float64 = gl::DOUBLE;
 
-   //INT8
-   if id == TypeId::of::<Int8x2>() {
-      (int8, 1, 2)
-   } else if id == TypeId::of::<Int8x4>() {
+   // INT8
+   if id == TypeId::of::<i8>() {
+      (int8, 1, 1)
+   } else if id == TypeId::of::<(i8, i8)>() {
+      (int8, 1, 3)
+   } else if id == TypeId::of::<(i8, i8, i8)>() {
+      (int8, 1, 3)
+   } else if id == TypeId::of::<(i8, i8, i8, i8)>() {
       (int8, 1, 4)
    }
-   //UINT8
-   else if id == TypeId::of::<Uint8x2>() {
+   // UINT8
+   else if id == TypeId::of::<u8>() {
+      (uint8, 1, 1)
+   } else if id == TypeId::of::<(u8, u8)>() {
       (uint8, 1, 2)
-   } else if id == TypeId::of::<Uint8x4>() {
+   } else if id == TypeId::of::<(u8, u8, u8)>() {
+      (uint8, 1, 3)
+   } else if id == TypeId::of::<(u8, u8, u8, u8)>() {
       (uint8, 1, 4)
    }
-   //INT32
-   else if id == TypeId::of::<Int32>() {
+   // INT16
+   else if id == TypeId::of::<i16>() {
+      (int16, 2, 1)
+   } else if id == TypeId::of::<(i16, i16)>() {
+      (int16, 2, 2)
+   } else if id == TypeId::of::<(i16, i16, i16)>() {
+      (int16, 2, 3)
+   } else if id == TypeId::of::<(i16, i16, i16, i16)>() {
+      (int16, 2, 4)
+   // UINT16
+   } else if id == TypeId::of::<u16>() {
+      (uint16, 2, 1)
+   } else if id == TypeId::of::<(u16, u16)>() {
+      (uint16, 2, 2)
+   } else if id == TypeId::of::<(u16, u16, u16)>() {
+      (uint16, 2, 3)
+   } else if id == TypeId::of::<(u16, u16, u16, u16)>() {
+      (uint16, 2, 4)
+   }
+   // INT32
+   else if id == TypeId::of::<i32>() {
       (int32, 4, 1)
-   } else if id == TypeId::of::<Int32x2>() {
+   } else if id == TypeId::of::<(i32, i32)>() {
       (int32, 4, 2)
-   } else if id == TypeId::of::<Int32x3>() {
+   } else if id == TypeId::of::<(i32, i32, i32)>() {
       (int32, 4, 3)
-   } else if id == TypeId::of::<Int32x4>() {
+   } else if id == TypeId::of::<(i32, i32, i32, i32)>() {
       (int32, 4, 4)
    }
-   //UINT32
-   else if id == TypeId::of::<Uint32>() {
+   // UINT32
+   else if id == TypeId::of::<u32>() {
       (uint32, 4, 1)
-   } else if id == TypeId::of::<Uint32x2>() {
+   } else if id == TypeId::of::<(u32, u32)>() {
       (uint32, 4, 2)
-   } else if id == TypeId::of::<Uint32x3>() {
+   } else if id == TypeId::of::<(u32, u32, u32)>() {
       (uint32, 4, 3)
-   } else if id == TypeId::of::<Uint32x4>() {
+   } else if id == TypeId::of::<(u32, u32, u32, u32)>() {
       (uint32, 4, 4)
    }
-   //FLOAT32
-   else if id == TypeId::of::<Float32>() {
+   // FLOAT32
+   else if id == TypeId::of::<f32>() {
       (float32, 4, 1)
-   } else if id == TypeId::of::<Float32x2>() {
+   } else if id == TypeId::of::<(f32, f32)>() {
       (float32, 4, 2)
-   } else if id == TypeId::of::<Float32x3>() {
+   } else if id == TypeId::of::<(f32, f32, f32)>() {
       (float32, 4, 3)
-   } else if id == TypeId::of::<Float32x4>() {
+   } else if id == TypeId::of::<(f32, f32, f32, f32)>() {
       (float32, 4, 4)
    }
-   //FLOAT64
-   else if id == TypeId::of::<Float64>() {
+   // FLOAT64
+   else if id == TypeId::of::<f64>() {
       (float64, 8, 1)
-   } else if id == TypeId::of::<Float64x2>() {
+   } else if id == TypeId::of::<(f64, f64)>() {
       (float64, 8, 2)
-   } else if id == TypeId::of::<Float64x3>() {
+   } else if id == TypeId::of::<(f64, f64, f64)>() {
       (float64, 8, 3)
-   } else if id == TypeId::of::<Float64x4>() {
+   } else if id == TypeId::of::<(f64, f64, f64, f64)>() {
       (float64, 8, 4)
    } else {
       (uint8, 0, 0)
    }
 }
+
+pub trait DataFormat {}
+
+macro_rules! data_format {
+   ($t: ty) => {
+      impl DataFormat for $t {}
+   };
+}
+
+data_format!(i8);
+data_format!((i8, i8));
+data_format!((i8, i8, i8));
+data_format!((i8, i8, i8, i8));
+
+data_format!(u8);
+data_format!((u8, u8));
+data_format!((u8, u8, u8));
+data_format!((u8, u8, u8, u8));
+
+data_format!(i16);
+data_format!((i16, i16));
+data_format!((i16, i16, i16));
+data_format!((i16, i16, i16, i16));
+
+data_format!(u16);
+data_format!((u16, u16));
+data_format!((u16, u16, u16));
+data_format!((u16, u16, u16, u16));
+
+data_format!(i32);
+data_format!((i32, i32));
+data_format!((i32, i32, i32));
+data_format!((i32, i32, i32, i32));
+
+data_format!(u32);
+data_format!((u32, u32));
+data_format!((u32, u32, u32));
+data_format!((u32, u32, u32, u32));
+
+data_format!(f32);
+data_format!((f32, f32));
+data_format!((f32, f32, f32));
+data_format!((f32, f32, f32, f32));
+
+//data_format!(f64);
+//data_format!((f64, f64));
+//data_format!((f64, f64, f64));
+//data_format!((f64, f64, f64, f64));
 
 pub enum AttrData<T: DataFormat> {
    Empty,

@@ -1,6 +1,7 @@
-use crate::renderer::render::mesh::attr::{get_format, AttrData};
+use crate::renderer::render::mesh::attr::AttrData;
 use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::*;
+use std::fmt::Debug;
 
 pub struct NerveMesher {
    pub shader: NerveShader,
@@ -10,6 +11,7 @@ pub struct NerveMesher {
    pub uvm_attr: UVMapAttr,
    pub nrm_attr: NormalAttr,
    pub indices: Indices,
+   pub cus_attrs: Vec<Vec<u8>>,
 }
 impl Default for NerveMesher {
    fn default() -> Self {
@@ -21,109 +23,152 @@ impl Default for NerveMesher {
          uvm_attr: UVMapAttr(AttrData::Empty),
          nrm_attr: NormalAttr(AttrData::Empty),
          indices: Indices(AttrData::Empty),
+         cus_attrs: vec![],
       }
    }
 }
 
+fn push_array(vec: &mut Vec<u8>, array: &[u8]) {
+   for elem in array.iter() {
+      vec.push(*elem);
+   }
+}
+
+fn shove_f32x3(mut vec: &mut Vec<u8>, elem: (f32, f32, f32), size: usize) {
+   let elem1 = elem.0.to_ne_bytes();
+   let elem2 = elem.1.to_ne_bytes();
+   let elem3 = elem.2.to_ne_bytes();
+   push_array(&mut vec, &elem1[0..=size]);
+   push_array(&mut vec, &elem2[0..=size]);
+   push_array(&mut vec, &elem3[0..=size]);
+}
+
+fn shove_f32x2(mut vec: &mut Vec<u8>, elem: (f32, f32), size: usize) {
+   let elem1 = elem.0.to_ne_bytes();
+   let elem2 = elem.1.to_ne_bytes();
+   push_array(&mut vec, &elem1[0..=size]);
+   push_array(&mut vec, &elem2[0..=size]);
+}
+
 impl NerveMesher {
-   pub fn build(&mut self) -> NerveMesh {
-      let mut gl_vert_obj = GLVerts::new();
-      let mut gl_indices_obj = GLIndices::new();
+   pub fn build<T: DataFormat + 'static + Debug>(&mut self) -> NerveMesh {
+      if self.pos_attr.has_data() {
+         let mut gl_verts_obj = GLVerts::new();
+         let mut gl_index_obj = GLIndices::new();
+         self.transform.calc_matrix();
+         let mut stride = 0;
 
-      let pos_data = self.pos_attr.0.get();
-      let col_data = self.col_attr.0.get();
-      let uvm_data = self.uvm_attr.0.get();
-      let ind_data = self.indices.0.get();
+         let mut col_data = &Vec::new();
+         let mut col_type = gl::FLOAT;
+         let mut col_exists = false;
+         let mut col_bytes = 0;
+         let mut col_elems = 0;
 
-      let pos_enum;
-      let pos_bytes;
-      let col_bytes;
-      let uvm_bytes;
-      let pos_elems;
-      let mut col_elems = 0;
-      let mut uvm_elems = 0;
-      let mut col_enum = gl::FLOAT;
-      let mut uvm_enum = gl::FLOAT;
-      let (mut col_exists, mut uvm_exists) = (false, false);
+         let mut uvm_data = &Vec::new();
+         let mut uvm_type = gl::FLOAT;
+         let mut uvm_exists = false;
+         let mut uvm_bytes = 0;
+         let mut uvm_elems = 0;
 
-      let pos_vec;
-      let mut col_vec = &Vec::new();
-      let mut uvm_vec = &Vec::new();
-      let mut pcu_vec = Vec::new();
+         let mut nrm_data = &Vec::new();
+         let mut nrm_type = gl::FLOAT;
+         let mut nrm_exists = false;
+         let mut nrm_bytes = 0;
+         let mut nrm_elems = 0;
 
-      let mut vert_count: u32 = 0;
-      let mut has_indices = false;
-      let mut ind_count = 0;
-      let mut stride = 0;
+         let mut ind_data = &Vec::new();
+         let mut ind_exists = true;
+         let mut ind_count = 0;
+         let mut vert_count = 0;
 
-      if pos_data.is_some() {
-         pos_vec = pos_data.unwrap();
-         (pos_enum, pos_bytes, pos_elems) = get_format(&pos_vec[0]);
+         let (pos_data, pos_type, pos_bytes, pos_elems) = self.pos_attr.data();
          stride += pos_elems * pos_bytes;
 
-         if col_data.is_some() {
-            col_vec = col_data.unwrap();
-            (col_enum, col_bytes, col_elems) = get_format(&col_vec[0]);
+         if self.col_attr.has_data() {
+            (col_data, col_type, col_bytes, col_elems) = self.col_attr.data();
             stride += col_elems * col_bytes;
             col_exists = true;
          }
-         if uvm_data.is_some() {
-            uvm_vec = uvm_data.unwrap();
-            (uvm_enum, uvm_bytes, uvm_elems) = get_format(&uvm_vec[0]);
+         if self.uvm_attr.has_data() {
+            (uvm_data, uvm_type, uvm_bytes, uvm_elems) = self.uvm_attr.data();
             stride += uvm_elems * uvm_bytes;
             uvm_exists = true;
          }
-         for (i, pos) in pos_vec.iter().enumerate() {
+         if self.nrm_attr.has_data() {
+            (nrm_data, nrm_type, nrm_bytes, nrm_elems) = self.nrm_attr.data();
+            stride += nrm_elems * nrm_bytes;
+            nrm_exists = true;
+         }
+
+         let mut buffer_data: Vec<u8> = Vec::new();
+         for (i, _pos) in pos_data.iter().enumerate() {
             vert_count += 1;
-            pcu_vec.push(pos.0.to_bits());
-            pcu_vec.push(pos.1.to_bits());
-            pcu_vec.push(pos.2.to_bits());
+            shove_f32x3(&mut buffer_data, pos_data[i], pos_elems);
             if col_exists {
-               pcu_vec.push(col_vec[i].0.to_bits());
-               pcu_vec.push(col_vec[i].1.to_bits());
-               pcu_vec.push(col_vec[i].2.to_bits());
+               shove_f32x3(&mut buffer_data, col_data[i], col_elems);
             }
             if uvm_exists {
-               pcu_vec.push(uvm_vec[i].0.to_bits());
-               pcu_vec.push(uvm_vec[i].1.to_bits());
+               shove_f32x2(&mut buffer_data, uvm_data[i], uvm_elems);
+            }
+            if nrm_exists {
+               shove_f32x3(&mut buffer_data, nrm_data[i], nrm_elems);
             }
          }
-         gl_vert_obj.bind();
-         gl_vert_obj.fill(&pcu_vec);
-         //POS
-         gl_vert_obj.gen_ptr(pos_elems, pos_enum, stride);
-         match (col_exists, uvm_exists) {
-            //COL UVM
-            (true, _) => gl_vert_obj.gen_ptr(col_elems, col_enum, stride),
-            (_, true) => gl_vert_obj.gen_ptr(uvm_elems, uvm_enum, stride),
-            _ => {}
+         gl_verts_obj.bind();
+         gl_verts_obj.fill(&buffer_data);
+
+         gl_verts_obj.gen_ptr(pos_elems, pos_type, stride);
+         if col_exists {
+            gl_verts_obj.gen_ptr(col_elems, col_type, stride);
          }
-         gl_vert_obj.unbind();
+         if uvm_exists {
+            gl_verts_obj.gen_ptr(uvm_elems, uvm_type, stride);
+         }
+         if nrm_exists {
+            gl_verts_obj.gen_ptr(nrm_elems, nrm_type, stride);
+         }
+         gl_verts_obj.unbind();
 
-         if ind_data.is_some() {
-            let ind_data = ind_data.unwrap();
-            has_indices = true;
-
-            let mut ind_vec = Vec::new();
+         let mut ind_buffer_data = Vec::new();
+         if self.indices.has_data() {
+            (ind_data, _, _, _) = self.indices.data();
+            ind_exists = true;
             for index in ind_data.iter() {
                ind_count += 1;
-               ind_vec.push(*index);
+               ind_buffer_data.push(*index);
             }
-            gl_indices_obj.bind();
-            gl_indices_obj.fill(&ind_vec);
-            gl_indices_obj.unbind();
+            gl_index_obj.bind();
+            gl_index_obj.fill(&ind_buffer_data);
+            gl_index_obj.unbind();
          }
-      }
-      self.transform.calc_matrix();
-      NerveMesh {
-         shader: self.shader,
-         has_indices,
-         vert_count,
-         ind_count,
-         vert_object: gl_vert_obj,
-         index_object: gl_indices_obj,
-         transform: self.transform.clone(),
-         ..Default::default()
+         NerveMesh {
+            shader: self.shader,
+            has_indices: ind_exists,
+            vert_count,
+            ind_count,
+            is_empty: false,
+            vert_object: gl_verts_obj,
+            index_object: gl_index_obj,
+            transform: self.transform.clone(),
+            ..Default::default()
+         }
+      } else {
+         NerveMesh {
+            shader: self.shader,
+            has_indices: false,
+            vert_count: 0,
+            ind_count: 0,
+            is_empty: true,
+            vert_object: GLVerts {
+               vao: 0,
+               vbo: 0,
+               attrib_id: 0,
+               local_offset: 0,
+            },
+            index_object: GLIndices { ebo: 0 },
+            transform: self.transform.clone(),
+            ..Default::default()
+         }
       }
    }
 }

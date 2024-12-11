@@ -29,6 +29,7 @@ pub struct NerveMesh {
    pub(crate) alive: bool,
    pub(crate) shader: NerveShader,
    pub(crate) has_indices: bool,
+   pub(crate) is_empty: bool,
    pub(crate) vert_count: u32,
    pub(crate) ind_count: u32,
    pub(crate) vert_object: GLVerts,
@@ -43,10 +44,16 @@ impl Default for NerveMesh {
          shader: NerveShader { program_id: 0 },
          transform: Transform::default(),
          has_indices: false,
+         is_empty: true,
          vert_count: 0,
          ind_count: 0,
-         vert_object: GLVerts::new(),
-         index_object: GLIndices::new(),
+         vert_object: GLVerts {
+            vao: 0,
+            vbo: 0,
+            attrib_id: 0,
+            local_offset: 0,
+         },
+         index_object: GLIndices { ebo: 0 },
          draw_mode: DrawMode::Triangles,
       }
    }
@@ -65,18 +72,20 @@ impl NerveMesh {
       self.shader.set_mat4("u_CamView", canvas.cam.view_matrix);
       self.shader.set_mat4("u_CamProj", canvas.cam.proj_matrix);
 
-      self.vert_object.bind();
-      self.index_object.bind();
-      unsafe {
-         if self.has_indices {
-            gl::DrawElements(
-               self.draw_mode.gl_enum(),
-               self.ind_count as GLsizei,
-               gl::UNSIGNED_INT,
-               std::ptr::null(),
-            );
-         } else {
-            gl::DrawArrays(self.draw_mode.gl_enum(), 0, self.vert_count as GLsizei);
+      if !self.is_empty {
+         self.vert_object.bind();
+         self.index_object.bind();
+         unsafe {
+            if self.has_indices {
+               gl::DrawElements(
+                  self.draw_mode.gl_enum(),
+                  self.ind_count as GLsizei,
+                  gl::UNSIGNED_INT,
+                  std::ptr::null(),
+               );
+            } else {
+               gl::DrawArrays(self.draw_mode.gl_enum(), 0, self.vert_count as GLsizei);
+            }
          }
       }
    }
@@ -92,6 +101,7 @@ impl NerveMesh {
          alive: self.alive,
          shader: self.shader,
          has_indices: self.has_indices,
+         is_empty: self.is_empty,
          vert_count: self.vert_count,
          ind_count: self.ind_count,
          vert_object: GLVerts {

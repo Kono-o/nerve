@@ -1,5 +1,5 @@
-use std::ffi::c_void;
 use gl::types::{GLenum, GLfloat, GLint, GLsizei, GLsizeiptr, GLuint};
+use std::ffi::c_void;
 
 pub(crate) struct GLVerts {
    pub(crate) vao: GLuint,
@@ -34,15 +34,15 @@ impl GLVerts {
          gl::BindBuffer(gl::ARRAY_BUFFER, 0);
       }
    }
-   pub(crate) fn fill(&mut self, data: &Vec<u32>) {
+   pub(crate) fn fill(&mut self, data: &Vec<u8>) {
       self.bind();
       let data_len = data.len();
       if data_len > 0 {
          unsafe {
             gl::BufferData(
                gl::ARRAY_BUFFER,
-               (data_len * 4) as GLsizeiptr,
-               &data[0] as *const u32 as *const c_void,
+               (data.len() * 4) as GLsizeiptr,
+               &data[0] as *const u8 as *const c_void,
                gl::DYNAMIC_DRAW,
             );
          }
