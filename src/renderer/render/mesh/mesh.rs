@@ -34,6 +34,7 @@ pub struct NerveMesh {
    pub(crate) ind_count: u32,
    pub(crate) vert_object: GLVerts,
    pub(crate) index_object: GLIndices,
+   pub(crate) layouts: Vec<String>,
 }
 
 impl Default for NerveMesh {
@@ -60,6 +61,7 @@ impl Default for NerveMesh {
             buffer: vec![],
          },
          draw_mode: DrawMode::Triangles,
+         layouts: vec![],
       }
    }
 }
@@ -121,9 +123,15 @@ impl NerveMesh {
             ebo: self.index_object.ebo,
             buffer: vec![],
          },
+         layouts: self.layouts.clone(),
       }
    }
 
+   pub fn show_layouts(&self) {
+      for layout in self.layouts.clone() {
+         println!("{}", layout);
+      }
+   }
    pub fn kill(&mut self) {
       self.alive = false;
       self.vert_object.delete();

@@ -2,6 +2,12 @@ use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::*;
 use std::fmt::Debug;
 
+macro_rules! str {
+   ($t:expr) => {
+      format!("{}", $t)
+   };
+}
+
 pub struct NerveMesher {
    pub shader: NerveShader,
    pub transform: Transform,
@@ -120,21 +126,24 @@ impl NerveMesher {
       gl_verts_obj.bind();
       gl_verts_obj.stride = stride;
 
+      let mut layouts: Vec<String> = Vec::new();
+
       let id = gl_verts_obj.layout(pos_info);
-      println!("pos: {:?}", id);
+      layouts.push(format!("POSITION(f32x3): {:?}", id));
 
       let id = gl_verts_obj.layout(col_info);
-      println!("col: {:?}", id);
+      layouts.push(format!("COLOR(f32x3): {:?}", id));
 
       let id = gl_verts_obj.layout(uvm_info);
-      println!("uvm: {:?}", id);
+      layouts.push(format!("UVMAP(f32x2): {:?}", id));
 
       let id = gl_verts_obj.layout(nrm_info);
-      println!("nrm: {:?}", id);
+      layouts.push(format!("NORMAL(f32x3): {:?}", id));
 
       for (i, cus_info) in cus_infos.iter().enumerate() {
-         let id = gl_verts_obj.layout(*cus_info);
-         println!("c{i}: {:?}", id);
+         let id = gl_verts_obj.layout(cus_info.clone());
+         let format = cus_info.typ_str.clone();
+         layouts.push(format!("CUSTOM{i}({format}): {:?}", id));
       }
       gl_verts_obj.ship();
 
@@ -156,6 +165,7 @@ impl NerveMesher {
          vert_count,
          ind_count,
          is_empty: false,
+         layouts,
          vert_object: gl_verts_obj,
          index_object: gl_index_obj,
          transform: self.transform.clone(),
