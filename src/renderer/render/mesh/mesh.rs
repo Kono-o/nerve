@@ -52,8 +52,13 @@ impl Default for NerveMesh {
             vbo: 0,
             attrib_id: 0,
             local_offset: 0,
+            stride: 0,
+            buffer: vec![],
          },
-         index_object: GLIndices { ebo: 0 },
+         index_object: GLIndices {
+            ebo: 0,
+            buffer: vec![],
+         },
          draw_mode: DrawMode::Triangles,
       }
    }
@@ -109,9 +114,12 @@ impl NerveMesh {
             vbo: self.vert_object.vbo,
             attrib_id: self.vert_object.attrib_id,
             local_offset: self.vert_object.local_offset,
+            stride: self.vert_object.stride,
+            buffer: self.vert_object.buffer.clone(),
          },
          index_object: GLIndices {
             ebo: self.index_object.ebo,
+            buffer: vec![],
          },
       }
    }
