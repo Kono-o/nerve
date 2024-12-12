@@ -1,12 +1,21 @@
+use cgmath::{Matrix, Matrix4};
+use gl::types::{GLchar, GLenum, GLint, GLuint};
 use std::ffi::CString;
 use std::path::PathBuf;
 use std::str::FromStr;
-use cgmath::{Matrix, Matrix4};
-use gl::types::{GLchar, GLenum, GLint, GLuint};
 
 #[derive(Clone, Copy)]
 pub struct NerveShader {
    pub(crate) program_id: GLuint,
+}
+
+impl Default for NerveShader {
+   fn default() -> Self {
+      NerveShader::new(
+         "nerve/assets/shaders/mesh/default.vert",
+         "nerve/assets/shaders/mesh/default.frag",
+      )
+   }
 }
 
 impl NerveShader {
@@ -67,9 +76,9 @@ impl NerveShader {
          gl::DeleteShader(vert_shader);
          gl::DeleteShader(frag_shader);
 
-         return NerveShader {
+         NerveShader {
             program_id: program,
-         };
+         }
       }
    }
    pub(crate) fn set(&self) {
