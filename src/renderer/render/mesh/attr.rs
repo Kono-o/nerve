@@ -1,6 +1,7 @@
 use gl::types::GLenum;
 use std::any::TypeId;
 
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct Info {
    pub(crate) typ: GLenum,
    pub(crate) exists: bool,
@@ -159,7 +160,7 @@ impl CustomAttr {
    pub fn data(&self) -> &Vec<u8> {
       &self.data
    }
-   pub fn info(&mut self) -> Info {
+   pub fn info(&self) -> Info {
       Info {
          typ: self.info.typ,
          exists: self.info.exists,
