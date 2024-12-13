@@ -1,4 +1,5 @@
 use crate::RGB;
+use gl::types::GLfloat;
 
 pub enum PolyMode {
    Points,
@@ -59,6 +60,10 @@ impl NerveRenderer {
             }
          }
       }
+   }
+
+   pub fn set_wireframe_width(&self, width: u32) {
+      unsafe { gl::LineWidth(width as GLfloat) }
    }
 
    pub fn enable_depth(&mut self, enable: bool) {

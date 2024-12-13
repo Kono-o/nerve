@@ -1,6 +1,8 @@
 use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::*;
 use std::fmt::Debug;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 macro_rules! str {
    ($t:expr) => {
@@ -22,7 +24,7 @@ pub struct NerveMesher {
 impl Default for NerveMesher {
    fn default() -> Self {
       NerveMesher {
-         shader: NerveShader { program_id: 0 },
+         shader: NerveShader::default(),
          transform: Default::default(),
          pos_attr: PositionAttr::empty(),
          col_attr: ColorAttr::empty(),
@@ -36,6 +38,92 @@ impl Default for NerveMesher {
 }
 
 impl NerveMesher {
+   pub fn from_obj(obj_path: &str) -> NerveMesher {
+      let mut pos_attr: PositionAttr = PositionAttr::empty();
+      let mut col_attr: ColorAttr = ColorAttr::empty();
+      let mut uvm_attr: UVMapAttr = UVMapAttr::empty();
+      let mut nrm_attr: NormalAttr = NormalAttr::empty();
+      let mut indices: Indices = Indices::empty();
+
+      let mut pos_data = Vec::new();
+      let mut uvm_data = Vec::new();
+      let mut nrm_data = Vec::new();
+
+      let dump_3_words_into = |data: &mut Vec<[f32; 3]>, words: &mut Vec<&str>| {
+         let mut elem: [f32; 3] = [0.0; 3];
+         for i in 1..=3 {
+            elem[i - 1] = words[i].parse::<f32>().unwrap();
+         }
+         data.push(elem);
+      };
+      let dump_2_words_into = |data: &mut Vec<[f32; 2]>, words: &mut Vec<&str>| {
+         let mut elem: [f32; 2] = [0.0; 2];
+         for i in 1..=2 {
+            elem[i - 1] = words[i].parse::<f32>().unwrap();
+         }
+         data.push(elem);
+      };
+
+      let obj = match File::open(obj_path) {
+         Ok(file) => file,
+         Err(error) => panic!("{obj_path}: {error}"),
+      };
+      let obj_src = BufReader::new(obj);
+
+      for line_res in obj_src.lines() {
+         let line = line_res.unwrap_or(" ".to_string());
+         let mut words = line.split_whitespace().collect::<Vec<&str>>();
+         if words.len() == 0 {
+            continue;
+         }
+         let first = words[0];
+         match first {
+            "v" => dump_3_words_into(&mut pos_data, &mut words),
+            "vt" => dump_2_words_into(&mut uvm_data, &mut words),
+            "vn" => dump_3_words_into(&mut nrm_data, &mut words),
+            "g" => for vert in &words[1..] {},
+            "f" => {
+               println!("---face---");
+               for vert in &words[1..] {
+                  println!("VERT");
+                  let tokens = vert.split("/").collect::<Vec<&str>>();
+                  let pos_index = tokens[0].parse::<usize>().unwrap_or(1) - 1;
+                  println!("vi: {:?}", pos_index);
+                  if tokens.len() > 1 {
+                     let uvm_index = tokens[1].parse::<usize>().unwrap_or(1) - 1;
+                     uvm_attr.shove(uvm_data[uvm_index]);
+                     println!("ti: {:?}", uvm_index);
+                  }
+                  if tokens.len() > 2 {
+                     let nrm_index = tokens[2].parse::<usize>().unwrap_or(1) - 1;
+                     nrm_attr.shove(nrm_data[nrm_index]);
+                     println!("ni: {:?}", nrm_index);
+                  }
+                  println!("ind: {:?}", pos_index);
+                  indices.shove(pos_index as u32);
+                  pos_attr.shove(pos_data[pos_index]);
+                  col_attr.shove([1.0, 1.0, 1.0]);
+               }
+            }
+            _ => continue,
+         }
+      }
+      pos_attr.calc_info();
+      col_attr.calc_info();
+      uvm_attr.calc_info();
+      nrm_attr.calc_info();
+      indices.calc_info();
+
+      println!("{}", indices.data.len());
+      NerveMesher {
+         pos_attr,
+         col_attr,
+         uvm_attr,
+         nrm_attr,
+         indices,
+         ..Self::default()
+      }
+   }
    pub fn attach_custom_attr(mut self, cus_attr: CustomAttr) -> NerveMesher {
       self.cus_attrs.push(cus_attr);
       self

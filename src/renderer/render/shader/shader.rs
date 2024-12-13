@@ -4,7 +4,7 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone)]
 pub struct NerveShader {
    pub(crate) program_id: GLuint,
 }

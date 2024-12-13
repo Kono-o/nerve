@@ -69,6 +69,7 @@ dataformat!(f64);
 
 macro_rules! attribute {
    ($attr:ident, $typ:ty) => {
+      #[derive(Debug)]
       pub struct $attr {
          pub(crate) data: Vec<$typ>,
          pub(crate) info: Info,
@@ -91,11 +92,26 @@ macro_rules! attribute {
             let mut vec = Vec::from(array);
             $attr::from(vec)
          }
+
+         pub fn calc_info(&mut self) {
+            if self.data.len() > 0 {
+               self.info.exists = true;
+               (
+                  self.info.typ,
+                  self.info.typ_str,
+                  self.info.byte_count,
+                  self.info.elem_count,
+               ) = get_format(&self.data[0]);
+            }
+         }
          pub fn empty() -> $attr {
             $attr {
                data: Vec::new(),
                info: Info::new(),
             }
+         }
+         pub fn shove(&mut self, elem: $typ) {
+            self.data.push(elem);
          }
          pub fn is_empty(&self) -> bool {
             !self.info.exists
