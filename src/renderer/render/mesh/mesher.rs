@@ -1,5 +1,6 @@
 use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::*;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -69,11 +70,12 @@ impl NerveMesher {
          Err(error) => panic!("{obj_path}: {error}"),
       };
       let obj_src = BufReader::new(obj);
+      let mut unique_verts = HashMap::new();
 
       for line_res in obj_src.lines() {
          let line = line_res.unwrap_or(" ".to_string());
          let mut words = line.split_whitespace().collect::<Vec<&str>>();
-         if words.len() == 0 {
+         if words.is_empty() {
             continue;
          }
          let first = words[0];
@@ -81,40 +83,49 @@ impl NerveMesher {
             "v" => dump_3_words_into(&mut pos_data, &mut words),
             "vt" => dump_2_words_into(&mut uvm_data, &mut words),
             "vn" => dump_3_words_into(&mut nrm_data, &mut words),
-            "g" => for vert in &words[1..] {},
             "f" => {
-               println!("---face---");
                for vert in &words[1..] {
-                  println!("VERT");
-                  let tokens = vert.split("/").collect::<Vec<&str>>();
+                  let tokens = vert.split('/').collect::<Vec<&str>>();
                   let pos_index = tokens[0].parse::<usize>().unwrap_or(1) - 1;
-                  println!("vi: {:?}", pos_index);
-                  if tokens.len() > 1 {
-                     let uvm_index = tokens[1].parse::<usize>().unwrap_or(1) - 1;
-                     uvm_attr.shove(uvm_data[uvm_index]);
-                     println!("ti: {:?}", uvm_index);
+                  let uvm_index = tokens
+                     .get(1)
+                     .and_then(|&s| s.parse::<usize>().ok())
+                     .map(|i| i - 1);
+                  let nrm_index = tokens
+                     .get(2)
+                     .and_then(|&s| s.parse::<usize>().ok())
+                     .map(|i| i - 1);
+
+                  let uv_coord = uvm_index.map(|idx| uvm_data[idx]).unwrap_or([0.0, 0.0]);
+                  let normal = nrm_index
+                     .map(|idx| nrm_data[idx])
+                     .unwrap_or([0.0, 0.0, 0.0]);
+
+                  let key = (pos_index, uvm_index, nrm_index);
+
+                  if let Some(&index) = unique_verts.get(&key) {
+                     indices.shove(index as u32);
+                  } else {
+                     let new_index = pos_attr.data.len();
+                     unique_verts.insert(key, new_index);
+
+                     pos_attr.shove(pos_data[pos_index]);
+                     uvm_attr.shove(uv_coord);
+                     nrm_attr.shove(normal);
+                     col_attr.shove([1.0, 1.0, 1.0]); // default color
+                     indices.shove(new_index as u32);
                   }
-                  if tokens.len() > 2 {
-                     let nrm_index = tokens[2].parse::<usize>().unwrap_or(1) - 1;
-                     nrm_attr.shove(nrm_data[nrm_index]);
-                     println!("ni: {:?}", nrm_index);
-                  }
-                  println!("ind: {:?}", pos_index);
-                  indices.shove(pos_index as u32);
-                  pos_attr.shove(pos_data[pos_index]);
-                  col_attr.shove([1.0, 1.0, 1.0]);
                }
             }
             _ => continue,
          }
       }
+
       pos_attr.calc_info();
       col_attr.calc_info();
       uvm_attr.calc_info();
       nrm_attr.calc_info();
       indices.calc_info();
-
-      println!("{}", indices.data.len());
       NerveMesher {
          pos_attr,
          col_attr,
