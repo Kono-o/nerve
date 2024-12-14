@@ -1,6 +1,6 @@
 use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::renderer::Transform;
-use crate::{NerveCanvas, NerveShader};
+use crate::{GlShader, NerveCanvas};
 use gl::types::*;
 
 pub enum DrawMode {
@@ -27,13 +27,13 @@ pub struct NerveMesh {
    pub draw_mode: DrawMode,
 
    pub(crate) alive: bool,
-   pub(crate) shader: NerveShader,
    pub(crate) has_indices: bool,
    pub(crate) is_empty: bool,
    pub(crate) vert_count: u32,
    pub(crate) ind_count: u32,
    pub(crate) vert_object: GLVerts,
    pub(crate) index_object: GLIndices,
+   pub(crate) shader: GlShader,
    pub(crate) layouts: Vec<String>,
 }
 
@@ -42,7 +42,6 @@ impl Default for NerveMesh {
       Self {
          visible: true,
          alive: true,
-         shader: NerveShader { program_id: 0 },
          transform: Transform::default(),
          has_indices: false,
          is_empty: true,
@@ -60,6 +59,7 @@ impl Default for NerveMesh {
             ebo: 0,
             buffer: vec![],
          },
+         shader: GlShader { program_id: 0 },
          draw_mode: DrawMode::Triangles,
          layouts: vec![],
       }
@@ -96,7 +96,7 @@ impl NerveMesh {
          }
       }
    }
-   pub fn set_shader(&mut self, shader: NerveShader) {
+   pub fn set_shader(&mut self, shader: GlShader) {
       self.shader = shader
    }
 

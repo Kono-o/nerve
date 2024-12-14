@@ -12,7 +12,7 @@ macro_rules! str {
 }
 
 pub struct NerveMesher {
-   pub shader: NerveShader,
+   pub shader: GlShader,
    pub transform: Transform,
    pub pos_attr: PositionAttr,
    pub col_attr: ColorAttr,
@@ -25,7 +25,7 @@ pub struct NerveMesher {
 impl Default for NerveMesher {
    fn default() -> Self {
       NerveMesher {
-         shader: NerveShader::default(),
+         shader: GlShader::default(),
          transform: Default::default(),
          pos_attr: PositionAttr::empty(),
          col_attr: ColorAttr::empty(),
@@ -146,12 +146,12 @@ impl NerveMesher {
       let mut gl_verts_obj = GLVerts::new();
       let mut gl_index_obj = GLIndices::new();
 
-      let (mut pos_info, mut pos_data) = (Info::new(), &Vec::new());
-      let (mut col_info, mut col_data) = (Info::new(), &Vec::new());
-      let (mut uvm_info, mut uvm_data) = (Info::new(), &Vec::new());
-      let (mut nrm_info, mut nrm_data) = (Info::new(), &Vec::new());
-      let (mut ind_info, mut ind_data) = (Info::new(), &Vec::new());
-      let mut cus_infos: Vec<Info> = Vec::new();
+      let (mut pos_info, mut pos_data) = (AttrInfo::empty(), &Vec::new());
+      let (mut col_info, mut col_data) = (AttrInfo::empty(), &Vec::new());
+      let (mut uvm_info, mut uvm_data) = (AttrInfo::empty(), &Vec::new());
+      let (mut nrm_info, mut nrm_data) = (AttrInfo::empty(), &Vec::new());
+      let (mut ind_info, mut ind_data) = (AttrInfo::empty(), &Vec::new());
+      let mut cus_infos: Vec<AttrInfo> = Vec::new();
       let mut cus_datas: Vec<&Vec<u8>> = Vec::new();
 
       let mut ind_count = 0;
@@ -272,25 +272,3 @@ impl NerveMesher {
       }
    }
 }
-
-//NerveMesh {
-//   shader: self.shader,
-//   has_indices: false,
-//   vert_count: 0,
-//   ind_count: 0,
-//   is_empty: true,
-//   vert_object: GLVerts {
-//      vao: 0,
-//      vbo: 0,
-//      attrib_id: 0,
-//      local_offset: 0,
-//      stride: 0,
-//      buffer: vec![],
-//   },
-//   index_object: GLIndices {
-//      ebo: 0,
-//      buffer: vec![],
-//   },
-//   transform: self.transform.clone(),
-//   ..Default::default()
-//}

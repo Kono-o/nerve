@@ -5,21 +5,21 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 #[derive(Copy, Clone)]
-pub struct NerveShader {
+pub(crate) struct GlShader {
    pub(crate) program_id: GLuint,
 }
 
-impl Default for NerveShader {
+impl Default for GlShader {
    fn default() -> Self {
-      NerveShader::new(
+      GlShader::new(
          "nerve/assets/shaders/mesh/default.vert",
          "nerve/assets/shaders/mesh/default.frag",
       )
    }
 }
 
-impl NerveShader {
-   pub fn new(vert_path: &str, frag_path: &str) -> NerveShader {
+impl GlShader {
+   pub fn new(vert_path: &str, frag_path: &str) -> GlShader {
       let mut success = gl::FALSE as GLint;
       let mut info_log = Vec::with_capacity(512);
 
@@ -76,7 +76,7 @@ impl NerveShader {
          gl::DeleteShader(vert_shader);
          gl::DeleteShader(frag_shader);
 
-         NerveShader {
+         GlShader {
             program_id: program,
          }
       }

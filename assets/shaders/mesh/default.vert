@@ -11,10 +11,12 @@ uniform mat4 u_CamProj;
 
 out vec3 v_Color;
 out vec3 v_Normal;
+out vec3 v_UVMap;
 
 void main() {
     gl_Position = u_CamProj * u_CamView * u_MeshTransform * vec4(a_Position, 1.0);
     v_Color = a_Color;
     v_Normal = transpose(inverse(mat3(u_MeshTransform))) * a_Normals;
+    v_UVMap = a_UVMap;
 }
 

@@ -2,16 +2,16 @@ use gl::types::GLenum;
 use std::any::TypeId;
 
 #[derive(Clone, Debug)]
-pub(crate) struct Info {
+pub(crate) struct AttrInfo {
    pub(crate) typ: GLenum,
    pub(crate) typ_str: String,
    pub(crate) exists: bool,
    pub(crate) byte_count: usize,
    pub(crate) elem_count: usize,
 }
-impl Info {
-   pub(crate) fn new() -> Info {
-      Info {
+impl AttrInfo {
+   pub(crate) fn empty() -> AttrInfo {
+      AttrInfo {
          typ: 0,
          typ_str: "".to_string(),
          exists: false,
@@ -72,7 +72,7 @@ macro_rules! attribute {
       #[derive(Debug)]
       pub struct $attr {
          pub(crate) data: Vec<$typ>,
-         pub(crate) info: Info,
+         pub(crate) info: AttrInfo,
       }
       impl $attr {
          pub fn from(vec: Vec<$typ>) -> $attr {
@@ -81,7 +81,7 @@ macro_rules! attribute {
             for elem in vec.iter() {
                data.push(*elem);
             }
-            let mut info = Info::new();
+            let mut info = AttrInfo::empty();
             if vec_len > 0 {
                info.exists = true;
                (info.typ, info.typ_str, info.byte_count, info.elem_count) = get_format(&vec[0]);
@@ -107,7 +107,7 @@ macro_rules! attribute {
          pub fn empty() -> $attr {
             $attr {
                data: Vec::new(),
-               info: Info::new(),
+               info: AttrInfo::empty(),
             }
          }
          pub fn shove(&mut self, elem: $typ) {
@@ -122,8 +122,8 @@ macro_rules! attribute {
          pub fn data(&self) -> &Vec<$typ> {
             &self.data
          }
-         pub fn info(&mut self) -> Info {
-            Info {
+         pub fn info(&mut self) -> AttrInfo {
+            AttrInfo {
                typ: self.info.typ,
                typ_str: self.info.typ_str.clone(),
                exists: self.info.exists,
@@ -141,7 +141,7 @@ attribute!(NormalAttr, [f32; 3]);
 attribute!(Indices, u32);
 pub struct CustomAttr {
    pub(crate) data: Vec<u8>,
-   pub(crate) info: Info,
+   pub(crate) info: AttrInfo,
 }
 impl CustomAttr {
    pub fn from<T: DataFormat + 'static>(vec: Vec<T>) -> CustomAttr {
@@ -153,7 +153,7 @@ impl CustomAttr {
             data.push(*byte);
          }
       }
-      let mut info = Info::new();
+      let mut info = AttrInfo::empty();
       if vec_len > 0 {
          info.exists = true;
          (info.typ, info.typ_str, info.byte_count, info.elem_count) = get_format(&vec[0]);
@@ -167,7 +167,7 @@ impl CustomAttr {
    pub fn empty() -> CustomAttr {
       CustomAttr {
          data: Vec::new(),
-         info: Info::new(),
+         info: AttrInfo::empty(),
       }
    }
    pub fn is_empty(&self) -> bool {
@@ -179,8 +179,8 @@ impl CustomAttr {
    pub fn data(&self) -> &Vec<u8> {
       &self.data
    }
-   pub fn info(&self) -> Info {
-      Info {
+   pub fn info(&self) -> AttrInfo {
+      AttrInfo {
          typ: self.info.typ,
          typ_str: self.info.typ_str.clone(),
          exists: self.info.exists,

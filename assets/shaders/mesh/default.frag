@@ -2,6 +2,7 @@
 
 in vec3 v_Color;
 in vec3 v_Normal;
+in vec3 v_UVMap;
 
 out vec4 fragColor;
 
@@ -11,5 +12,6 @@ void main() {
 
     float lightBrightness = dot(normalize(v_Normal), normalize(u_LightDirection));
     vec3 shadowColor = v_Color * 0.5;
-    fragColor = vec4(mix(shadowColor, v_Color, lightBrightness), 1.0);
+    //fragColor = vec4(mix(shadowColor, v_Color, lightBrightness), 1.0);
+    fragColor = vec4(v_UVMap, 1.0);
 }

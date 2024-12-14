@@ -1,4 +1,4 @@
-use crate::renderer::Info;
+use crate::renderer::AttrInfo;
 use crate::DataFormat;
 use gl::types::{GLfloat, GLint, GLsizei, GLsizeiptr, GLuint};
 use std::ffi::c_void;
@@ -64,7 +64,7 @@ impl GLVerts {
          }
       }
    }
-   pub(crate) fn layout(&mut self, info: Info) -> Option<u32> {
+   pub(crate) fn layout(&mut self, info: AttrInfo) -> Option<u32> {
       if info.exists {
          unsafe {
             gl::VertexAttribPointer(
