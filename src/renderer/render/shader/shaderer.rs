@@ -82,8 +82,13 @@ impl Texture {
          ColorType::GrayscaleAlpha => (ColType::GRAYA, 2),
          ColorType::Rgba => (ColType::RGBA, 4),
       };
+      let mut pixel_size = 0;
 
-      println!("{:?}", &tex[..32]);
+      let pixel_size = match col {
+         ColType::C256 => panic!("indexed png currently unsupported!"),
+         _ => (bit * elems) as u32,
+      };
+
       Texture {
          tex,
          info: TexInfo {
@@ -92,7 +97,7 @@ impl Texture {
             height: info.height,
             bit_depth: bit,
             color_type: col,
-            pixel_size: (bit * elems) as u32,
+            pixel_size,
          },
       }
    }
@@ -155,7 +160,7 @@ impl NerveShaderBuilder {
             let mut base_format = match self.dif_tex.info.color_type {
                ColType::GRAY => gl::RED,
                ColType::RGB => gl::RGB,
-               ColType::C256 => gl::RGBA4,
+               ColType::C256 => gl::RGB,
                ColType::GRAYA => gl::RG,
                ColType::RGBA => gl::RGBA,
             };
@@ -166,8 +171,6 @@ impl NerveShaderBuilder {
             );
 
             let sized_format = match (base_format, self.dif_tex.info.bit_depth) {
-               //C256
-               (gl::RGBA4, _) => gl::RGBA4,
                //16
                (gl::RED, 16) => gl::R16,
                (gl::RG, 16) => gl::RG16,
@@ -181,10 +184,9 @@ impl NerveShaderBuilder {
                //fallback
                _ => gl::RGBA8,
             };
-            if sized_format == gl::RGBA4 {
-               base_format = gl::RGBA
-            }
+
             println!("base: {:?} sized: {:?}", base_format, sized_format);
+            //println!("{:?}", self.dif_tex.tex);
 
             unsafe {
                gl::GenTextures(1, &mut tex_id);
@@ -200,7 +202,7 @@ impl NerveShaderBuilder {
                gl::TexImage2D(
                   gl::TEXTURE_2D,
                   0,
-                  sized_format as GLint,
+                  base_format as GLint,
                   self.dif_tex.info.width as GLsizei,
                   self.dif_tex.info.height as GLsizei,
                   0,

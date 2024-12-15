@@ -38,8 +38,30 @@ impl Default for NerveMesher {
    }
 }
 
+fn dump_into(data: &mut Vec<[f32; 3]>, words: &mut Vec<&str>) {
+   let mut elem: [f32; 3] = [0.0; 3];
+   for i in 1..=3 {
+      elem[i - 1] = words[i].parse::<f32>().unwrap();
+   }
+   data.push(elem);
+}
+fn dump_into_uvm(data: &mut Vec<[f32; 2]>, words: &mut Vec<&str>) {
+   let mut elem: [f32; 2] = [0.0; 2];
+   for i in 1..=2 {
+      elem[i - 1] = words[i].parse::<f32>().unwrap();
+   }
+   data.push([elem[0], elem[1] * -1.0]); //flip y for opengl
+}
+
+fn str_vec_to_usize(strs: Vec<&str>) -> Vec<usize> {
+   let mut vec: Vec<usize> = Vec::new();
+   for str in strs {
+      vec.push(str.parse::<usize>().unwrap() - 1);
+   }
+   vec
+}
 impl NerveMesher {
-   pub fn from_obj(obj_path: &str) -> NerveMesher {
+   pub fn obj(obj_path: &str) -> NerveMesher {
       let mut pos_attr: PositionAttr = PositionAttr::empty();
       let mut col_attr: ColorAttr = ColorAttr::empty();
       let mut uvm_attr: UVMapAttr = UVMapAttr::empty();
@@ -49,78 +71,54 @@ impl NerveMesher {
       let mut pos_data = Vec::new();
       let mut uvm_data = Vec::new();
       let mut nrm_data = Vec::new();
+      let mut verts = HashMap::new();
 
-      let dump_3_words_into = |data: &mut Vec<[f32; 3]>, words: &mut Vec<&str>| {
-         let mut elem: [f32; 3] = [0.0; 3];
-         for i in 1..=3 {
-            elem[i - 1] = words[i].parse::<f32>().unwrap();
-         }
-         data.push(elem);
-      };
-      let dump_2_words_into = |data: &mut Vec<[f32; 2]>, words: &mut Vec<&str>| {
-         let mut elem: [f32; 2] = [0.0; 2];
-         for i in 1..=2 {
-            elem[i - 1] = words[i].parse::<f32>().unwrap();
-         }
-         data.push(elem);
-      };
-
+      //OPEN FILE
       let obj = match File::open(obj_path) {
          Ok(file) => file,
          Err(error) => panic!("{obj_path}: {error}"),
       };
+      //READ FILE
       let obj_src = BufReader::new(obj);
-      let mut unique_verts = HashMap::new();
-
       for line_res in obj_src.lines() {
          let line = line_res.unwrap_or(" ".to_string());
          let mut words = line.split_whitespace().collect::<Vec<&str>>();
          if words.is_empty() {
             continue;
          }
-         let first = words[0];
-         match first {
-            "v" => dump_3_words_into(&mut pos_data, &mut words),
-            "vt" => dump_2_words_into(&mut uvm_data, &mut words),
-            "vn" => dump_3_words_into(&mut nrm_data, &mut words),
+         match words[0] {
+            "v" => dump_into(&mut pos_data, &mut words),
+            "vt" => dump_into_uvm(&mut uvm_data, &mut words),
+            "vn" => dump_into(&mut nrm_data, &mut words),
             "f" => {
-               for vert in &words[1..] {
-                  let tokens = vert.split('/').collect::<Vec<&str>>();
-                  let pos_index = tokens[0].parse::<usize>().unwrap_or(1) - 1;
-                  let uvm_index = tokens
-                     .get(1)
-                     .and_then(|&s| s.parse::<usize>().ok())
-                     .map(|i| i - 1);
-                  let nrm_index = tokens
-                     .get(2)
-                     .and_then(|&s| s.parse::<usize>().ok())
-                     .map(|i| i - 1);
-
-                  let uv_coord = uvm_index.map(|idx| uvm_data[idx]).unwrap_or([0.0, 0.0]);
-                  let normal = nrm_index
-                     .map(|idx| nrm_data[idx])
-                     .unwrap_or([0.0, 0.0, 0.0]);
+               if words.len() > 4 {
+                  panic!("non-triangulated meshes not supported!");
+               }
+               for word in &words[1..] {
+                  let vert = str_vec_to_usize(word.split('/').collect::<Vec<&str>>());
+                  let index = vert[0] as u32;
+                  let pos_index = vert[0];
+                  let uvm_index = vert[1];
+                  let nrm_index = vert[2];
 
                   let key = (pos_index, uvm_index, nrm_index);
-
-                  if let Some(&index) = unique_verts.get(&key) {
-                     indices.shove(index as u32);
+                  if verts.contains_key(&key) {
+                     let idx = verts[&key] as u32;
+                     indices.shove(idx);
                   } else {
-                     let new_index = pos_attr.data.len();
-                     unique_verts.insert(key, new_index);
-
+                     let new = pos_attr.data.len();
+                     verts.insert(key, new);
                      pos_attr.shove(pos_data[pos_index]);
-                     uvm_attr.shove(uv_coord);
-                     nrm_attr.shove(normal);
-                     col_attr.shove([1.0, 1.0, 1.0]); // default color
-                     indices.shove(new_index as u32);
+                     uvm_attr.shove(uvm_data[uvm_index]);
+                     nrm_attr.shove(nrm_data[nrm_index]);
+                     col_attr.shove([1.0, 1.0, 1.0]); //default
+                     indices.shove(new as u32);
                   }
                }
             }
-            _ => continue,
+            _ => {}
          }
       }
-
       pos_attr.calc_info();
       col_attr.calc_info();
       uvm_attr.calc_info();
