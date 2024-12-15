@@ -1,6 +1,6 @@
 use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::renderer::Transform;
-use crate::{GlShader, NerveCanvas};
+use crate::{NerveCanvas, NerveShader};
 use gl::types::*;
 
 pub enum DrawMode {
@@ -33,7 +33,7 @@ pub struct NerveMesh {
    pub(crate) ind_count: u32,
    pub(crate) vert_object: GLVerts,
    pub(crate) index_object: GLIndices,
-   pub(crate) shader: GlShader,
+   pub(crate) shader: NerveShader,
    pub(crate) layouts: Vec<String>,
 }
 
@@ -59,7 +59,7 @@ impl Default for NerveMesh {
             ebo: 0,
             buffer: vec![],
          },
-         shader: GlShader { program_id: 0 },
+         shader: NerveShader::default(),
          draw_mode: DrawMode::Triangles,
          layouts: vec![],
       }
@@ -71,8 +71,8 @@ impl NerveMesh {
          return;
       }
       self.transform.calc_matrix();
-      self.shader.set();
 
+      self.shader.bind();
       self
          .shader
          .set_mat4("u_MeshTransform", self.transform.matrix);
@@ -96,7 +96,7 @@ impl NerveMesh {
          }
       }
    }
-   pub fn set_shader(&mut self, shader: GlShader) {
+   pub fn set_shader(&mut self, shader: NerveShader) {
       self.shader = shader
    }
 
@@ -106,7 +106,7 @@ impl NerveMesh {
          transform: self.transform.clone(),
          draw_mode: DrawMode::Triangles,
          alive: self.alive,
-         shader: self.shader,
+         shader: self.shader.clone(),
          has_indices: self.has_indices,
          is_empty: self.is_empty,
          vert_count: self.vert_count,
@@ -128,8 +128,11 @@ impl NerveMesh {
    }
 
    pub fn show_layouts(&self) {
-      for layout in self.layouts.clone() {
-         println!("{}", layout);
+      for attr in self.layouts.clone() {
+         println!("{}", attr);
+      }
+      for texture in self.shader.image_ids.clone() {
+         println!("{}(tex): {}", texture.0, texture.1);
       }
    }
    pub fn kill(&mut self) {

@@ -12,7 +12,7 @@ macro_rules! str {
 }
 
 pub struct NerveMesher {
-   pub shader: GlShader,
+   pub shader: NerveShader,
    pub transform: Transform,
    pub pos_attr: PositionAttr,
    pub col_attr: ColorAttr,
@@ -25,7 +25,7 @@ pub struct NerveMesher {
 impl Default for NerveMesher {
    fn default() -> Self {
       NerveMesher {
-         shader: GlShader::default(),
+         shader: NerveShader::default(),
          transform: Default::default(),
          pos_attr: PositionAttr::empty(),
          col_attr: ColorAttr::empty(),
@@ -139,10 +139,15 @@ impl NerveMesher {
       self.cus_attrs.push(cus_attr);
       self
    }
+   pub fn set_shader(mut self, shader: NerveShader) -> NerveMesher {
+      self.shader = shader;
+      self
+   }
    fn has_custom_attrs(&self) -> bool {
       !self.cus_attrs.is_empty()
    }
-   pub fn build(&mut self) -> NerveMesh {
+
+   pub fn mesh(&mut self) -> NerveMesh {
       let mut gl_verts_obj = GLVerts::new();
       let mut gl_index_obj = GLIndices::new();
 
@@ -259,7 +264,7 @@ impl NerveMesher {
       }
       self.transform.calc_matrix();
       NerveMesh {
-         shader: self.shader,
+         shader: self.shader.clone(),
          has_indices: ind_info.exists,
          vert_count,
          ind_count,

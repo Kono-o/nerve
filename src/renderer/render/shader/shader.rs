@@ -4,22 +4,32 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-#[derive(Copy, Clone)]
-pub(crate) struct GlShader {
-   pub(crate) program_id: GLuint,
+#[derive(Clone, Debug)]
+pub struct NerveShader {
+   pub(crate) id: GLuint,
+   pub(crate) image_ids: Vec<(String, GLuint)>,
+   pub(crate) is_compiled: bool,
 }
 
-impl Default for GlShader {
-   fn default() -> Self {
-      GlShader::new(
+impl Default for NerveShader {
+   fn default() -> NerveShader {
+      NerveShader::ship(
          "nerve/assets/shaders/mesh/default.vert",
          "nerve/assets/shaders/mesh/default.frag",
+         Vec::new(),
       )
    }
 }
 
-impl GlShader {
-   pub fn new(vert_path: &str, frag_path: &str) -> GlShader {
+impl NerveShader {
+   pub fn empty() -> NerveShader {
+      NerveShader {
+         id: 0,
+         image_ids: vec![],
+         is_compiled: false,
+      }
+   }
+   pub fn ship(vert_path: &str, frag_path: &str, image_ids: Vec<(String, GLuint)>) -> NerveShader {
       let mut success = gl::FALSE as GLint;
       let mut info_log = Vec::with_capacity(512);
 
@@ -76,40 +86,71 @@ impl GlShader {
          gl::DeleteShader(vert_shader);
          gl::DeleteShader(frag_shader);
 
-         GlShader {
-            program_id: program,
+         NerveShader {
+            id: program,
+            image_ids,
+            is_compiled: true,
          }
       }
    }
-   pub(crate) fn set(&self) {
-      unsafe { gl::UseProgram(self.program_id) }
+   pub fn is_compiled(&self) -> bool {
+      self.is_compiled
+   }
+   pub(crate) fn bind(&self) {
+      match self.is_compiled {
+         true => unsafe {
+            if self.image_ids.len() > 0 {
+               //gl::ActiveTexture(gl::TEXTURE0);
+               gl::BindTexture(gl::TEXTURE_2D, self.image_ids[0].1);
+            }
+            gl::UseProgram(self.id)
+         },
+         false => {
+            panic!("not compiled yet!")
+         }
+      }
    }
 
-   pub(crate) fn unset(&self) {
+   pub(crate) fn unbind(&self) {
       unsafe { gl::UseProgram(0) }
    }
 
    fn get_uniform_loc(&self, name: &str) -> GLint {
-      unsafe {
-         let c_name = CString::new(name).unwrap();
-         let loc = gl::GetUniformLocation(self.program_id, c_name.as_ptr());
-         if loc == -1 {
-            panic!("uniform with name {name} does not exist!")
-         } else {
-            return loc;
+      match self.is_compiled {
+         true => unsafe {
+            let c_name = CString::new(name).unwrap();
+            let loc = gl::GetUniformLocation(self.id, c_name.as_ptr());
+            if loc == -1 {
+               panic!("uniform {name} does not exist!")
+            } else {
+               loc
+            }
+         },
+         false => {
+            panic!("not compiled yet!")
          }
       }
    }
+
    pub(crate) fn set_mat4(&self, u_name: &str, mat4: Matrix4<f32>) {
-      unsafe {
-         let location = self.get_uniform_loc(u_name);
-         gl::UniformMatrix4fv(location, 1, gl::FALSE, mat4.as_ptr());
+      match self.is_compiled {
+         true => unsafe {
+            let location = self.get_uniform_loc(u_name);
+            gl::UniformMatrix4fv(location, 1, gl::FALSE, mat4.as_ptr());
+         },
+         false => {
+            panic!("not compiled yet!")
+         }
       }
    }
-   pub fn kill(&self) {
-      unsafe {
-         self.unset();
-         gl::DeleteProgram(self.program_id);
+   pub fn kill(&mut self) {
+      match self.is_compiled {
+         true => unsafe {
+            self.unbind();
+            gl::DeleteProgram(self.id);
+            self.is_compiled = false
+         },
+         false => {}
       }
    }
 }
