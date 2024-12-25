@@ -1,10 +1,8 @@
-use glfw::*;
+use crate::window::events::{key_to_bitmap, mouse_to_bitmap, ButtonState, KeyBitMap, MouseBitMap};
 use crate::{Is, Mouse, NerveCamera, NerveRenderer};
-use crate::renderer::canvas::events::{
-   key_to_bitmap, KeyBitMap, ButtonState, MouseBitMap, mouse_to_bitmap,
-};
+use glfw::*;
 
-pub struct NerveCanvas {
+pub struct NerveWindow {
    glfw: Glfw,
    window: PWindow,
    events: GlfwReceiver<(f64, WindowEvent)>,
@@ -32,7 +30,7 @@ pub struct NerveCanvas {
    pub delta: f32,
 }
 
-impl NerveCanvas {
+impl NerveWindow {
    pub(crate) fn make(
       glfw: Glfw,
       window: PWindow,
@@ -166,7 +164,7 @@ impl NerveCanvas {
    }
 }
 
-impl NerveCanvas {
+impl NerveWindow {
    pub fn pre(&mut self) {
       self.pre_update()
    }

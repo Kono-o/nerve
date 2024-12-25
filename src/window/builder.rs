@@ -1,12 +1,8 @@
+use crate::NerveWindow;
 use glfw::*;
-use crate::NerveCanvas;
 
-pub struct CanvasSize {
-   pub width: u32,
-   pub height: u32,
-}
-pub enum CanvasMode {
-   Windowed(CanvasSize),
+pub enum WindowMode {
+   Windowed(u32, u32),
    FullScreen,
 }
 pub enum Fps {
@@ -14,10 +10,10 @@ pub enum Fps {
    Max,
 }
 
-pub struct NerveCanvasBuilder<'a> {
+pub struct NerveWindowBuilder {
    pub opengl_version: (u32, u32),
-   pub title: &'a str,
-   pub mode: CanvasMode,
+   pub title: String,
+   pub mode: WindowMode,
    pub fps: Fps,
 }
 
@@ -38,43 +34,46 @@ fn window_init(window: &mut PWindow) {
    gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
 }
 
-impl Default for NerveCanvasBuilder<'_> {
+impl Default for NerveWindowBuilder {
    fn default() -> Self {
       Self {
          opengl_version: (3, 3),
-         title: "<Nerve-Canvas>",
-         mode: CanvasMode::Windowed(CanvasSize {
-            width: 960,
-            height: 540,
-         }),
+         title: "<Nerve-Window>".to_string(),
+         mode: WindowMode::Windowed(1280, 720),
          fps: Fps::Vsync,
       }
    }
 }
-impl NerveCanvasBuilder<'_> {
-   pub fn build(&self) -> NerveCanvas {
+impl NerveWindowBuilder {
+   pub fn build(&self) -> NerveWindow {
       let mut glfw = glfw_init(self.opengl_version);
       let mut is_fullscreen = false;
       let (mut window, events) = glfw.with_primary_monitor(|glfw, monitor| match monitor {
          None => panic!("no monitor found"),
          Some(mut monitor) => {
+            let vid_mode = monitor.get_video_mode().unwrap();
             let (mode, width, height) = match self.mode {
-               CanvasMode::Windowed(CanvasSize {
-                  width: w,
-                  height: h,
-               }) => (WindowMode::Windowed, w, h),
-               CanvasMode::FullScreen => {
+               WindowMode::Windowed(mut w, mut h) => {
+                  let min_size = vid_mode.height / 2;
+                  if w < min_size {
+                     w = min_size;
+                  };
+                  if h < min_size {
+                     h = min_size;
+                  }
+                  (glfw::WindowMode::Windowed, w, h)
+               }
+               WindowMode::FullScreen => {
                   is_fullscreen = true;
-                  let vid_mode = monitor.get_video_mode().unwrap();
                   (
-                     WindowMode::FullScreen(&mut monitor),
+                     glfw::WindowMode::FullScreen(monitor),
                      vid_mode.width,
                      vid_mode.height,
                   )
                }
             };
             match glfw.create_window(width, height, &self.title, mode) {
-               None => panic!("failed to make canvas!"),
+               None => panic!("failed to make window!"),
                Some(we) => return we,
             };
          }
@@ -84,6 +83,6 @@ impl NerveCanvasBuilder<'_> {
          Fps::Vsync => SwapInterval::Adaptive,
          Fps::Max => SwapInterval::None,
       });
-      NerveCanvas::make(glfw, window, events, is_fullscreen)
+      NerveWindow::make(glfw, window, events, is_fullscreen)
    }
 }

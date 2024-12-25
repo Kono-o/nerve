@@ -1,3 +1,5 @@
 pub mod renderer;
+pub use renderer::*;
 
-pub use self::renderer::*;
+pub mod window;
+pub use window::*;

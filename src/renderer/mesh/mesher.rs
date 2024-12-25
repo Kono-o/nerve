@@ -1,4 +1,4 @@
-use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
+use crate::renderer::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::*;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -73,16 +73,14 @@ impl NerveMesher {
       let mut nrm_data = Vec::new();
       let mut verts = HashMap::new();
 
-      //OPEN FILE
       let obj = match File::open(obj_path) {
          Ok(file) => file,
          Err(error) => panic!("{obj_path}: {error}"),
       };
-      //READ FILE
       let obj_src = BufReader::new(obj);
       for line_res in obj_src.lines() {
          let line = line_res.unwrap_or(" ".to_string());
-         let mut words = line.split_whitespace().collect::<Vec<&str>>();
+         let mut words = line.split(' ').collect::<Vec<&str>>();
          if words.is_empty() {
             continue;
          }

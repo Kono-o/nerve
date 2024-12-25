@@ -164,12 +164,6 @@ impl NerveShaderBuilder {
                ColType::GRAYA => gl::RG,
                ColType::RGBA => gl::RGBA,
             };
-
-            println!(
-               "col: {:?} bits: {}",
-               self.dif_tex.info.color_type, self.dif_tex.info.bit_depth
-            );
-
             let sized_format = match (base_format, self.dif_tex.info.bit_depth) {
                //16
                (gl::RED, 16) => gl::R16,
@@ -184,10 +178,6 @@ impl NerveShaderBuilder {
                //fallback
                _ => gl::RGBA8,
             };
-
-            println!("base: {:?} sized: {:?}", base_format, sized_format);
-            //println!("{:?}", self.dif_tex.tex);
-
             unsafe {
                gl::GenTextures(1, &mut tex_id);
                gl::BindTexture(gl::TEXTURE_2D, tex_id);
@@ -202,7 +192,7 @@ impl NerveShaderBuilder {
                gl::TexImage2D(
                   gl::TEXTURE_2D,
                   0,
-                  base_format as GLint,
+                  sized_format as GLint,
                   self.dif_tex.info.width as GLsizei,
                   self.dif_tex.info.height as GLsizei,
                   0,

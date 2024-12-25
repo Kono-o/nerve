@@ -1,6 +1,6 @@
-use crate::renderer::render::mesh::glbuffers::{GLIndices, GLVerts};
+use crate::renderer::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::renderer::Transform;
-use crate::{NerveCanvas, NerveShader};
+use crate::{NerveShader, NerveWindow};
 use gl::types::*;
 
 pub enum DrawMode {
@@ -66,7 +66,7 @@ impl Default for NerveMesh {
    }
 }
 impl NerveMesh {
-   pub fn draw_to(&mut self, canvas: &NerveCanvas) {
+   pub fn draw_to(&mut self, canvas: &NerveWindow) {
       if !self.visible || !self.alive {
          return;
       }
