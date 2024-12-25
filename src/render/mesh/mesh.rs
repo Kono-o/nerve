@@ -1,5 +1,5 @@
-use crate::renderer::mesh::glbuffers::{GLIndices, GLVerts};
-use crate::renderer::Transform;
+use crate::render::mesh::glbuffers::{GLIndices, GLVerts};
+use crate::render::Transform;
 use crate::{NerveShader, NerveWindow};
 use gl::types::*;
 

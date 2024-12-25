@@ -1,4 +1,4 @@
-use crate::renderer::NerveShader;
+use crate::render::NerveShader;
 use gl::types::{GLint, GLsizei, GLuint};
 use png::{BitDepth, ColorType};
 use std::ffi::c_void;

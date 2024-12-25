@@ -1,5 +1,5 @@
+use crate::render::Transform;
 use cgmath::*;
-use crate::renderer::Transform;
 
 pub struct ClipDist {
    pub near: f32,

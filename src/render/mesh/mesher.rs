@@ -1,4 +1,4 @@
-use crate::renderer::mesh::glbuffers::{GLIndices, GLVerts};
+use crate::render::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::*;
 use std::collections::HashMap;
 use std::fmt::Debug;
