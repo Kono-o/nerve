@@ -1,5 +1,6 @@
-pub mod render;
-pub use render::*;
+mod api;
+mod game;
+mod renderer;
 
-pub mod window;
-pub use window::*;
+pub use game::*;
+pub use renderer::*;

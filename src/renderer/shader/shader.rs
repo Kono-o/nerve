@@ -21,6 +21,10 @@ impl Default for NerveShader {
    }
 }
 
+pub enum Uniform {
+   Matrix4(Matrix4<f32>),
+}
+
 impl NerveShader {
    pub fn empty() -> NerveShader {
       NerveShader {
@@ -96,18 +100,19 @@ impl NerveShader {
    pub fn is_compiled(&self) -> bool {
       self.is_compiled
    }
+   pub(crate) fn panic_if_not_compiled(&self) {
+      if !self.is_compiled {
+         panic!("shader is not compiled!")
+      }
+   }
    pub(crate) fn bind(&self) {
-      match self.is_compiled {
-         true => unsafe {
-            if self.image_ids.len() > 0 {
-               //gl::ActiveTexture(gl::TEXTURE0);
-               gl::BindTexture(gl::TEXTURE_2D, self.image_ids[0].1);
-            }
-            gl::UseProgram(self.id)
-         },
-         false => {
-            panic!("not compiled yet!")
+      self.panic_if_not_compiled();
+      unsafe {
+         if self.image_ids.len() > 0 {
+            //gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, self.image_ids[0].1);
          }
+         gl::UseProgram(self.id)
       }
    }
 
@@ -115,42 +120,34 @@ impl NerveShader {
       unsafe { gl::UseProgram(0) }
    }
 
-   fn get_uniform_loc(&self, name: &str) -> GLint {
-      match self.is_compiled {
-         true => unsafe {
-            let c_name = CString::new(name).unwrap();
-            let loc = gl::GetUniformLocation(self.id, c_name.as_ptr());
-            if loc == -1 {
-               panic!("uniform {name} does not exist!")
-            } else {
-               loc
-            }
-         },
-         false => {
-            panic!("not compiled yet!")
+   fn get_uniform_location(&self, name: &str) -> GLint {
+      self.panic_if_not_compiled();
+      unsafe {
+         let c_name = CString::new(name).unwrap();
+         let loc = gl::GetUniformLocation(self.id, c_name.as_ptr());
+         if loc == -1 {
+            panic!("uniform {name} does not exist!")
+         } else {
+            loc
          }
       }
    }
 
-   pub(crate) fn set_mat4(&self, u_name: &str, mat4: Matrix4<f32>) {
-      match self.is_compiled {
-         true => unsafe {
-            let location = self.get_uniform_loc(u_name);
-            gl::UniformMatrix4fv(location, 1, gl::FALSE, mat4.as_ptr());
-         },
-         false => {
-            panic!("not compiled yet!")
+   pub(crate) fn set_uniform(&self, u_name: &str, uniform: Uniform) {
+      self.panic_if_not_compiled();
+      let location = self.get_uniform_location(u_name);
+      unsafe {
+         match uniform {
+            Uniform::Matrix4(m) => gl::UniformMatrix4fv(location, 1, gl::FALSE, m.as_ptr()),
          }
       }
    }
    pub fn kill(&mut self) {
-      match self.is_compiled {
-         true => unsafe {
-            self.unbind();
-            gl::DeleteProgram(self.id);
-            self.is_compiled = false
-         },
-         false => {}
+      self.panic_if_not_compiled();
+      unsafe {
+         self.unbind();
+         gl::DeleteProgram(self.id);
+         self.is_compiled = false
       }
    }
 }

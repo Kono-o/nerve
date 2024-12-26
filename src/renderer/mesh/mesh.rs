@@ -1,6 +1,6 @@
 use crate::render::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::render::Transform;
-use crate::{NerveShader, NerveWindow};
+use crate::{NerveGame, NerveShader, Uniform};
 use gl::types::*;
 
 pub enum DrawMode {
@@ -66,7 +66,7 @@ impl Default for NerveMesh {
    }
 }
 impl NerveMesh {
-   pub fn draw_to(&mut self, canvas: &NerveWindow) {
+   pub fn draw_to(&mut self, game: &NerveGame) {
       if !self.visible || !self.alive {
          return;
       }
@@ -75,9 +75,13 @@ impl NerveMesh {
       self.shader.bind();
       self
          .shader
-         .set_mat4("u_MeshTransform", self.transform.matrix);
-      self.shader.set_mat4("u_CamView", canvas.cam.view_matrix);
-      self.shader.set_mat4("u_CamProj", canvas.cam.proj_matrix);
+         .set_uniform("u_MeshTransform", Uniform::Matrix4(self.transform.matrix));
+      self
+         .shader
+         .set_uniform("u_CamView", Uniform::Matrix4(game.cam.view_matrix));
+      self
+         .shader
+         .set_uniform("u_CamProj", Uniform::Matrix4(game.cam.proj_matrix));
 
       if !self.is_empty {
          self.vert_object.bind();

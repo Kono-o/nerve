@@ -1,4 +1,5 @@
-use glfw::{Key, MouseButton};
+use crate::WinSize;
+use glfw::{GlfwReceiver, Key, MouseButton, WindowEvent};
 
 #[derive(Copy, Clone)]
 pub(crate) struct ButtonState {
@@ -10,8 +11,34 @@ pub(crate) struct ButtonState {
 pub(crate) struct KeyBitMap(pub(crate) [ButtonState; 121]);
 pub(crate) struct MouseBitMap(pub(crate) [ButtonState; 8]);
 
+#[derive(Debug)]
+pub enum Mouse {
+   Left,
+   Right,
+   Middle,
+   Button4,
+   Button5,
+   Button6,
+   Button7,
+   Button8,
+}
+impl Mouse {
+   pub(crate) fn from(mouse: MouseButton) -> Self {
+      match mouse {
+         MouseButton::Button1 => Self::Left,
+         MouseButton::Button2 => Self::Right,
+         MouseButton::Button3 => Self::Middle,
+         MouseButton::Button4 => Self::Button4,
+         MouseButton::Button5 => Self::Button5,
+         MouseButton::Button6 => Self::Button6,
+         MouseButton::Button7 => Self::Button7,
+         MouseButton::Button8 => Self::Button8,
+      }
+   }
+}
+
 pub(crate) fn mouse_to_bitmap(mouse: &Mouse) -> usize {
-   return match mouse {
+   match mouse {
       Mouse::Left => 0,
       Mouse::Right => 1,
       Mouse::Middle => 2,
@@ -20,11 +47,10 @@ pub(crate) fn mouse_to_bitmap(mouse: &Mouse) -> usize {
       Mouse::Button6 => 5,
       Mouse::Button7 => 6,
       Mouse::Button8 => 7,
-   };
+   }
 }
-
 pub(crate) fn key_to_bitmap(key: &Key) -> usize {
-   return match key {
+   match key {
       Key::Space => 0,
       Key::Apostrophe => 1,
       Key::Comma => 2,
@@ -146,36 +172,31 @@ pub(crate) fn key_to_bitmap(key: &Key) -> usize {
       Key::RightSuper => 118,
       Key::Menu => 119,
       Key::Unknown => 120,
-   };
-}
-
-#[derive(Debug)]
-pub enum Mouse {
-   Left,
-   Right,
-   Middle,
-   Button4,
-   Button5,
-   Button6,
-   Button7,
-   Button8,
-}
-
-impl Mouse {
-   pub(crate) fn from(mouse: MouseButton) -> Self {
-      match mouse {
-         MouseButton::Button1 => Self::Left,
-         MouseButton::Button2 => Self::Right,
-         MouseButton::Button3 => Self::Middle,
-         MouseButton::Button4 => Self::Button4,
-         MouseButton::Button5 => Self::Button5,
-         MouseButton::Button6 => Self::Button6,
-         MouseButton::Button7 => Self::Button7,
-         MouseButton::Button8 => Self::Button8,
-      }
    }
 }
-#[derive(Debug)]
+
+pub struct NerveEvents {
+   pub(crate) events: GlfwReceiver<(f64, WindowEvent)>,
+   pub(crate) key_bit_map: KeyBitMap,
+   pub(crate) mouse_bit_map: MouseBitMap,
+   pub(crate) keys_to_be_reset: Vec<Key>,
+   pub(crate) mouse_to_be_reset: Vec<Mouse>,
+}
+
+pub struct NerveGameInfo {
+   pub(crate) prev_mouse_pos: (u32, u32),
+   pub(crate) mouse_pos_offset: (i32, i32),
+   pub(crate) prev_pos: (i32, i32),
+   pub(crate) prev_size: WinSize,
+   pub(crate) prev_time: f64,
+   pub(crate) prev_sec: f64,
+   pub(crate) frame: u64,
+
+   pub fps: u32,
+   pub time: f64,
+   pub delta: f32,
+}
+
 pub enum Is {
    Pressed,
    Released,
