@@ -2,7 +2,7 @@ use crate::api::{GLRenderer, Renderer, VKRenderer};
 use crate::game::{ButtonState, KeyBitMap, MouseBitMap};
 use crate::renderer::{CamProj, NerveCamera, NerveRenderer};
 use crate::{NerveEvents, NerveGame, NerveGameInfo, NerveWindow, WinSize};
-use glfw::{Glfw, GlfwReceiver, OpenGlProfileHint, PWindow, WindowEvent, WindowHint};
+use glfw::{Glfw, GlfwReceiver, OpenGlProfileHint, PWindow, SwapInterval, WindowEvent, WindowHint};
 
 pub enum RenderAPI {
    OpenGL(u32, u32),
@@ -13,16 +13,16 @@ pub enum WinMode {
    Windowed(u32, u32),
    Full,
 }
-pub enum Frame {
+pub enum FPS {
    Vsync,
    Max,
 }
 
 pub struct NerveGameBuilder {
+   pub mode: WinMode,
    pub renderer: RenderAPI,
    pub title: String,
-   pub mode: WinMode,
-   pub fps: Frame,
+   pub fps: FPS,
 }
 
 impl Default for NerveGameBuilder {
@@ -31,7 +31,7 @@ impl Default for NerveGameBuilder {
          renderer: RenderAPI::OpenGL(3, 3),
          title: "<Nerve-Game>".to_string(),
          mode: WinMode::Windowed(1280, 720),
-         fps: Frame::Max,
+         fps: FPS::Vsync,
       }
    }
 }
@@ -114,10 +114,10 @@ impl NerveGameBuilder {
       let (context, mut window, events, is_fullscreen, size) =
          create_from(&mut glfw, &self.renderer, &self.mode, &self.title);
       context.init(&mut window, &mut glfw);
-      //glfw.set_swap_interval(match self.fps {
-      //   Frame::Vsync => SwapInterval::Adaptive,
-      //   Frame::Max => SwapInterval::None,
-      //});
+      glfw.set_swap_interval(match self.fps {
+         FPS::Vsync => SwapInterval::Adaptive,
+         FPS::Max => SwapInterval::None,
+      });
 
       NerveGame {
          renderer: NerveRenderer::new(context),

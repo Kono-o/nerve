@@ -4,14 +4,25 @@ use crate::renderer::{NerveCamera, NerveRenderer};
 use crate::{Is, Mouse, NerveEvents, NerveGameInfo, NerveWindow};
 use glfw::{flush_messages, Action, Context, Key, SwapInterval, WindowEvent, WindowMode};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct WinSize {
    pub w: u32,
    pub h: u32,
 }
+
 impl WinSize {
    pub fn from(w: u32, h: u32) -> Self {
       Self { w, h }
+   }
+   pub(crate) fn shave(&self, n: u32) -> WinSize {
+      if self.w > 0 && self.h > 0 {
+         WinSize {
+            w: self.w - n,
+            h: self.h - n,
+         }
+      } else {
+         *self
+      }
    }
 }
 
@@ -119,10 +130,10 @@ impl NerveGame {
       self.post_update()
    }
 
-   pub fn alive(&self) -> bool {
+   pub fn running(&self) -> bool {
       !self.window.should_close()
    }
-   pub fn kill(&mut self) {
+   pub fn close(&mut self) {
       self.window.set_should_close(true)
    }
    pub fn size(&mut self) -> WinSize {
@@ -142,11 +153,13 @@ impl NerveGame {
       })
    }
    pub fn toggle_fullscreen(&mut self) {
+      println!("is {}", self.window.is_fullscreen);
       if self.window.is_fullscreen {
+         println!("{:?} {:?}", self.info.prev_pos, self.info.prev_size,);
          self.window.set_monitor(
             WindowMode::Windowed,
             self.info.prev_pos,
-            self.info.prev_size,
+            self.info.prev_size.shave(1),
             None,
          );
       } else {
@@ -162,11 +175,13 @@ impl NerveGame {
                0,
                mode.width,
                mode.height,
-               Some(mode.refresh_rate),
+               None,
+               //Some(mode.refresh_rate),
             );
          })
       }
       self.window.is_fullscreen = !self.window.is_fullscreen;
+      println!("to {}", self.window.is_fullscreen);
    }
 
    pub fn key(&self, key: Key, action: Is) -> bool {

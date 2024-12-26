@@ -25,18 +25,15 @@ impl NerveWindow {
          refresh_rate,
       );
    }
+
    pub(crate) fn get_cursor_pos(&self) -> (f64, f64) {
       self.window.get_cursor_pos()
    }
-}
 
-impl NerveWindow {
    pub(crate) fn get_pos(&self) -> (i32, i32) {
       self.window.get_pos()
    }
-}
 
-impl NerveWindow {
    pub(crate) fn swap_buffers(&mut self) {
       self.window.swap_buffers()
    }
