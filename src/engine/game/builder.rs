@@ -4,6 +4,7 @@ use crate::renderer::{CamProj, NerveCamera, NerveRenderer, Renderer};
 use crate::{NerveEvents, NerveGame, NerveGameInfo, NerveWindow, WinSize};
 use glfw::{Glfw, GlfwReceiver, OpenGlProfileHint, PWindow, SwapInterval, WindowEvent, WindowHint};
 
+#[derive(Copy, Clone)]
 pub enum RenderAPI {
    OpenGL(u32, u32),
    Vulkan,
@@ -128,7 +129,7 @@ impl NerveGameBuilder {
       let cursor_pos = (x as u32, y as u32);
 
       NerveGame {
-         renderer: NerveRenderer::from(renderer),
+         renderer: NerveRenderer::from(renderer, self.renderer),
          window: NerveWindow {
             glfw: glfw.clone(),
             window,

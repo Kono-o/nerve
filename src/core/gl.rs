@@ -13,14 +13,13 @@ impl Renderer for GLRenderer {
       gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
    }
 
-   fn info(&self) -> (String, String, String, String) {
+   fn info(&self) -> (String, String, String) {
       unsafe {
          (
             CStr::from_ptr(gl::GetString(gl::RENDERER) as *const i8) //GPU
                .to_str()
                .unwrap_or("")
                .to_string(),
-            "OpenGL".to_string(),
             CStr::from_ptr(gl::GetString(gl::VERSION) as *const i8) //API VERSION
                .to_str()
                .unwrap_or("")
@@ -34,7 +33,7 @@ impl Renderer for GLRenderer {
    }
 
    //RENDERING
-   fn set_bg(&self, color: RGB) {
+   fn set_bg_color(&self, color: RGB) {
       unsafe {
          gl::ClearColor(color.0, color.1, color.2, 1.0);
       }

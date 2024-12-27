@@ -6,7 +6,7 @@ use glfw::{Glfw, PWindow};
 pub(crate) struct VKRenderer;
 
 impl Renderer for VKRenderer {
-   fn init(&self, window: &mut PWindow, glfw: &mut Glfw) {
+   fn init(&self, _window: &mut PWindow, glfw: &mut Glfw) {
       if glfw.vulkan_supported() {
          println!("vk available!")
       } else {
@@ -14,11 +14,11 @@ impl Renderer for VKRenderer {
       }
    }
 
-   fn info(&self) -> (String, String, String, String) {
+   fn info(&self) -> (String, String, String) {
       todo!()
    }
 
-   fn set_bg(&self, color: RGB) {
+   fn set_bg_color(&self, color: RGB) {
       todo!()
    }
    fn clear_bg(&self) {

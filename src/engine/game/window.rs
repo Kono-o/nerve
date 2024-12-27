@@ -76,8 +76,12 @@ impl NerveWindow {
    }
 
    pub fn close(&mut self) {
-      self.window.set_should_close(false);
+      self.window.set_should_close(true);
       self.is_running = false
+   }
+
+   pub fn select(&mut self) {
+      self.window.make_current()
    }
 
    pub fn set_title(&mut self, title: String) {

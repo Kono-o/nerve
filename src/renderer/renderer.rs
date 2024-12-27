@@ -1,4 +1,4 @@
-use crate::{color, WinSize, RGB};
+use crate::{color, RenderAPI, WinSize, RGB};
 
 #[derive(Copy, Clone)]
 pub enum PolyMode {
@@ -14,10 +14,10 @@ pub enum Cull {
 
 pub(crate) trait Renderer {
    fn init(&self, window: &mut glfw::PWindow, glfw: &mut glfw::Glfw);
-   fn info(&self) -> (String, String, String, String);
+   fn info(&self) -> (String, String, String);
 
    //RENDERING
-   fn set_bg(&self, color: RGB);
+   fn set_bg_color(&self, color: RGB);
    fn clear_bg(&self);
    fn clear_depth(&self);
 
@@ -38,7 +38,7 @@ pub struct NerveRenderer {
    pub(crate) renderer: Box<dyn Renderer>,
 
    pub gpu: String,
-   pub api: String,
+   pub api: RenderAPI,
    pub api_ver: String,
    pub glsl_ver: String,
 
@@ -53,8 +53,10 @@ pub struct NerveRenderer {
 }
 //PRIVATE
 impl NerveRenderer {
-   pub(crate) fn from(renderer: Box<dyn Renderer>) -> Self {
-      let (gpu, api, api_ver, glsl_ver) = renderer.info();
+   pub(crate) fn from(renderer: Box<dyn Renderer>, api: RenderAPI) -> Self {
+      let (gpu, api_ver, glsl_ver) = renderer.info();
+      let bg_color = color::CRIMSON;
+      renderer.set_bg_color(bg_color);
       Self {
          renderer,
          gpu,
@@ -63,7 +65,7 @@ impl NerveRenderer {
          glsl_ver,
          poly_mode: PolyMode::Filled,
          cull_face: Cull::AntiClock,
-         bg_color: color::BLACK,
+         bg_color,
          draw_bg: true,
          depth: true,
          msaa: false,
@@ -89,8 +91,12 @@ impl NerveRenderer {
 //PUBLIC
 impl NerveRenderer {
    pub fn display_info(&self) {
+      let api = match self.api {
+         RenderAPI::OpenGL(_, _) => "OpenGL",
+         RenderAPI::Vulkan => "Vulkan",
+      };
       println!("gpu: {}", self.gpu);
-      println!("api: {} {}", self.api, self.api_ver);
+      println!("api: {} {}", api, self.api_ver);
       println!("gls: {}", self.glsl_ver);
    }
    pub fn set_msaa_samples(&mut self, samples: u32) {
@@ -98,7 +104,7 @@ impl NerveRenderer {
    }
    pub fn set_bg_color(&mut self, color: RGB) {
       self.bg_color = color;
-      self.renderer.set_bg(color);
+      self.renderer.set_bg_color(color);
    }
    pub fn set_poly_mode(&mut self, mode: PolyMode) {
       self.poly_mode = mode;
