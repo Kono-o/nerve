@@ -26,7 +26,7 @@ impl NerveGame {
    }
 
    pub fn pre_update(&mut self) {
-      self.renderer.pre_update();
+      self.renderer.pre_update(&self.cam);
       self.window.pre_update();
       self.events.pre_update();
       self.info.pre_update();

@@ -1,13 +1,12 @@
-use crate::WinSize;
+use crate::{ScreenCoord, ScreenOffset, WinSize};
 use glfw::{Context, CursorMode, Glfw, PWindow, SwapInterval, WindowMode};
 
 pub struct NerveWindow {
    pub(crate) glfw: Glfw,
    pub(crate) window: PWindow,
 
-   pub(crate) prev_cursor_pos: (u32, u32),
-   pub(crate) cursor_offset: (i32, i32),
-   pub(crate) prev_pos: (i32, i32),
+   pub(crate) prev_cursor_coord: ScreenCoord,
+   pub(crate) prev_coord: ScreenCoord,
    pub(crate) prev_size: WinSize,
 
    pub is_cursor_hidden: bool,
@@ -18,23 +17,24 @@ pub struct NerveWindow {
    pub is_vsync: bool,
 
    pub size: WinSize,
-   pub pos: (i32, i32),
+   pub coord: ScreenCoord,
    pub title: String,
-   pub cursor_pos: (u32, u32),
+   pub cursor_coord: ScreenCoord,
+   pub cursor_offset: ScreenOffset,
 }
 
 impl NerveWindow {
    pub(crate) fn set_monitor(
       &mut self,
       mode: WindowMode,
-      prev_pos: (i32, i32),
+      prev_pos: ScreenCoord,
       prev_size: WinSize,
       refresh_rate: Option<u32>,
    ) {
       self.window.set_monitor(
          mode,
-         prev_pos.0,
-         prev_pos.1,
+         prev_pos.x,
+         prev_pos.y,
          prev_size.w,
          prev_size.h,
          refresh_rate,
@@ -43,8 +43,8 @@ impl NerveWindow {
    pub(crate) fn pre_update(&mut self) {
       self.glfw.poll_events();
       self.size = self.get_size();
-      self.pos = self.window.get_pos();
-      self.cursor_pos = self.get_cursor_pos();
+      self.coord = self.get_coord();
+      self.cursor_coord = self.get_cursor_coord();
       self.cursor_offset = self.get_cursor_offset();
    }
    pub(crate) fn post_update(&mut self) {
@@ -55,20 +55,21 @@ impl NerveWindow {
       let (w, h) = self.window.get_size();
       WinSize::from(w as u32, h as u32)
    }
-   fn get_pos(&self) -> (i32, i32) {
-      self.window.get_pos()
+   fn get_coord(&self) -> ScreenCoord {
+      ScreenCoord::from_tup(self.window.get_pos())
    }
-   fn get_cursor_pos(&self) -> (u32, u32) {
+   fn get_cursor_coord(&self) -> ScreenCoord {
       let (x, y) = self.window.get_cursor_pos();
-      (x as u32, y as u32)
+      ScreenCoord::from(x as i32, y as i32)
    }
-   fn get_cursor_offset(&mut self) -> (i32, i32) {
-      let (x, y) = self.cursor_pos;
-      self.prev_cursor_pos = (x, y);
-      (
-         x as i32 - self.prev_cursor_pos.0 as i32,
-         self.prev_cursor_pos.1 as i32 - y as i32,
-      )
+   fn get_cursor_offset(&mut self) -> ScreenOffset {
+      let coord = self.cursor_coord;
+      let cursor_offset = ScreenOffset::from(
+         coord.x - self.prev_cursor_coord.x,
+         self.prev_cursor_coord.y - coord.y,
+      );
+      self.prev_cursor_coord = coord;
+      cursor_offset
    }
 
    fn swap(&mut self) {
@@ -91,21 +92,25 @@ impl NerveWindow {
    pub fn set_size(&mut self, size: WinSize) {
       self.window.set_size(size.w as i32, size.h as i32);
    }
-   pub fn set_pos(&mut self, pos: (u32, u32)) {
-      self.pos = (pos.0 as i32, pos.1 as i32);
-      self.window.set_pos(self.pos.0, self.pos.1);
+   pub fn set_coord(&mut self, coord: ScreenCoord) {
+      self.coord = coord;
+      self.window.set_pos(coord.x, coord.y);
    }
-   pub fn set_cursor_pos(&mut self, pos: (u32, u32)) {
-      self.cursor_pos = pos;
-      self.window.set_cursor_pos(pos.0 as f64, pos.1 as f64)
+
+   pub fn cursor_is_inside(&self) -> bool {
+      self.cursor_coord.is_inside(self.size)
+   }
+   pub fn set_cursor_pos(&mut self, coord: ScreenCoord) {
+      self.cursor_coord = coord;
+      self.window.set_cursor_pos(coord.x as f64, coord.y as f64)
    }
 
    pub fn set_cursor_visibility(&mut self, hide: bool) {
       self.is_cursor_hidden = hide;
       if !self.is_cursor_off {
          self.window.set_cursor_mode(match hide {
-            true => CursorMode::Hidden,
-            false => CursorMode::Normal,
+            true => CursorMode::Normal,
+            false => CursorMode::Hidden,
          });
       }
    }
@@ -140,7 +145,7 @@ impl NerveWindow {
    pub fn toggle_fullscreen(&mut self) {
       self.is_fullscreen = !self.is_fullscreen;
       if self.is_fullscreen {
-         self.prev_pos = self.get_pos();
+         self.prev_coord = self.get_coord();
          self.prev_size = self.get_size();
 
          self.glfw.with_primary_monitor(|_, m| {
@@ -158,7 +163,7 @@ impl NerveWindow {
       } else {
          self.set_monitor(
             WindowMode::Windowed,
-            self.prev_pos,
+            self.prev_coord,
             self.prev_size.shave(1),
             None,
          );

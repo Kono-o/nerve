@@ -11,7 +11,7 @@ macro_rules! str {
    };
 }
 
-pub struct NerveMesher {
+pub struct NerveMeshSrc {
    pub shader: NerveShader,
    pub transform: Transform,
    pub pos_attr: PositionAttr,
@@ -22,10 +22,10 @@ pub struct NerveMesher {
    pub cus_attrs: Vec<CustomAttr>,
    pub start_with_custom: bool,
 }
-impl Default for NerveMesher {
+impl Default for NerveMeshSrc {
    fn default() -> Self {
-      NerveMesher {
-         shader: NerveShader::default(),
+      NerveMeshSrc {
+         shader: NerveShader::empty(),
          transform: Default::default(),
          pos_attr: PositionAttr::empty(),
          col_attr: ColorAttr::empty(),
@@ -60,8 +60,8 @@ fn str_vec_to_usize(strs: Vec<&str>) -> Vec<usize> {
    }
    vec
 }
-impl NerveMesher {
-   pub fn obj(obj_path: &str) -> NerveMesher {
+impl NerveMeshSrc {
+   pub fn from(obj_path: &str) -> NerveMeshSrc {
       let mut pos_attr: PositionAttr = PositionAttr::empty();
       let mut col_attr: ColorAttr = ColorAttr::empty();
       let mut uvm_attr: UVMapAttr = UVMapAttr::empty();
@@ -122,7 +122,7 @@ impl NerveMesher {
       uvm_attr.calc_info();
       nrm_attr.calc_info();
       indices.calc_info();
-      NerveMesher {
+      NerveMeshSrc {
          pos_attr,
          col_attr,
          uvm_attr,
@@ -131,11 +131,11 @@ impl NerveMesher {
          ..Self::default()
       }
    }
-   pub fn attach_custom_attr(mut self, cus_attr: CustomAttr) -> NerveMesher {
+   pub fn attach_custom_attr(mut self, cus_attr: CustomAttr) -> NerveMeshSrc {
       self.cus_attrs.push(cus_attr);
       self
    }
-   pub fn set_shader(mut self, shader: NerveShader) -> NerveMesher {
+   pub fn set_shader(mut self, shader: NerveShader) -> NerveMeshSrc {
       self.shader = shader;
       self
    }

@@ -5,6 +5,9 @@ pub struct WinSize {
 }
 
 impl WinSize {
+   pub fn empty() -> WinSize {
+      Self { w: 0, h: 0 }
+   }
    pub fn from(w: u32, h: u32) -> Self {
       Self { w, h }
    }

@@ -1,5 +1,5 @@
 use crate::renderer::mesh::glbuffers::{GLIndices, GLVerts};
-use crate::{NerveGame, NerveShader, Transform, Uniform};
+use crate::{NerveShader, Transform};
 use gl::types::*;
 
 pub enum DrawMode {
@@ -58,76 +58,24 @@ impl Default for NerveMesh {
             ebo: 0,
             buffer: vec![],
          },
-         shader: NerveShader::default(),
+         shader: NerveShader::empty(),
          draw_mode: DrawMode::Triangles,
          layouts: vec![],
       }
    }
 }
 impl NerveMesh {
-   pub fn draw_to(&mut self, game: &NerveGame) {
-      if !self.visible || !self.alive {
-         return;
-      }
-      self.transform.calc_matrix();
-
-      self.shader.bind();
-      self
-         .shader
-         .set_uniform("u_MeshTransform", Uniform::Matrix4(self.transform.matrix));
-      self
-         .shader
-         .set_uniform("u_CamView", Uniform::Matrix4(game.cam.view_matrix));
-      self
-         .shader
-         .set_uniform("u_CamProj", Uniform::Matrix4(game.cam.proj_matrix));
-
-      if !self.is_empty {
-         self.vert_object.bind();
-         self.index_object.bind();
-         unsafe {
-            if self.has_indices {
-               gl::DrawElements(
-                  self.draw_mode.gl_enum(),
-                  self.ind_count as GLsizei,
-                  gl::UNSIGNED_INT,
-                  std::ptr::null(),
-               );
-            } else {
-               gl::DrawArrays(self.draw_mode.gl_enum(), 0, self.vert_count as GLsizei);
-            }
-         }
-      }
-   }
    pub fn set_shader(&mut self, shader: NerveShader) {
       self.shader = shader
    }
-
-   pub fn mimic(&mut self) -> NerveMesh {
-      NerveMesh {
-         visible: self.visible,
-         transform: self.transform.clone(),
-         draw_mode: DrawMode::Triangles,
-         alive: self.alive,
-         shader: self.shader.clone(),
-         has_indices: self.has_indices,
-         is_empty: self.is_empty,
-         vert_count: self.vert_count,
-         ind_count: self.ind_count,
-         vert_object: GLVerts {
-            vao: self.vert_object.vao,
-            vbo: self.vert_object.vbo,
-            attrib_id: self.vert_object.attrib_id,
-            local_offset: self.vert_object.local_offset,
-            stride: self.vert_object.stride,
-            buffer: self.vert_object.buffer.clone(),
-         },
-         index_object: GLIndices {
-            ebo: self.index_object.ebo,
-            buffer: vec![],
-         },
-         layouts: self.layouts.clone(),
-      }
+   pub fn set_draw_mode(&mut self, draw_mode: DrawMode) {
+      self.draw_mode = draw_mode
+   }
+   pub fn set_visibility(&mut self, enable: bool) {
+      self.visible = enable;
+   }
+   pub fn toggle_visibility(&mut self) {
+      self.visible = !self.visible;
    }
 
    pub fn show_layouts(&self) {

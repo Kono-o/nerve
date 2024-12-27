@@ -103,38 +103,38 @@ impl Texture {
    }
 }
 
-pub struct NerveShaderBuilder {
-   dif_tex: Texture,
-   nrm_tex: Texture,
-   vert_src: String,
-   frag_src: String,
+pub struct NerveShaderSrc {
+   pub(crate) dif_tex: Texture,
+   pub(crate) nrm_tex: Texture,
+   pub(crate) vert_path: String,
+   pub(crate) frag_path: String,
 }
 
-impl Default for NerveShaderBuilder {
+impl Default for NerveShaderSrc {
    fn default() -> Self {
-      NerveShaderBuilder::empty()
+      NerveShaderSrc::empty()
    }
 }
 pub enum TexType {
    Diffuse,
    Normal,
 }
-impl NerveShaderBuilder {
+impl NerveShaderSrc {
    pub fn empty() -> Self {
       Self {
          dif_tex: Texture::empty(),
          nrm_tex: Texture::empty(),
-         vert_src: "".to_string(),
-         frag_src: "".to_string(),
+         vert_path: "".to_string(),
+         frag_path: "".to_string(),
       }
    }
 
    pub fn from(vert_src: &str, frag_src: &str) -> Self {
-      NerveShaderBuilder::empty().attach_src(vert_src, frag_src)
+      NerveShaderSrc::empty().attach_src(vert_src, frag_src)
    }
-   pub fn attach_src(mut self, vert_src: &str, frag_src: &str) -> Self {
-      self.vert_src = vert_src.to_string();
-      self.frag_src = frag_src.to_string();
+   pub fn attach_src(mut self, vert_path: &str, frag_path: &str) -> Self {
+      self.vert_path = vert_path.to_string();
+      self.frag_path = frag_path.to_string();
       self
    }
 
@@ -150,9 +150,9 @@ impl NerveShaderBuilder {
       self
    }
 
-   pub fn compile(&self) -> NerveShader {
-      if self.vert_src.len() == 0 || self.frag_src.len() == 0 {
-         NerveShader::default()
+   pub fn compile(&self) {
+      if self.vert_path.len() == 0 || self.frag_path.len() == 0 {
+         NerveShader::empty();
       } else {
          let mut image_ids: Vec<(String, GLuint)> = Vec::new();
          let mut tex_id: GLuint = 0;
@@ -206,7 +206,7 @@ impl NerveShaderBuilder {
                image_ids.push(("DIFFUSE".to_string(), tex_id));
             }
          }
-         NerveShader::ship(&self.vert_src, &self.frag_src, image_ids)
+         //NerveShader::ship(&self.vert_path, &self.frag_path, image_ids)
       }
    }
 }

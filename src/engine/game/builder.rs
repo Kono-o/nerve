@@ -1,7 +1,9 @@
 use crate::core::{GLRenderer, VKRenderer};
 use crate::engine::{ButtonState, KeyBitMap, MouseBitMap};
 use crate::renderer::{CamProj, NerveCamera, NerveRenderer, Renderer};
-use crate::{NerveEvents, NerveGame, NerveGameInfo, NerveWindow, WinSize};
+use crate::{
+   NerveEvents, NerveGame, NerveGameInfo, NerveWindow, ScreenCoord, ScreenOffset, WinSize,
+};
 use glfw::{Glfw, GlfwReceiver, OpenGlProfileHint, PWindow, SwapInterval, WindowEvent, WindowHint};
 
 #[derive(Copy, Clone)]
@@ -70,7 +72,6 @@ fn window_from(
                glfw::WindowMode::FullScreen(monitor)
             }
          };
-
          match glfw.create_window(size.w, size.h, &title, mode) {
             None => panic!("failed to make window!"),
             Some(we) => return we,
@@ -82,7 +83,7 @@ fn window_from(
    (window, events, is_fullscreen, size)
 }
 
-fn create_from(
+fn init_nerve(
    glfw: &mut Glfw,
    api: &RenderAPI,
    mode: &WinMode,
@@ -116,7 +117,7 @@ impl NerveGameBuilder {
    pub fn build(&self) -> NerveGame {
       let mut glfw = glfw::init(glfw_error_log).unwrap();
       let (renderer, mut window, events, is_fullscreen, size) =
-         create_from(&mut glfw, &self.renderer, &self.mode, &self.title);
+         init_nerve(&mut glfw, &self.renderer, &self.mode, &self.title);
       renderer.init(&mut window, &mut glfw);
       let (swap_interval, is_vsync) = match self.fps {
          FPS::Vsync => (SwapInterval::Adaptive, true),
@@ -124,19 +125,20 @@ impl NerveGameBuilder {
       };
       glfw.set_swap_interval(swap_interval);
 
-      let pos = window.get_pos();
+      let coord = ScreenCoord::from_tup(window.get_pos());
       let (x, y) = window.get_cursor_pos();
-      let cursor_pos = (x as u32, y as u32);
+      let cursor_coord = ScreenCoord::from(x as i32, y as i32);
+      let cam = NerveCamera::from(size, CamProj::Persp);
 
       NerveGame {
-         renderer: NerveRenderer::from(renderer, self.renderer),
+         renderer: NerveRenderer::from(renderer, self.renderer, cam.view_matrix, cam.proj_matrix),
          window: NerveWindow {
             glfw: glfw.clone(),
             window,
-            prev_cursor_pos: (0, 0),
-            cursor_offset: (0, 0),
-            prev_pos: (0, 0),
-            prev_size: WinSize { w: 0, h: 0 },
+            prev_cursor_coord: ScreenCoord::empty(),
+            cursor_offset: ScreenOffset::empty(),
+            prev_coord: ScreenCoord::empty(),
+            prev_size: WinSize::empty(),
             is_cursor_hidden: false,
             is_cursor_off: false,
             is_fullscreen,
@@ -144,9 +146,9 @@ impl NerveGameBuilder {
             is_running: true,
             is_vsync,
             size,
-            pos,
+            coord,
             title: self.title.clone(),
-            cursor_pos,
+            cursor_coord,
          },
          events: NerveEvents {
             events,
@@ -179,7 +181,7 @@ impl NerveGameBuilder {
             time: 0.0,
             delta: 0.0,
          },
-         cam: NerveCamera::from(size, CamProj::Persp),
+         cam,
       }
    }
 }
