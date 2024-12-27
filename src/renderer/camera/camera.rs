@@ -7,8 +7,8 @@ pub struct ClipDist {
    pub far: f32,
 }
 pub enum CamProj {
-   Orthographic,
-   Perspective,
+   Ortho,
+   Persp,
 }
 
 pub struct NerveCamera {
@@ -25,7 +25,60 @@ pub struct NerveCamera {
 }
 
 impl NerveCamera {
-   pub fn new(size: WinSize, projection: CamProj) -> Self {
+   fn update_proj(&mut self) {
+      self.proj_matrix = match self.projection {
+         CamProj::Persp => perspective(
+            Deg(self.fov),
+            self.size.w as f32 / self.size.h as f32,
+            self.clip.0,
+            self.clip.1,
+         ),
+         CamProj::Ortho => {
+            let bound_w = (self.size.w as f32 / self.size.h as f32) * self.ortho_scale;
+            let bound_h = self.ortho_scale;
+            ortho(
+               -bound_w,
+               bound_w,
+               -bound_h,
+               bound_h,
+               self.clip.0,
+               self.clip.1,
+            )
+         }
+      }
+   }
+   fn update_view(&mut self) {
+      self.update_front();
+      let eye = point3(
+         self.transform.pos.x,
+         self.transform.pos.y,
+         self.transform.pos.z,
+      );
+      let centre = point3(
+         self.front.x + eye.x,
+         self.front.y + eye.y,
+         self.front.z + eye.z,
+      );
+      self.view_matrix = Matrix4::look_at_rh(eye, centre, vec3(0.0, 1.0, 0.0));
+   }
+   fn update_front(&mut self) {
+      let pitch_cos = self.transform.rot.x.to_radians().cos();
+      self.front = vec3(
+         self.transform.rot.y.to_radians().cos() * pitch_cos,
+         self.transform.rot.x.to_radians().sin(),
+         self.transform.rot.y.to_radians().sin() * pitch_cos,
+      )
+      .normalize();
+   }
+
+   pub(crate) fn pre_update(&mut self) {
+      self.update_view()
+   }
+   pub(crate) fn post_update(&mut self) {}
+}
+
+impl NerveCamera {
+   pub fn from(size: WinSize, projection: CamProj) -> Self {
       let fov = 50.0;
       let (widthf, heightf) = (size.w as f32, size.h as f32);
       let proj_matrix = perspective(Deg(fov), widthf / heightf, 0.01, 1000.0);
@@ -56,67 +109,29 @@ impl NerveCamera {
          },
       }
    }
-
-   pub(crate) fn recalc_proj(&mut self) {
-      self.proj_matrix = match self.projection {
-         CamProj::Perspective => perspective(
-            Deg(self.fov),
-            self.size.w as f32 / self.size.h as f32,
-            self.clip.0,
-            self.clip.1,
-         ),
-         CamProj::Orthographic => {
-            let bound_w = (self.size.w as f32 / self.size.h as f32) * self.ortho_scale;
-            let bound_h = self.ortho_scale;
-            ortho(
-               -bound_w,
-               bound_w,
-               -bound_h,
-               bound_h,
-               self.clip.0,
-               self.clip.1,
-            )
-         }
-      }
-   }
-   pub(crate) fn recalc_view(&mut self) {
-      self.update_front();
-      let eye = point3(
-         self.transform.pos.x,
-         self.transform.pos.y,
-         self.transform.pos.z,
-      );
-      let centre = point3(
-         self.front.x + eye.x,
-         self.front.y + eye.y,
-         self.front.z + eye.z,
-      );
-      self.view_matrix = Matrix4::look_at_rh(eye, centre, vec3(0.0, 1.0, 0.0));
-   }
-
-   fn update_front(&mut self) {
-      let pitch_cos = self.transform.rot.x.to_radians().cos();
-      self.front = vec3(
-         self.transform.rot.y.to_radians().cos() * pitch_cos,
-         self.transform.rot.x.to_radians().sin(),
-         self.transform.rot.y.to_radians().sin() * pitch_cos,
-      )
-      .normalize();
-   }
-}
-
-impl NerveCamera {
-   pub fn resize(&mut self, size: WinSize) {
+   pub fn set_size(&mut self, size: WinSize) {
       self.size = size;
-      self.recalc_proj()
+      self.update_proj()
    }
    pub fn set_proj(&mut self, proj: CamProj) {
       self.projection = proj;
-      self.recalc_proj()
+      self.update_proj()
    }
    pub fn set_fov(&mut self, fov: f32) {
       self.fov = fov;
-      self.recalc_proj()
+      self.update_proj()
+   }
+   pub fn add_pov(&mut self, value: f32) {
+      self.fov += value;
+      self.update_proj()
+   }
+   pub fn set_ortho_scale(&mut self, value: f32) {
+      self.ortho_scale = value;
+      self.update_proj()
+   }
+   pub fn add_ortho_scale(&mut self, value: f32) {
+      self.ortho_scale += value;
+      self.update_proj()
    }
 
    pub fn fly_forw(&mut self, speed: f32) {

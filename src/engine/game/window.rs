@@ -1,5 +1,5 @@
 use crate::WinSize;
-use glfw::{Context, Glfw, PWindow, SwapInterval, WindowMode};
+use glfw::{Context, CursorMode, Glfw, PWindow, SwapInterval, WindowMode};
 
 pub struct NerveWindow {
    pub(crate) glfw: Glfw,
@@ -10,6 +10,8 @@ pub struct NerveWindow {
    pub(crate) prev_pos: (i32, i32),
    pub(crate) prev_size: WinSize,
 
+   pub is_cursor_hidden: bool,
+   pub is_cursor_off: bool,
    pub is_fullscreen: bool,
    pub is_resizable: bool,
    pub is_running: bool,
@@ -39,11 +41,11 @@ impl NerveWindow {
       );
    }
    pub(crate) fn pre_update(&mut self) {
+      self.glfw.poll_events();
       self.size = self.get_size();
       self.pos = self.window.get_pos();
       self.cursor_pos = self.get_cursor_pos();
       self.cursor_offset = self.get_cursor_offset();
-      self.glfw.poll_events()
    }
    pub(crate) fn post_update(&mut self) {
       self.swap();
@@ -77,9 +79,54 @@ impl NerveWindow {
       self.window.set_should_close(false);
       self.is_running = false
    }
+
+   pub fn set_title(&mut self, title: String) {
+      self.window.set_title(&title);
+      self.title = title;
+   }
    pub fn set_size(&mut self, size: WinSize) {
       self.window.set_size(size.w as i32, size.h as i32);
    }
+   pub fn set_pos(&mut self, pos: (u32, u32)) {
+      self.pos = (pos.0 as i32, pos.1 as i32);
+      self.window.set_pos(self.pos.0, self.pos.1);
+   }
+   pub fn set_cursor_pos(&mut self, pos: (u32, u32)) {
+      self.cursor_pos = pos;
+      self.window.set_cursor_pos(pos.0 as f64, pos.1 as f64)
+   }
+
+   pub fn set_cursor_visibility(&mut self, hide: bool) {
+      self.is_cursor_hidden = hide;
+      if !self.is_cursor_off {
+         self.window.set_cursor_mode(match hide {
+            true => CursorMode::Hidden,
+            false => CursorMode::Normal,
+         });
+      }
+   }
+   pub fn toggle_cursor_visibility(&mut self) {
+      self.is_cursor_hidden = !self.is_cursor_hidden;
+      self.set_cursor_visibility(self.is_cursor_hidden);
+   }
+
+   pub fn set_cursor_usage(&mut self, enable: bool) {
+      if self.is_cursor_off != enable {
+         self.is_cursor_off = enable;
+         self.toggle_cursor_usage()
+      }
+   }
+   pub fn toggle_cursor_usage(&mut self) {
+      self.is_cursor_off = !self.is_cursor_off;
+      self.window.set_cursor_mode(match self.is_cursor_off {
+         true => CursorMode::Disabled,
+         false => match self.is_cursor_hidden {
+            true => CursorMode::Hidden,
+            false => CursorMode::Normal,
+         },
+      })
+   }
+
    pub fn set_fullscreen(&mut self, enable: bool) {
       if self.is_fullscreen != enable {
          self.is_fullscreen = enable;
@@ -87,14 +134,8 @@ impl NerveWindow {
       }
    }
    pub fn toggle_fullscreen(&mut self) {
+      self.is_fullscreen = !self.is_fullscreen;
       if self.is_fullscreen {
-         self.set_monitor(
-            WindowMode::Windowed,
-            self.prev_pos,
-            self.prev_size.shave(1),
-            None,
-         );
-      } else {
          self.prev_pos = self.get_pos();
          self.prev_size = self.get_size();
 
@@ -110,8 +151,14 @@ impl NerveWindow {
                Some(mode.refresh_rate),
             );
          })
+      } else {
+         self.set_monitor(
+            WindowMode::Windowed,
+            self.prev_pos,
+            self.prev_size.shave(1),
+            None,
+         );
       }
-      self.is_fullscreen = !self.is_fullscreen;
    }
    pub fn set_resizable(&mut self, enable: bool) {
       if self.is_resizable != enable {

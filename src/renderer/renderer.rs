@@ -1,4 +1,3 @@
-use crate::core::Renderer;
 use crate::{color, WinSize, RGB};
 
 #[derive(Copy, Clone)]
@@ -13,8 +12,36 @@ pub enum Cull {
    AntiClock,
 }
 
+pub(crate) trait Renderer {
+   fn init(&self, window: &mut glfw::PWindow, glfw: &mut glfw::Glfw);
+   fn info(&self) -> (String, String, String, String);
+
+   //RENDERING
+   fn set_bg(&self, color: RGB);
+   fn clear_bg(&self);
+   fn clear_depth(&self);
+
+   fn resize(&self, size: WinSize);
+   fn poly_mode(&self, mode: PolyMode);
+   fn enable_msaa(&self, enable: bool);
+   fn enable_depth(&self, enable: bool);
+   fn enable_cull(&self, enable: bool);
+   fn set_cull_face(&self, face: Cull);
+   fn wire_thickness(&self, thickness: f32);
+
+   //SHADERS
+
+   //BUFFERS
+}
+
 pub struct NerveRenderer {
    pub(crate) renderer: Box<dyn Renderer>,
+
+   pub gpu: String,
+   pub api: String,
+   pub api_ver: String,
+   pub glsl_ver: String,
+
    pub poly_mode: PolyMode,
    pub cull_face: Cull,
    pub bg_color: RGB,
@@ -26,9 +53,14 @@ pub struct NerveRenderer {
 }
 //PRIVATE
 impl NerveRenderer {
-   pub(crate) fn new(context: Box<dyn Renderer>) -> Self {
+   pub(crate) fn from(renderer: Box<dyn Renderer>) -> Self {
+      let (gpu, api, api_ver, glsl_ver) = renderer.info();
       Self {
-         renderer: context,
+         renderer,
+         gpu,
+         api,
+         api_ver,
+         glsl_ver,
          poly_mode: PolyMode::Filled,
          cull_face: Cull::AntiClock,
          bg_color: color::BLACK,
@@ -39,18 +71,28 @@ impl NerveRenderer {
          culling: true,
       }
    }
-   pub(crate) fn resize(&mut self, size: WinSize) {
+   pub(crate) fn set_size(&mut self, size: WinSize) {
       self.renderer.resize(size);
    }
-   pub(crate) fn draw_bg(&self) {
+   fn draw_bg(&self) {
       self.renderer.clear_bg();
       if self.depth {
          self.renderer.clear_depth()
       }
    }
+
+   pub(crate) fn pre_update(&self) {
+      self.draw_bg()
+   }
+   pub(crate) fn post_update(&self) {}
 }
 //PUBLIC
 impl NerveRenderer {
+   pub fn display_info(&self) {
+      println!("gpu: {}", self.gpu);
+      println!("api: {} {}", self.api, self.api_ver);
+      println!("gls: {}", self.glsl_ver);
+   }
    pub fn set_msaa_samples(&mut self, samples: u32) {
       self.msaa_samples = samples
    }
@@ -62,11 +104,11 @@ impl NerveRenderer {
       self.poly_mode = mode;
       self.renderer.poly_mode(mode);
    }
-   pub fn enable_msaa(&mut self, enable: bool) {
+   pub fn set_msaa(&mut self, enable: bool) {
       self.msaa = enable;
       self.renderer.enable_msaa(enable);
    }
-   pub fn enable_culling(&mut self, enable: bool) {
+   pub fn set_culling(&mut self, enable: bool) {
       self.culling = enable;
       self.renderer.enable_cull(enable);
    }
@@ -74,7 +116,7 @@ impl NerveRenderer {
       self.cull_face = cull_face;
       self.renderer.set_cull_face(cull_face);
    }
-   pub fn enable_depth(&mut self, enable: bool) {
+   pub fn set_depth(&mut self, enable: bool) {
       self.depth = enable;
       self.renderer.enable_depth(enable);
    }

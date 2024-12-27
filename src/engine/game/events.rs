@@ -1,5 +1,5 @@
 use crate::WinSize;
-use glfw::{flush_messages, Action, GlfwReceiver, Key, MouseButton, WindowEvent};
+use glfw::{flush_messages, Action, Glfw, GlfwReceiver, Key, MouseButton, WindowEvent};
 
 #[derive(Copy, Clone)]
 pub(crate) struct ButtonState {
@@ -181,8 +181,8 @@ pub struct NerveEvents {
    pub(crate) mouse_bitmap: MouseBitMap,
    pub(crate) keys_to_reset: Vec<Key>,
    pub(crate) mouse_to_reset: Vec<Mouse>,
-   pub(crate) to_be_resized: (bool, WinSize),
-   pub(crate) to_be_closed: bool,
+   pub(crate) window_resize_event: (bool, WinSize),
+   pub(crate) window_close_event: bool,
 }
 
 impl NerveEvents {
@@ -224,10 +224,10 @@ impl NerveEvents {
                   w: w as u32,
                   h: h as u32,
                };
-               self.to_be_resized = (true, new_size);
+               self.window_resize_event = (true, new_size);
             }
             WindowEvent::Close => {
-               self.to_be_closed = true;
+               self.window_close_event = true;
             }
             _ => {}
          }
@@ -265,13 +265,37 @@ impl NerveEvents {
 }
 
 pub struct NerveGameInfo {
+   pub(crate) glfw: Glfw,
    pub(crate) prev_time: f64,
    pub(crate) prev_sec: f64,
-   pub(crate) frame: u64,
+   pub(crate) local_frame: u64,
 
+   pub frame: u32,
    pub fps: u32,
    pub time: f64,
    pub delta: f32,
+}
+
+impl NerveGameInfo {
+   pub(crate) fn pre_update(&mut self) {
+      self.calculate()
+   }
+   pub(crate) fn post_update(&mut self) {}
+
+   fn calculate(&mut self) {
+      self.time = self.glfw.get_time();
+      let current = self.time;
+
+      self.frame += 1;
+      self.local_frame += 1;
+      self.delta = (current - self.prev_time) as f32;
+      self.prev_time = current;
+      if current - self.prev_sec >= 1.0 {
+         self.fps = self.local_frame as u32;
+         self.local_frame = 0;
+         self.prev_sec = current;
+      }
+   }
 }
 
 pub enum Is {

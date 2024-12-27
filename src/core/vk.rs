@@ -1,4 +1,4 @@
-use crate::core::r#trait::Renderer;
+use crate::renderer::Renderer;
 use crate::{Cull, PolyMode, WinSize, RGB};
 use glfw::{Glfw, PWindow};
 
@@ -13,6 +13,11 @@ impl Renderer for VKRenderer {
          println!("vk not available!")
       }
    }
+
+   fn info(&self) -> (String, String, String, String) {
+      todo!()
+   }
+
    fn set_bg(&self, color: RGB) {
       todo!()
    }

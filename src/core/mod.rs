@@ -1,7 +1,5 @@
-mod opengl;
-mod r#trait;
-mod vulkan;
+mod gl;
+mod vk;
 
-pub use opengl::*;
-pub use r#trait::*;
-pub use vulkan::*;
+pub use gl::*;
+pub use vk::*;

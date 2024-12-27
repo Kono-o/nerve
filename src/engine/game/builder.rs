@@ -1,6 +1,6 @@
-use crate::core::{GLRenderer, Renderer, VKRenderer};
+use crate::core::{GLRenderer, VKRenderer};
 use crate::engine::{ButtonState, KeyBitMap, MouseBitMap};
-use crate::renderer::{CamProj, NerveCamera, NerveRenderer};
+use crate::renderer::{CamProj, NerveCamera, NerveRenderer, Renderer};
 use crate::{NerveEvents, NerveGame, NerveGameInfo, NerveWindow, WinSize};
 use glfw::{Glfw, GlfwReceiver, OpenGlProfileHint, PWindow, SwapInterval, WindowEvent, WindowHint};
 
@@ -114,9 +114,9 @@ fn glfw_error_log(_err: glfw::Error, desc: String) {
 impl NerveGameBuilder {
    pub fn build(&self) -> NerveGame {
       let mut glfw = glfw::init(glfw_error_log).unwrap();
-      let (context, mut window, events, is_fullscreen, size) =
+      let (renderer, mut window, events, is_fullscreen, size) =
          create_from(&mut glfw, &self.renderer, &self.mode, &self.title);
-      context.init(&mut window, &mut glfw);
+      renderer.init(&mut window, &mut glfw);
       let (swap_interval, is_vsync) = match self.fps {
          FPS::Vsync => (SwapInterval::Adaptive, true),
          FPS::Max => (SwapInterval::None, false),
@@ -128,14 +128,16 @@ impl NerveGameBuilder {
       let cursor_pos = (x as u32, y as u32);
 
       NerveGame {
-         renderer: NerveRenderer::new(context),
+         renderer: NerveRenderer::from(renderer),
          window: NerveWindow {
-            glfw,
+            glfw: glfw.clone(),
             window,
             prev_cursor_pos: (0, 0),
             cursor_offset: (0, 0),
             prev_pos: (0, 0),
             prev_size: WinSize { w: 0, h: 0 },
+            is_cursor_hidden: false,
+            is_cursor_off: false,
             is_fullscreen,
             is_resizable: true,
             is_running: true,
@@ -163,18 +165,20 @@ impl NerveGameBuilder {
             ),
             keys_to_reset: Vec::new(),
             mouse_to_reset: Vec::new(),
-            to_be_resized: (false, size),
-            to_be_closed: false,
+            window_resize_event: (false, size),
+            window_close_event: false,
          },
          info: NerveGameInfo {
+            glfw,
             prev_time: 0.0,
             prev_sec: 0.0,
+            local_frame: 0,
             frame: 0,
             fps: 0,
             time: 0.0,
             delta: 0.0,
          },
-         cam: NerveCamera::new(size, CamProj::Perspective),
+         cam: NerveCamera::from(size, CamProj::Persp),
       }
    }
 }

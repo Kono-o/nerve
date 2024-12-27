@@ -1,7 +1,8 @@
-use crate::core::r#trait::Renderer;
+use crate::renderer::Renderer;
 use crate::{Cull, PolyMode, WinSize, RGB};
 use gl::types::GLsizei;
 use glfw::{Context, Glfw, PWindow};
+use std::ffi::CStr;
 
 #[derive(Copy, Clone)]
 pub(crate) struct GLRenderer;
@@ -10,6 +11,26 @@ impl Renderer for GLRenderer {
    fn init(&self, window: &mut PWindow, _glfw: &mut Glfw) {
       window.make_current();
       gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
+   }
+
+   fn info(&self) -> (String, String, String, String) {
+      unsafe {
+         (
+            CStr::from_ptr(gl::GetString(gl::RENDERER) as *const i8) //GPU
+               .to_str()
+               .unwrap_or("")
+               .to_string(),
+            "OpenGL".to_string(),
+            CStr::from_ptr(gl::GetString(gl::VERSION) as *const i8) //API VERSION
+               .to_str()
+               .unwrap_or("")
+               .to_string(),
+            CStr::from_ptr(gl::GetString(gl::SHADING_LANGUAGE_VERSION) as *const i8) //GLSL VERSION
+               .to_str()
+               .unwrap_or("")
+               .to_string(),
+         )
+      }
    }
 
    //RENDERING

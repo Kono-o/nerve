@@ -1,5 +1,5 @@
 use crate::renderer::{NerveCamera, NerveRenderer};
-use crate::{NerveEvents, NerveGameInfo, NerveWindow};
+use crate::{NerveEvents, NerveGameInfo, NerveWindow, WinSize};
 
 pub struct NerveGame {
    pub renderer: NerveRenderer,
@@ -9,44 +9,36 @@ pub struct NerveGame {
    pub cam: NerveCamera,
 }
 
-//PRIVATE
 impl NerveGame {
-   fn time_calc(&mut self) {
-      self.info.time = self.window.glfw.get_time();
-
-      let current = self.info.time;
-      self.info.frame += 1;
-      self.info.delta = (current - self.info.prev_time) as f32;
-      self.info.prev_time = current;
-      if current - self.info.prev_sec >= 1.0 {
-         self.info.fps = self.info.frame as u32;
-         self.info.frame = 0;
-         self.info.prev_sec = current;
-      }
+   fn resize_children(&mut self, new_size: WinSize) {
+      self.renderer.set_size(new_size);
+      self.cam.set_size(new_size);
    }
-}
-//PUBLIC
-impl NerveGame {
-   pub fn pre_update(&mut self) {
-      self.time_calc();
-      self.cam.recalc_view();
-      self.renderer.draw_bg();
-
-      if self.events.to_be_resized.0 {
-         let new_size = self.events.to_be_resized.1;
-         self.renderer.resize(new_size);
-         self.cam.resize(new_size);
-         self.events.to_be_resized.0 = false;
+   fn handle_events(&mut self) {
+      if self.events.window_resize_event.0 {
+         self.resize_children(self.events.window_resize_event.1);
+         self.events.window_resize_event.0 = false;
       }
-      if self.events.to_be_closed {
+
+      if self.events.window_close_event {
          self.window.close();
       }
+   }
+
+   pub fn pre_update(&mut self) {
+      self.renderer.pre_update();
       self.window.pre_update();
       self.events.pre_update();
+      self.info.pre_update();
+      self.cam.pre_update();
+      self.handle_events();
    }
    pub fn post_update(&mut self) {
+      self.renderer.post_update();
       self.window.post_update();
-      self.events.post_update()
+      self.events.post_update();
+      self.info.post_update();
+      self.cam.post_update();
    }
 
    pub fn set_cam(&mut self, camera: NerveCamera) {
