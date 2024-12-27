@@ -1,4 +1,4 @@
-use crate::render::AttrInfo;
+use crate::renderer::AttrInfo;
 use crate::DataFormat;
 use gl::types::{GLfloat, GLint, GLsizei, GLsizeiptr, GLuint};
 use std::ffi::c_void;

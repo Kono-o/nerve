@@ -1,4 +1,4 @@
-use crate::api::r#trait::Renderer;
+use crate::core::r#trait::Renderer;
 use crate::{Cull, PolyMode, WinSize, RGB};
 use glfw::{Glfw, PWindow};
 
@@ -31,13 +31,13 @@ impl Renderer for VKRenderer {
    fn enable_msaa(&self, enable: bool) {
       todo!()
    }
+   fn enable_depth(&self, enable: bool) {
+      todo!()
+   }
    fn enable_cull(&self, enable: bool) {
       todo!()
    }
    fn set_cull_face(&self, face: Cull) {
-      todo!()
-   }
-   fn enable_depth(&self, enable: bool) {
       todo!()
    }
    fn wire_thickness(&self, thickness: f32) {

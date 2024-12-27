@@ -1,5 +1,5 @@
 use crate::WinSize;
-use glfw::{GlfwReceiver, Key, MouseButton, WindowEvent};
+use glfw::{flush_messages, Action, GlfwReceiver, Key, MouseButton, WindowEvent};
 
 #[derive(Copy, Clone)]
 pub(crate) struct ButtonState {
@@ -37,7 +37,7 @@ impl Mouse {
    }
 }
 
-pub(crate) fn mouse_to_bitmap(mouse: &Mouse) -> usize {
+pub(crate) fn mouse_index(mouse: &Mouse) -> usize {
    match mouse {
       Mouse::Left => 0,
       Mouse::Right => 1,
@@ -49,7 +49,7 @@ pub(crate) fn mouse_to_bitmap(mouse: &Mouse) -> usize {
       Mouse::Button8 => 7,
    }
 }
-pub(crate) fn key_to_bitmap(key: &Key) -> usize {
+pub(crate) fn key_index(key: &Key) -> usize {
    match key {
       Key::Space => 0,
       Key::Apostrophe => 1,
@@ -177,17 +177,94 @@ pub(crate) fn key_to_bitmap(key: &Key) -> usize {
 
 pub struct NerveEvents {
    pub(crate) events: GlfwReceiver<(f64, WindowEvent)>,
-   pub(crate) key_bit_map: KeyBitMap,
-   pub(crate) mouse_bit_map: MouseBitMap,
-   pub(crate) keys_to_be_reset: Vec<Key>,
-   pub(crate) mouse_to_be_reset: Vec<Mouse>,
+   pub(crate) key_bitmap: KeyBitMap,
+   pub(crate) mouse_bitmap: MouseBitMap,
+   pub(crate) keys_to_reset: Vec<Key>,
+   pub(crate) mouse_to_reset: Vec<Mouse>,
+   pub(crate) to_be_resized: (bool, WinSize),
+   pub(crate) to_be_closed: bool,
+}
+
+impl NerveEvents {
+   pub(crate) fn pre_update(&mut self) {
+      self.catch()
+   }
+   pub(crate) fn post_update(&mut self) {
+      self.reset()
+   }
+
+   fn catch(&mut self) {
+      for (_f, event) in flush_messages(&self.events) {
+         match event {
+            WindowEvent::Key(k, _, a, _) => {
+               let key_in_bitmap = &mut self.key_bitmap.0[key_index(&k)];
+               if let Action::Press = a {
+                  key_in_bitmap.pressed = true;
+                  key_in_bitmap.held = true
+               } else if let Action::Release = a {
+                  key_in_bitmap.held = false;
+                  key_in_bitmap.released = true
+               }
+               self.keys_to_reset.push(k);
+            }
+            WindowEvent::MouseButton(m, a, _) => {
+               let m = Mouse::from(m);
+               let mouse_in_bitmap = &mut self.mouse_bitmap.0[mouse_index(&m)];
+               if let Action::Press = a {
+                  mouse_in_bitmap.pressed = true;
+                  mouse_in_bitmap.held = true
+               } else if let Action::Release = a {
+                  mouse_in_bitmap.held = false;
+                  mouse_in_bitmap.released = true
+               }
+               self.mouse_to_reset.push(m);
+            }
+            WindowEvent::FramebufferSize(w, h) => {
+               let new_size = WinSize {
+                  w: w as u32,
+                  h: h as u32,
+               };
+               self.to_be_resized = (true, new_size);
+            }
+            WindowEvent::Close => {
+               self.to_be_closed = true;
+            }
+            _ => {}
+         }
+      }
+   }
+   fn reset(&mut self) {
+      for key in &self.keys_to_reset {
+         let key_in_bitmap = &mut self.key_bitmap.0[key_index(key)];
+         key_in_bitmap.pressed = false;
+         key_in_bitmap.released = false;
+      }
+      for mouse in &self.mouse_to_reset {
+         let mouse_in_bitmap = &mut self.mouse_bitmap.0[mouse_index(mouse)];
+         mouse_in_bitmap.pressed = false;
+         mouse_in_bitmap.released = false;
+      }
+   }
+
+   pub fn key(&self, key: Key, action: Is) -> bool {
+      let key_in_bitmap = &self.key_bitmap.0[key_index(&key)];
+      match action {
+         Is::Pressed => key_in_bitmap.pressed,
+         Is::Released => key_in_bitmap.released,
+         Is::Held => key_in_bitmap.held,
+      }
+   }
+   pub fn mouse(&self, mouse: Mouse, action: Is) -> bool {
+      let mouse_in_bitmap = &self.mouse_bitmap.0[mouse_index(&mouse)];
+      match action {
+         Is::Pressed => mouse_in_bitmap.pressed,
+         Is::Released => mouse_in_bitmap.released,
+         Is::Held => mouse_in_bitmap.held,
+      }
+   }
 }
 
 pub struct NerveGameInfo {
-   pub(crate) prev_mouse_pos: (u32, u32),
-   pub(crate) mouse_pos_offset: (i32, i32),
-   pub(crate) prev_pos: (i32, i32),
-   pub(crate) prev_size: WinSize,
    pub(crate) prev_time: f64,
    pub(crate) prev_sec: f64,
    pub(crate) frame: u64,

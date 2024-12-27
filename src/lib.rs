@@ -1,6 +1,6 @@
-mod api;
-mod game;
+mod core;
+mod engine;
 mod renderer;
 
-pub use game::*;
+pub use engine::*;
 pub use renderer::*;

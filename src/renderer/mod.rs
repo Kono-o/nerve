@@ -1,10 +1,11 @@
 mod camera;
-pub mod color;
+mod mesh;
 mod renderer;
-mod transform;
+mod shader;
+mod util;
 
 pub use camera::*;
-pub use color::RGB;
-pub use color::RGBA;
+pub use mesh::*;
 pub use renderer::*;
-pub use transform::*;
+pub use shader::*;
+pub use util::*;

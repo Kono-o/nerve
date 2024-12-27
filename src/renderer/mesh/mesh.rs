@@ -1,6 +1,5 @@
-use crate::render::mesh::glbuffers::{GLIndices, GLVerts};
-use crate::render::Transform;
-use crate::{NerveGame, NerveShader, Uniform};
+use crate::renderer::mesh::glbuffers::{GLIndices, GLVerts};
+use crate::{NerveGame, NerveShader, Transform, Uniform};
 use gl::types::*;
 
 pub enum DrawMode {

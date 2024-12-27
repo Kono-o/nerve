@@ -1,4 +1,4 @@
-use crate::api::Renderer;
+use crate::core::Renderer;
 use crate::{color, WinSize, RGB};
 
 #[derive(Copy, Clone)]

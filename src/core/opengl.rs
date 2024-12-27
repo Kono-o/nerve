@@ -1,4 +1,4 @@
-use crate::api::r#trait::Renderer;
+use crate::core::r#trait::Renderer;
 use crate::{Cull, PolyMode, WinSize, RGB};
 use gl::types::GLsizei;
 use glfw::{Context, Glfw, PWindow};

@@ -1,5 +1,5 @@
-use crate::api::{GLRenderer, Renderer, VKRenderer};
-use crate::game::{ButtonState, KeyBitMap, MouseBitMap};
+use crate::core::{GLRenderer, Renderer, VKRenderer};
+use crate::engine::{ButtonState, KeyBitMap, MouseBitMap};
 use crate::renderer::{CamProj, NerveCamera, NerveRenderer};
 use crate::{NerveEvents, NerveGame, NerveGameInfo, NerveWindow, WinSize};
 use glfw::{Glfw, GlfwReceiver, OpenGlProfileHint, PWindow, SwapInterval, WindowEvent, WindowHint};
@@ -107,50 +107,66 @@ fn create_from(
       }
    }
 }
+fn glfw_error_log(_err: glfw::Error, desc: String) {
+   println!("{}", desc.to_lowercase());
+}
 
 impl NerveGameBuilder {
    pub fn build(&self) -> NerveGame {
-      let mut glfw = glfw::init(glfw::fail_on_errors).expect("glfw init failed");
+      let mut glfw = glfw::init(glfw_error_log).unwrap();
       let (context, mut window, events, is_fullscreen, size) =
          create_from(&mut glfw, &self.renderer, &self.mode, &self.title);
       context.init(&mut window, &mut glfw);
-      glfw.set_swap_interval(match self.fps {
-         FPS::Vsync => SwapInterval::Adaptive,
-         FPS::Max => SwapInterval::None,
-      });
+      let (swap_interval, is_vsync) = match self.fps {
+         FPS::Vsync => (SwapInterval::Adaptive, true),
+         FPS::Max => (SwapInterval::None, false),
+      };
+      glfw.set_swap_interval(swap_interval);
+
+      let pos = window.get_pos();
+      let (x, y) = window.get_cursor_pos();
+      let cursor_pos = (x as u32, y as u32);
 
       NerveGame {
          renderer: NerveRenderer::new(context),
          window: NerveWindow {
             glfw,
             window,
+            prev_cursor_pos: (0, 0),
+            cursor_offset: (0, 0),
+            prev_pos: (0, 0),
+            prev_size: WinSize { w: 0, h: 0 },
             is_fullscreen,
+            is_resizable: true,
+            is_running: true,
+            is_vsync,
             size,
+            pos,
+            title: self.title.clone(),
+            cursor_pos,
          },
          events: NerveEvents {
             events,
-            key_bit_map: KeyBitMap(
+            key_bitmap: KeyBitMap(
                [ButtonState {
                   pressed: false,
                   held: false,
                   released: false,
                }; 121],
             ),
-            mouse_bit_map: MouseBitMap(
+            mouse_bitmap: MouseBitMap(
                [ButtonState {
                   pressed: false,
                   held: false,
                   released: false,
                }; 8],
             ),
-            keys_to_be_reset: Vec::new(),
-            mouse_to_be_reset: Vec::new(),
+            keys_to_reset: Vec::new(),
+            mouse_to_reset: Vec::new(),
+            to_be_resized: (false, size),
+            to_be_closed: false,
          },
          info: NerveGameInfo {
-            prev_mouse_pos: (0, 0),
-            mouse_pos_offset: (0, 0),
-            prev_pos: (0, 0),
-            prev_size: size,
             prev_time: 0.0,
             prev_sec: 0.0,
             frame: 0,
