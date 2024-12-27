@@ -20,6 +20,7 @@ pub struct NerveWindow {
    pub coord: ScreenCoord,
    pub title: String,
    pub cursor_coord: ScreenCoord,
+   pub cursor_coord_global: ScreenCoord,
    pub cursor_offset: ScreenOffset,
 }
 
@@ -46,6 +47,7 @@ impl NerveWindow {
       self.coord = self.get_coord();
       self.cursor_coord = self.get_cursor_coord();
       self.cursor_offset = self.get_cursor_offset();
+      self.cursor_coord_global = self.get_cursor_coord_global();
    }
    pub(crate) fn post_update(&mut self) {
       self.swap();
@@ -61,6 +63,10 @@ impl NerveWindow {
    fn get_cursor_coord(&self) -> ScreenCoord {
       let (x, y) = self.window.get_cursor_pos();
       ScreenCoord::from(x as i32, y as i32)
+   }
+   fn get_cursor_coord_global(&self) -> ScreenCoord {
+      let (x, y) = self.window.get_cursor_pos();
+      ScreenCoord::from(x as i32 + self.coord.x, y as i32 + self.coord.y)
    }
    fn get_cursor_offset(&mut self) -> ScreenOffset {
       let coord = self.cursor_coord;
@@ -97,9 +103,10 @@ impl NerveWindow {
       self.window.set_pos(coord.x, coord.y);
    }
 
-   pub fn cursor_is_inside(&self) -> bool {
+   pub fn is_cursor_inside(&self) -> bool {
       self.cursor_coord.is_inside(self.size)
    }
+
    pub fn set_cursor_pos(&mut self, coord: ScreenCoord) {
       self.cursor_coord = coord;
       self.window.set_cursor_pos(coord.x as f64, coord.y as f64)

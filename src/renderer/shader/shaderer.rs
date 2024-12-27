@@ -112,7 +112,10 @@ pub struct NerveShaderSrc {
 
 impl Default for NerveShaderSrc {
    fn default() -> Self {
-      NerveShaderSrc::empty()
+      NerveShaderSrc::from(
+         "nerve/assets/shaders/mesh/default.vert",
+         "nerve/assets/shaders/mesh/default.frag",
+      )
    }
 }
 pub enum TexType {

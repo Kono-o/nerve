@@ -266,14 +266,14 @@ impl NerveEvents {
 
 pub struct NerveGameInfo {
    pub(crate) glfw: Glfw,
-   pub(crate) prev_time: f64,
    pub(crate) prev_sec: f64,
-   pub(crate) local_frame: u64,
+   pub(crate) prev_time: f64,
+   pub(crate) local_frame: u32,
 
-   pub frame: u32,
    pub fps: u32,
    pub time: f64,
-   pub delta: f32,
+   pub delta: f64,
+   pub frame: u64,
 }
 
 impl NerveGameInfo {
@@ -288,10 +288,10 @@ impl NerveGameInfo {
 
       self.frame += 1;
       self.local_frame += 1;
-      self.delta = (current - self.prev_time) as f32;
+      self.delta = (current - self.prev_time);
       self.prev_time = current;
       if current - self.prev_sec >= 1.0 {
-         self.fps = self.local_frame as u32;
+         self.fps = self.local_frame;
          self.local_frame = 0;
          self.prev_sec = current;
       }

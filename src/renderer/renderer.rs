@@ -63,6 +63,8 @@ pub struct NerveRenderer {
    pub(crate) cam_view: Matrix4<f32>,
    pub(crate) cam_proj: Matrix4<f32>,
 
+   pub default_shader: NerveShader,
+
    pub gpu: String,
    pub api: RenderAPI,
    pub api_ver: String,
@@ -78,20 +80,19 @@ pub struct NerveRenderer {
 //PRIVATE
 impl NerveRenderer {
    pub(crate) fn from(
-      renderer: Box<dyn Renderer>,
+      core: Box<dyn Renderer>,
       api: RenderAPI,
       cam_view: Matrix4<f32>,
       cam_proj: Matrix4<f32>,
    ) -> Self {
-      let (gpu, api_ver, glsl_ver) = renderer.info();
+      let (gpu, api_ver, glsl_ver) = core.info();
       let bg_color = color::OBSIDIAN;
-      renderer.set_bg_color(bg_color);
-      renderer.enable_depth(true);
-      renderer.set_wire_width(2.0);
-      Self {
-         renderer,
+      core.enable_depth(true);
+      let mut renderer = Self {
+         renderer: core,
          cam_view,
          cam_proj,
+         default_shader: NerveShader::empty(),
          gpu,
          api,
          api_ver,
@@ -102,19 +103,25 @@ impl NerveRenderer {
          msaa: false,
          msaa_samples: 0,
          culling: true,
-      }
+      };
+      let default_shader = renderer.compile(NerveShaderSrc::default());
+      renderer.set_culling(true);
+      renderer.set_wire_width(2.0);
+      renderer.set_bg_color(bg_color);
+      renderer.default_shader = default_shader;
+      renderer
    }
    pub(crate) fn set_size(&mut self, size: WinSize) {
       self.renderer.resize(size);
    }
-   fn clear_bg(&self) {
+   fn clear(&self) {
       self.renderer.clear()
    }
 
    pub(crate) fn pre_update(&mut self, cam: &NerveCamera) {
       self.cam_view = cam.view_matrix;
       self.cam_proj = cam.proj_matrix;
-      self.clear_bg()
+      self.clear()
    }
    pub(crate) fn post_update(&self) {}
 }
@@ -162,7 +169,9 @@ impl NerveRenderer {
    pub fn set_wire_width(&mut self, width: f32) {
       self.renderer.set_wire_width(width);
    }
-
+   pub fn default_shader(&self) -> NerveShader {
+      self.default_shader.clone()
+   }
    pub fn compile(&self, src: NerveShaderSrc) -> NerveShader {
       let (vert_src, frag_src) = match (
          PathBuf::from_str(&src.vert_path).unwrap().exists(),

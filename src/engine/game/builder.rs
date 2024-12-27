@@ -23,7 +23,7 @@ pub enum FPS {
 
 pub struct NerveGameBuilder {
    pub mode: WinMode,
-   pub renderer: RenderAPI,
+   pub render_api: RenderAPI,
    pub title: String,
    pub fps: FPS,
 }
@@ -31,7 +31,7 @@ pub struct NerveGameBuilder {
 impl Default for NerveGameBuilder {
    fn default() -> Self {
       Self {
-         renderer: RenderAPI::OpenGL(3, 3),
+         render_api: RenderAPI::OpenGL(3, 3),
          title: "<Nerve-Game>".to_string(),
          mode: WinMode::Windowed(1280, 720),
          fps: FPS::Vsync,
@@ -116,29 +116,31 @@ fn glfw_error_log(_err: glfw::Error, desc: String) {
 impl NerveGameBuilder {
    pub fn build(&self) -> NerveGame {
       let mut glfw = glfw::init(glfw_error_log).unwrap();
-      let (renderer, mut window, events, is_fullscreen, size) =
-         init_nerve(&mut glfw, &self.renderer, &self.mode, &self.title);
-      renderer.init(&mut window, &mut glfw);
+      let (core, mut window, events, is_fullscreen, size) =
+         init_nerve(&mut glfw, &self.render_api, &self.mode, &self.title);
+      core.init(&mut window, &mut glfw);
       let (swap_interval, is_vsync) = match self.fps {
          FPS::Vsync => (SwapInterval::Adaptive, true),
          FPS::Max => (SwapInterval::None, false),
       };
       glfw.set_swap_interval(swap_interval);
 
-      let coord = ScreenCoord::from_tup(window.get_pos());
-      let (x, y) = window.get_cursor_pos();
-      let cursor_coord = ScreenCoord::from(x as i32, y as i32);
+      let (cx, cy) = (size.w / 2, size.h / 2);
+      window.set_cursor_pos(cx as f64, cy as f64);
       let cam = NerveCamera::from(size, CamProj::Persp);
+      let coord = ScreenCoord::from_tup(window.get_pos());
+      let cursor_coord = ScreenCoord::from(cx as i32, cy as i32);
+      let cursor_coord_global = ScreenCoord::from(cx as i32 + coord.x, cy as i32 + coord.y);
 
       NerveGame {
-         renderer: NerveRenderer::from(renderer, self.renderer, cam.view_matrix, cam.proj_matrix),
+         renderer: NerveRenderer::from(core, self.render_api, cam.view_matrix, cam.proj_matrix),
          window: NerveWindow {
             glfw: glfw.clone(),
             window,
-            prev_cursor_coord: ScreenCoord::empty(),
+            prev_cursor_coord: cursor_coord,
             cursor_offset: ScreenOffset::empty(),
-            prev_coord: ScreenCoord::empty(),
-            prev_size: WinSize::empty(),
+            prev_coord: coord,
+            prev_size: size,
             is_cursor_hidden: false,
             is_cursor_off: false,
             is_fullscreen,
@@ -149,6 +151,7 @@ impl NerveGameBuilder {
             coord,
             title: self.title.clone(),
             cursor_coord,
+            cursor_coord_global,
          },
          events: NerveEvents {
             events,
