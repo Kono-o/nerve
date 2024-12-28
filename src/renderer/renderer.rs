@@ -1,12 +1,8 @@
 use crate::{
-   color, NerveCamera, NerveMesh, NerveShader, NerveShaderSrc, RenderAPI, Uniform, WinSize, RGB,
+   color, DrawMode, NerveCamera, NerveMesh, NerveShader, NerveShaderSrc, NerveTexture, RenderAPI,
+   Size2D, Uniform, RGB,
 };
 use cgmath::Matrix4;
-use core::panic;
-use gl::types::{GLenum, GLuint};
-use std::fs;
-use std::path::PathBuf;
-use std::str::FromStr;
 
 #[derive(Copy, Clone)]
 pub enum PolyMode {
@@ -20,13 +16,19 @@ pub enum Cull {
    AntiClock,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum ShaderType {
+   Vert,
+   Frag,
+}
+
 pub(crate) trait Renderer {
-   fn init(&self, window: &mut glfw::PWindow, glfw: &mut glfw::Glfw);
+   fn init(&self, window: &mut glfw::PWindow);
    fn info(&self) -> (String, String, String);
 
    //STATE
    fn set_bg_color(&self, color: RGB);
-   fn resize(&self, size: WinSize);
+   fn resize(&self, size: Size2D);
    fn poly_mode(&self, mode: PolyMode);
    fn enable_msaa(&self, enable: bool);
    fn enable_depth(&self, enable: bool);
@@ -34,31 +36,37 @@ pub(crate) trait Renderer {
    fn set_cull_face(&self, face: Cull);
    fn set_wire_width(&self, thickness: f32);
 
-   fn bind_program(&self, id: GLuint);
+   fn bind_program(&self, id: u32);
    fn unbind_program(&self);
-   fn bind_texture(&self, tex_id: GLuint);
+
+   fn bind_texture_at_slot(&self, tex_id: u32, slot: u32);
    fn unbind_texture(&self);
 
    //SHADERS
-   fn compile_shader(&self, src: &str, typ: GLenum) -> GLuint;
-   fn create_program(
-      &self,
-      vert: &str,
-      frag: &str,
-      image_ids: Vec<(String, GLuint)>,
-   ) -> NerveShader;
-   fn set_uni(&self, id: GLuint, name: &str, uniform: Uniform);
-   fn set_uni_m4f32(&self, id: GLuint, name: &str, matrix: Matrix4<f32>);
+   fn create_shader(&self, src: &str, typ: ShaderType) -> u32;
+   fn delete_shader(&self, id: u32);
+
+   fn create_program(&self, vert: &str, frag: &str) -> u32;
+   fn delete_program(&self, id: u32);
+
+   fn create_texture_at_slot(&self, tex: &NerveTexture, slot: u32) -> u32;
+   fn delete_texture(&self, id: u32);
+   fn get_uni_location(&self, id: u32, name: &str) -> u32;
+
+   fn set_uni(&self, id: u32, name: &str, uniform: Uniform);
+   fn set_uni_i32(&self, id: u32, name: &str, int: i32);
+   fn set_uni_m4f32(&self, id: u32, name: &str, matrix: Matrix4<f32>);
 
    //BUFFERS
 
    //DRAW
    fn clear(&self);
-   fn draw(&self, mesh: &NerveMesh);
+   fn draw(&self, draw_mode: &DrawMode, index_count: u32);
+   fn draw_no_index(&self, draw_mode: &DrawMode, vert_count: u32);
 }
 
 pub struct NerveRenderer {
-   pub(crate) renderer: Box<dyn Renderer>,
+   pub(crate) core: Box<dyn Renderer>,
 
    pub(crate) cam_view: Matrix4<f32>,
    pub(crate) cam_proj: Matrix4<f32>,
@@ -89,7 +97,7 @@ impl NerveRenderer {
       let bg_color = color::OBSIDIAN;
       core.enable_depth(true);
       let mut renderer = Self {
-         renderer: core,
+         core,
          cam_view,
          cam_proj,
          default_shader: NerveShader::empty(),
@@ -104,18 +112,18 @@ impl NerveRenderer {
          msaa_samples: 0,
          culling: true,
       };
-      let default_shader = renderer.compile(NerveShaderSrc::default());
+      let default_shader = renderer.compile(&NerveShaderSrc::default());
       renderer.set_culling(true);
       renderer.set_wire_width(2.0);
       renderer.set_bg_color(bg_color);
       renderer.default_shader = default_shader;
       renderer
    }
-   pub(crate) fn set_size(&mut self, size: WinSize) {
-      self.renderer.resize(size);
+   pub(crate) fn set_size(&mut self, size: Size2D) {
+      self.core.resize(size);
    }
    fn clear(&self) {
-      self.renderer.clear()
+      self.core.clear()
    }
 
    pub(crate) fn pre_update(&mut self, cam: &NerveCamera) {
@@ -141,11 +149,11 @@ impl NerveRenderer {
    }
    pub fn set_bg_color(&mut self, color: RGB) {
       self.bg_color = color;
-      self.renderer.set_bg_color(color);
+      self.core.set_bg_color(color);
    }
    pub fn set_poly_mode(&mut self, mode: PolyMode) {
       self.poly_mode = mode;
-      self.renderer.poly_mode(mode);
+      self.core.poly_mode(mode);
    }
    pub fn toggle_wireframe(&mut self) {
       let new_poly_mode = match self.poly_mode {
@@ -156,50 +164,82 @@ impl NerveRenderer {
    }
    pub fn set_msaa(&mut self, enable: bool) {
       self.msaa = enable;
-      self.renderer.enable_msaa(enable);
+      self.core.enable_msaa(enable);
    }
    pub fn set_culling(&mut self, enable: bool) {
-      self.culling = enable;
-      self.renderer.enable_cull(enable);
+      if self.culling != enable {
+         self.toggle_culling()
+      }
+      self.core.enable_cull(enable);
+   }
+   pub fn toggle_culling(&mut self) {
+      self.culling = !self.culling;
+      self.core.enable_cull(self.culling);
    }
    pub fn set_cull_face(&mut self, cull_face: Cull) {
-      self.cull_face = cull_face;
-      self.renderer.set_cull_face(cull_face);
+      match self.cull_face {
+         cull_face => {}
+         _ => self.flip_cull_face(),
+      }
+   }
+   pub fn flip_cull_face(&mut self) {
+      self.cull_face = match self.cull_face {
+         Cull::Clock => Cull::AntiClock,
+         Cull::AntiClock => Cull::Clock,
+      };
+      self.core.set_cull_face(self.cull_face);
    }
    pub fn set_wire_width(&mut self, width: f32) {
-      self.renderer.set_wire_width(width);
+      self.core.set_wire_width(width);
    }
    pub fn default_shader(&self) -> NerveShader {
       self.default_shader.clone()
    }
-   pub fn compile(&self, src: NerveShaderSrc) -> NerveShader {
-      let (vert_src, frag_src) = match (
-         PathBuf::from_str(&src.vert_path).unwrap().exists(),
-         PathBuf::from_str(&src.frag_path).unwrap().exists(),
-      ) {
-         (true, true) => (
-            fs::read_to_string(src.vert_path).unwrap_or("".to_string()),
-            fs::read_to_string(src.frag_path).unwrap_or("".to_string()),
-         ),
-         _ => panic!("shader src do not exist!"),
-      };
-      self
-         .renderer
-         .create_program(&vert_src, &frag_src, Vec::new())
+   pub fn compile(&self, src: &NerveShaderSrc) -> NerveShader {
+      let p_id = self.core.create_program(&src.vert_src, &src.frag_src);
+      self.core.bind_program(p_id);
+
+      let mut image_ids = Vec::new();
+      for (i, texture) in src.textures.iter().enumerate() {
+         if texture.exists {
+            let name = format!("tDif{}", i + 1);
+            let t_id = self.core.create_texture_at_slot(texture, i as u32);
+            self.core.set_uni_i32(p_id, &name, i as i32);
+            image_ids.push(t_id);
+         }
+      }
+      NerveShader {
+         id: p_id,
+         image_ids,
+         exists_on_gpu: true,
+      }
+   }
+
+   pub fn delete_shader(&self, shader: NerveShader) {
+      self.core.delete_shader(shader.id)
    }
 
    pub fn draw(&self, mesh: &mut NerveMesh) {
-      if !mesh.shader.is_compiled || !mesh.visible || !mesh.alive {
+      if !mesh.shader.exists_on_gpu || !mesh.visible || !mesh.alive {
          return;
       }
-      mesh.transform.calc_matrix();
-      let id = mesh.shader.id;
-      self.renderer.bind_program(id);
-      self.renderer.set_uni_m4f32(id, "u_CamView", self.cam_view);
-      self.renderer.set_uni_m4f32(id, "u_CamProj", self.cam_proj);
-      self
-         .renderer
-         .set_uni_m4f32(id, "u_MeshTransform", mesh.transform.matrix);
-      self.renderer.draw(mesh);
+      mesh.update();
+      let s = mesh.shader.id;
+      self.core.bind_program(s);
+      self.core.set_uni_m4f32(s, "uCamView", self.cam_view);
+      self.core.set_uni_m4f32(s, "uCamProj", self.cam_proj);
+      self.core.set_uni_m4f32(s, "uMeshTfm", mesh.matrix());
+
+      for (i, t) in mesh.shader.image_ids.iter().enumerate() {
+         self.core.bind_texture_at_slot(*t, i as u32);
+      }
+
+      mesh.vert_object.bind();
+      if mesh.has_indices {
+         mesh.index_object.bind();
+         self.core.draw(&mesh.draw_mode, mesh.ind_count);
+      } else {
+         self.core.draw_no_index(&mesh.draw_mode, mesh.vert_count)
+      }
    }
 }

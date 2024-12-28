@@ -1,5 +1,5 @@
 mod shader;
-mod shaderer;
+mod shadersrc;
 
 pub use shader::*;
-pub use shaderer::*;
+pub use shadersrc::*;

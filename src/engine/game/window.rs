@@ -1,4 +1,4 @@
-use crate::{ScreenCoord, ScreenOffset, WinSize};
+use crate::{ScreenCoord, ScreenOffset, Size2D};
 use glfw::{Context, CursorMode, Glfw, PWindow, SwapInterval, WindowMode};
 
 pub struct NerveWindow {
@@ -7,7 +7,7 @@ pub struct NerveWindow {
 
    pub(crate) prev_cursor_coord: ScreenCoord,
    pub(crate) prev_coord: ScreenCoord,
-   pub(crate) prev_size: WinSize,
+   pub(crate) prev_size: Size2D,
 
    pub is_cursor_hidden: bool,
    pub is_cursor_off: bool,
@@ -16,7 +16,7 @@ pub struct NerveWindow {
    pub is_running: bool,
    pub is_vsync: bool,
 
-   pub size: WinSize,
+   pub size: Size2D,
    pub coord: ScreenCoord,
    pub title: String,
    pub cursor_coord: ScreenCoord,
@@ -29,7 +29,7 @@ impl NerveWindow {
       &mut self,
       mode: WindowMode,
       prev_pos: ScreenCoord,
-      prev_size: WinSize,
+      prev_size: Size2D,
       refresh_rate: Option<u32>,
    ) {
       self.window.set_monitor(
@@ -53,9 +53,9 @@ impl NerveWindow {
       self.swap();
    }
 
-   fn get_size(&mut self) -> WinSize {
+   fn get_size(&mut self) -> Size2D {
       let (w, h) = self.window.get_size();
-      WinSize::from(w as u32, h as u32)
+      Size2D::from(w as u32, h as u32)
    }
    fn get_coord(&self) -> ScreenCoord {
       ScreenCoord::from_tup(self.window.get_pos())
@@ -95,7 +95,7 @@ impl NerveWindow {
       self.window.set_title(&title);
       self.title = title;
    }
-   pub fn set_size(&mut self, size: WinSize) {
+   pub fn set_size(&mut self, size: Size2D) {
       self.window.set_size(size.w as i32, size.h as i32);
    }
    pub fn set_coord(&mut self, coord: ScreenCoord) {

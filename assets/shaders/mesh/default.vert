@@ -1,22 +1,23 @@
 #version 450
 
-layout (location = 0) in vec3 a_Position;
-layout (location = 1) in vec3 a_Color;
-layout (location = 2) in vec3 a_UVMap;
-layout (location = 3) in vec3 a_Normals;
+layout (location = 0) in vec3 vPos;
+layout (location = 1) in vec3 vCol;
+layout (location = 2) in vec2 vUVM;
+layout (location = 3) in vec3 vNrm;
 
-uniform mat4 u_MeshTransform;
-uniform mat4 u_CamView;
-uniform mat4 u_CamProj;
+uniform mat4 uCamView;
+uniform mat4 uCamProj;
+uniform mat4 uMeshTfm;
 
-out vec3 v_Color;
-out vec3 v_Normal;
-out vec3 v_UVMap;
+out vec3 fCol;
+out vec3 fNrm;
+out vec2 fUVM;
 
 void main() {
-    gl_Position = u_CamProj * u_CamView * u_MeshTransform * vec4(a_Position, 1.0);
-    v_Color = a_Color;
-    v_Normal = transpose(inverse(mat3(u_MeshTransform))) * a_Normals;
-    v_UVMap = a_UVMap;
+    fNrm = transpose(inverse(mat3(uMeshTfm))) * vNrm;
+    fCol = vCol;
+    fUVM = vUVM;
+
+    gl_Position = uCamProj * uCamView * uMeshTfm * vec4(vPos, 1.0);
 }
 

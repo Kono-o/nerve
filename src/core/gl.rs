@@ -1,16 +1,18 @@
-use crate::renderer::Renderer;
-use crate::{Cull, DrawMode, NerveMesh, NerveShader, PolyMode, Uniform, WinSize, RGB};
+use crate::renderer::{Renderer, ShaderType, TexFilter, TexFormat};
+use crate::{Cull, DrawMode, NerveTexture, PolyMode, Size2D, TexWrap, Uniform, RGB};
 use cgmath::{Matrix, Matrix4};
-use gl::types::{GLchar, GLenum, GLint, GLsizei, GLuint};
-use glfw::{Context, Glfw, PWindow};
-use std::ffi::{CStr, CString};
+use gl::types::{GLchar, GLenum, GLint, GLsizei};
+use glfw::{Context, PWindow};
+use std::ffi::{c_void, CStr, CString};
 use std::ptr;
 
 #[derive(Copy, Clone)]
 pub(crate) struct GLRenderer;
 
+const TEX: GLenum = gl::TEXTURE_2D;
+
 impl Renderer for GLRenderer {
-   fn init(&self, window: &mut PWindow, _glfw: &mut Glfw) {
+   fn init(&self, window: &mut PWindow) {
       window.make_current();
       gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
    }
@@ -39,7 +41,7 @@ impl Renderer for GLRenderer {
          gl::ClearColor(color.0, color.1, color.2, 1.0);
       }
    }
-   fn resize(&self, size: WinSize) {
+   fn resize(&self, size: Size2D) {
       unsafe {
          gl::Viewport(0, 0, size.w as GLsizei, size.h as GLsizei);
       }
@@ -94,29 +96,31 @@ impl Renderer for GLRenderer {
       unsafe { gl::LineWidth(thickness) }
    }
 
-   fn bind_program(&self, prog_id: GLuint) {
+   fn bind_program(&self, prog_id: u32) {
       unsafe { gl::UseProgram(prog_id) }
    }
    fn unbind_program(&self) {
       unsafe { gl::UseProgram(0) }
    }
-   fn bind_texture(&self, tex_id: GLuint) {
+
+   fn bind_texture_at_slot(&self, tex_id: u32, slot: u32) {
       unsafe {
-         gl::BindTexture(gl::TEXTURE_2D, tex_id);
+         gl::ActiveTexture(gl::TEXTURE0 + slot);
+         gl::BindTexture(TEX, tex_id);
       }
    }
    fn unbind_texture(&self) {
-      unsafe { gl::BindTexture(gl::TEXTURE_2D, 0) }
+      unsafe { gl::BindTexture(TEX, 0) }
    }
 
    //SHADERS
-   fn compile_shader(&self, src: &str, typ: GLenum) -> GLuint {
+   fn create_shader(&self, src: &str, typ: ShaderType) -> u32 {
       let log_len = 256;
       let mut log = Vec::with_capacity(log_len);
       let mut success = gl::FALSE as GLint;
       let src = CString::new(src.as_bytes()).expect("src empty!");
       unsafe {
-         let shader = gl::CreateShader(typ);
+         let shader = gl::CreateShader(match_shader_type_gl(&typ));
          gl::ShaderSource(shader, 1, &src.as_ptr(), ptr::null());
          gl::CompileShader(shader);
          log.set_len(log_len - 1);
@@ -131,22 +135,21 @@ impl Renderer for GLRenderer {
             let log = std::str::from_utf8(&log).unwrap_or("");
             panic!("failed to compile shader: {}", log);
          }
-         shader
+         shader as u32
       }
    }
-   fn create_program(
-      &self,
-      vert: &str,
-      frag: &str,
-      image_ids: Vec<(String, GLuint)>,
-   ) -> NerveShader {
+   fn delete_shader(&self, id: u32) {
+      unsafe { gl::DeleteShader(id) }
+   }
+
+   fn create_program(&self, vert: &str, frag: &str) -> u32 {
       let log_len = 256;
       let mut log = Vec::with_capacity(log_len);
       let mut success = gl::FALSE as GLint;
       unsafe {
          let program = gl::CreateProgram();
-         let vert_shader = self.compile_shader(vert, gl::VERTEX_SHADER);
-         let frag_shader = self.compile_shader(frag, gl::FRAGMENT_SHADER);
+         let vert_shader = self.create_shader(vert, ShaderType::Vert);
+         let frag_shader = self.create_shader(frag, ShaderType::Frag);
 
          gl::AttachShader(program, vert_shader);
          gl::AttachShader(program, frag_shader);
@@ -163,39 +166,85 @@ impl Renderer for GLRenderer {
             let log = std::str::from_utf8(&log).unwrap_or("");
             panic!("failed to create program: {}", log);
          }
-         gl::DeleteShader(vert_shader);
-         gl::DeleteShader(frag_shader);
-         NerveShader {
-            id: program,
-            image_ids,
-            is_compiled: true,
-         }
+         self.delete_shader(vert_shader);
+         self.delete_shader(frag_shader);
+         program as u32
       }
    }
-   fn set_uni(&self, id: GLuint, name: &str, uniform: Uniform) {
+   fn delete_program(&self, id: u32) {
+      unsafe { gl::DeleteProgram(id) }
+   }
+
+   fn create_texture_at_slot(&self, tex: &NerveTexture, slot: u32) -> u32 {
+      let mut id = 0;
+      unsafe {
+         gl::GenTextures(1, &mut id);
+         self.bind_texture_at_slot(id, slot);
+
+         let wrap = match_tex_wrap_gl(&tex.wrap);
+         let (min_filter, max_filter) = match_tex_filter_gl(&tex.filter);
+
+         gl::TexParameteri(TEX, gl::TEXTURE_WRAP_S, wrap);
+         gl::TexParameteri(TEX, gl::TEXTURE_WRAP_T, wrap);
+         gl::TexParameteri(TEX, gl::TEXTURE_MIN_FILTER, min_filter);
+         gl::TexParameteri(TEX, gl::TEXTURE_MAG_FILTER, max_filter);
+
+         let (base, size) = match_tex_format_gl(&tex.typ);
+         let (width, height) = (tex.size.w as GLsizei, tex.size.h as GLsizei);
+
+         gl::TexImage2D(
+            TEX,
+            0,
+            size,
+            width,
+            height,
+            0,
+            base,
+            gl::UNSIGNED_BYTE,
+            &tex.bytes[0] as *const u8 as *const c_void,
+         );
+         gl::GenerateMipmap(TEX);
+      }
+      id as u32
+   }
+   fn delete_texture(&self, id: u32) {
+      unsafe {
+         gl::DeleteTextures(1, &id);
+      }
+   }
+
+   fn get_uni_location(&self, id: u32, name: &str) -> u32 {
       unsafe {
          let c_name = CString::new(name).unwrap();
          let location = gl::GetUniformLocation(id, c_name.as_ptr());
          if location == -1 {
             panic!("uniform '{name}' does not exist!");
          } else {
-            match uniform {
-               Uniform::Matrix4(m) => gl::UniformMatrix4fv(location, 1, gl::FALSE, m.as_ptr()),
-            }
+            location as u32
          }
       }
    }
-   fn set_uni_m4f32(&self, id: GLuint, name: &str, matrix: Matrix4<f32>) {
+   fn set_uni(&self, id: u32, name: &str, uniform: Uniform) {
+      match uniform {
+         Uniform::Matrix4(m) => self.set_uni_m4f32(id, name, m),
+         Uniform::Int(i) => self.set_uni_i32(id, name, i),
+      }
+   }
+
+   fn set_uni_i32(&self, id: u32, name: &str, int: i32) {
       unsafe {
-         let c_name = CString::new(name).unwrap();
-         let location = gl::GetUniformLocation(id, c_name.as_ptr());
-         if location == -1 {
-            panic!("uniform '{name}' does not exist!");
-         } else {
-            gl::UniformMatrix4fv(location, 1, gl::FALSE, matrix.as_ptr())
-         }
+         let loc = self.get_uni_location(id, name) as GLint;
+         gl::Uniform1i(loc, int)
       }
    }
+
+   fn set_uni_m4f32(&self, id: u32, name: &str, matrix: Matrix4<f32>) {
+      unsafe {
+         let loc = self.get_uni_location(id, name) as GLint;
+         gl::UniformMatrix4fv(loc, 1, gl::FALSE, matrix.as_ptr())
+      }
+   }
+
    //BUFFERS
 
    //DRAW
@@ -204,21 +253,21 @@ impl Renderer for GLRenderer {
          gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
       }
    }
-   fn draw(&self, mesh: &NerveMesh) {
-      let draw_mode = match_draw_mode_gl(&mesh.draw_mode);
+   fn draw(&self, draw_mode: &DrawMode, index_count: u32) {
+      let draw_mode = match_draw_mode_gl(draw_mode);
       unsafe {
-         mesh.vert_object.bind();
-         if mesh.has_indices {
-            mesh.index_object.bind();
-            gl::DrawElements(
-               draw_mode,
-               mesh.ind_count as GLsizei,
-               gl::UNSIGNED_INT,
-               ptr::null(),
-            );
-         } else {
-            gl::DrawArrays(draw_mode, 0, mesh.vert_count as GLsizei);
-         }
+         gl::DrawElements(
+            draw_mode,
+            index_count as GLsizei,
+            gl::UNSIGNED_INT,
+            ptr::null(),
+         );
+      }
+   }
+   fn draw_no_index(&self, draw_mode: &DrawMode, vert_count: u32) {
+      let draw_mode = match_draw_mode_gl(draw_mode);
+      unsafe {
+         gl::DrawArrays(draw_mode, 0, vert_count as GLsizei);
       }
    }
 }
@@ -230,4 +279,50 @@ fn match_draw_mode_gl(dm: &DrawMode) -> GLenum {
       DrawMode::Triangles => gl::TRIANGLES,
       DrawMode::Strip => gl::TRIANGLE_STRIP,
    }
+}
+fn match_shader_type_gl(t: &ShaderType) -> GLenum {
+   match t {
+      ShaderType::Vert => gl::VERTEX_SHADER,
+      ShaderType::Frag => gl::FRAGMENT_SHADER,
+   }
+}
+fn match_tex_format_gl(tf: &TexFormat) -> (GLenum, GLint) {
+   let mut base = match tf {
+      TexFormat::R(_) => gl::RED,
+      TexFormat::RG(_) => gl::RG,
+      TexFormat::RGB(_) => gl::RGB,
+      TexFormat::Palette(_) => gl::RGB,
+      TexFormat::RGBA(_) => gl::RGBA,
+   };
+   let sized = match (base, tf.bit_depth()) {
+      (gl::RED, 16) => gl::R16,
+      (gl::RG, 16) => gl::RG16,
+      (gl::RGB, 16) => gl::RGB16,
+      (gl::RGBA, 16) => gl::RGBA16,
+
+      (gl::RED, _) => gl::R8,
+      (gl::RG, _) => gl::RG8,
+      (gl::RGB, _) => gl::RGB8,
+      (gl::RGBA, _) => gl::RGBA8,
+
+      _ => gl::RGB8,
+   };
+   (base, sized as GLint)
+}
+
+fn match_tex_filter_gl(tf: &TexFilter) -> (GLint, GLint) {
+   let (min, max) = match tf {
+      TexFilter::Closest => (gl::NEAREST_MIPMAP_NEAREST, gl::NEAREST),
+      TexFilter::Linear => (gl::LINEAR_MIPMAP_LINEAR, gl::LINEAR),
+   };
+   (min as GLint, max as GLint)
+}
+
+fn match_tex_wrap_gl(tf: &TexWrap) -> GLint {
+   let wrap = match tf {
+      TexWrap::Repeat => gl::REPEAT,
+      TexWrap::Extend => gl::CLAMP_TO_EDGE,
+      TexWrap::Clip => gl::CLAMP_TO_BORDER,
+   };
+   wrap as GLint
 }

@@ -1,4 +1,4 @@
-use crate::WinSize;
+use crate::Size2D;
 
 #[derive(Copy, Clone, Debug)]
 pub struct ScreenCoord {
@@ -16,7 +16,7 @@ impl ScreenCoord {
    pub fn from_tup((x, y): (i32, i32)) -> Self {
       Self { x, y }
    }
-   pub fn is_inside(&self, size: WinSize) -> bool {
+   pub fn is_inside(&self, size: Size2D) -> bool {
       if (self.x >= 0 && self.y >= 0) && (self.x <= size.w as i32 && self.y <= size.h as i32) {
          true
       } else {

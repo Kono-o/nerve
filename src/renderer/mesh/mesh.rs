@@ -1,5 +1,6 @@
 use crate::renderer::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::{NerveShader, Transform};
+use cgmath::Matrix4;
 use gl::types::*;
 
 pub enum DrawMode {
@@ -77,13 +78,15 @@ impl NerveMesh {
    pub fn toggle_visibility(&mut self) {
       self.visible = !self.visible;
    }
-
-   pub fn show_layouts(&self) {
+   pub(crate) fn matrix(&self) -> Matrix4<f32> {
+      self.transform.matrix
+   }
+   pub(crate) fn update(&mut self) {
+      self.transform.calc_matrix()
+   }
+   pub fn display_layouts(&self) {
       for attr in self.layouts.clone() {
          println!("{}", attr);
-      }
-      for texture in self.shader.image_ids.clone() {
-         println!("{}(tex): {}", texture.0, texture.1);
       }
    }
    pub fn kill(&mut self) {

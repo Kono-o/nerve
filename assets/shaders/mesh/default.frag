@@ -1,16 +1,23 @@
 #version 450
 
-in vec3 v_Color;
-in vec3 v_Normal;
-in vec3 v_UVMap;
+in vec3 fCol;
+in vec3 fNrm;
+in vec2 fUVM;
 
-out vec4 fragColor;
+uniform sampler2D tDif1;
 
-uniform vec3 u_LightDirection = normalize(vec3(0.5, 1.0, 0.3));
+out vec4 frag;
+
+uniform vec3 uLight = normalize(vec3(0.5, 1.0, 0.3));
 
 void main() {
 
-    float lightBrightness = dot(normalize(v_Normal), normalize(u_LightDirection));
-    vec3 shadowColor = v_Color * 0.5;
-    fragColor = vec4(mix(shadowColor, v_Color, lightBrightness), 1.0);
+    float light = 1.0 - dot(normalize(fNrm), normalize(uLight));
+    vec4 attrCol = vec4(fCol, 1.0);
+    vec4 texCol = texture(tDif1, fUVM * 4);
+
+    vec4 difCol = texCol * mix(attrCol, vec4(1.0, 1.0, 1.0, 1.0), 0.6);
+    vec4 shadCol = difCol * 0.9;
+
+    frag = mix(difCol, shadCol, light);
 }

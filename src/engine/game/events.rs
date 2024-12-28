@@ -1,4 +1,4 @@
-use crate::WinSize;
+use crate::Size2D;
 use glfw::{flush_messages, Action, Glfw, GlfwReceiver, Key, MouseButton, WindowEvent};
 
 #[derive(Copy, Clone)]
@@ -181,7 +181,7 @@ pub struct NerveEvents {
    pub(crate) mouse_bitmap: MouseBitMap,
    pub(crate) keys_to_reset: Vec<Key>,
    pub(crate) mouse_to_reset: Vec<Mouse>,
-   pub(crate) window_resize_event: (bool, WinSize),
+   pub(crate) window_resize_event: (bool, Size2D),
    pub(crate) window_close_event: bool,
 }
 
@@ -220,7 +220,7 @@ impl NerveEvents {
                self.mouse_to_reset.push(m);
             }
             WindowEvent::FramebufferSize(w, h) => {
-               let new_size = WinSize {
+               let new_size = Size2D {
                   w: w as u32,
                   h: h as u32,
                };

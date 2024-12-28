@@ -1,15 +1,14 @@
-use crate::renderer::Renderer;
-use crate::{Cull, NerveMesh, NerveShader, PolyMode, Uniform, WinSize, RGB};
+use crate::renderer::{Renderer, ShaderType};
+use crate::{Cull, DrawMode, NerveTexture, PolyMode, Size2D, Uniform, RGB};
 use cgmath::Matrix4;
-use gl::types::{GLenum, GLuint};
-use glfw::{Glfw, PWindow};
+use glfw::PWindow;
 
 #[derive(Copy, Clone)]
 pub(crate) struct VKRenderer;
 
 impl Renderer for VKRenderer {
-   fn init(&self, _window: &mut PWindow, glfw: &mut Glfw) {
-      if glfw.vulkan_supported() {
+   fn init(&self, window: &mut PWindow) {
+      if window.glfw.vulkan_supported() {
          println!("vk available!")
       } else {
          println!("vk not available!")
@@ -19,11 +18,10 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   //STATE
    fn set_bg_color(&self, color: RGB) {
       todo!()
    }
-   fn resize(&self, size: WinSize) {
+   fn resize(&self, size: Size2D) {
       todo!()
    }
    fn poly_mode(&self, mode: PolyMode) {
@@ -44,46 +42,70 @@ impl Renderer for VKRenderer {
    fn set_wire_width(&self, thickness: f32) {
       todo!()
    }
-   fn bind_program(&self, id: GLuint) {
+   fn bind_program(&self, id: u32) {
       todo!()
    }
    fn unbind_program(&self) {
       todo!()
    }
-   fn bind_texture(&self, tex_id: GLuint) {
+
+   fn bind_texture_at_slot(&self, tex_id: u32, slot: u32) {
       todo!()
    }
+
    fn unbind_texture(&self) {
       todo!()
    }
 
-   //SHADER
-   fn compile_shader(&self, src: &str, typ: GLenum) -> GLuint {
-      todo!()
-   }
-   fn create_program(
-      &self,
-      vert: &str,
-      frag: &str,
-      image_ids: Vec<(String, GLuint)>,
-   ) -> NerveShader {
-      todo!()
-   }
-   fn set_uni(&self, id: GLuint, name: &str, uniform: Uniform) {
+   fn create_shader(&self, src: &str, typ: ShaderType) -> u32 {
       todo!()
    }
 
-   fn set_uni_m4f32(&self, id: GLuint, name: &str, matrix: Matrix4<f32>) {
+   fn delete_shader(&self, id: u32) {
       todo!()
    }
 
-   //BUFFERS
+   fn create_program(&self, vert: &str, frag: &str) -> u32 {
+      todo!()
+   }
 
-   //DRAW
+   fn delete_program(&self, id: u32) {
+      todo!()
+   }
+
+   fn create_texture_at_slot(&self, tex: &NerveTexture, slot: u32) -> u32 {
+      todo!()
+   }
+
+   fn delete_texture(&self, id: u32) {
+      todo!()
+   }
+
+   fn get_uni_location(&self, id: u32, name: &str) -> u32 {
+      todo!()
+   }
+
+   fn set_uni(&self, id: u32, name: &str, uniform: Uniform) {
+      todo!()
+   }
+
+   fn set_uni_i32(&self, id: u32, name: &str, int: i32) {
+      todo!()
+   }
+
+   fn set_uni_m4f32(&self, id: u32, name: &str, matrix: Matrix4<f32>) {
+      todo!()
+   }
+
    fn clear(&self) {
       todo!()
    }
-   fn draw(&self, mesh: &NerveMesh) {
+
+   fn draw(&self, draw_mode: &DrawMode, index_count: u32) {
+      todo!()
+   }
+
+   fn draw_no_index(&self, draw_mode: &DrawMode, vert_count: u32) {
       todo!()
    }
 }

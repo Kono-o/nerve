@@ -1,5 +1,5 @@
+use crate::Size2D;
 use crate::Transform;
-use crate::WinSize;
 use cgmath::*;
 
 pub struct ClipDist {
@@ -12,7 +12,7 @@ pub enum CamProj {
 }
 
 pub struct NerveCamera {
-   pub(crate) size: WinSize,
+   pub(crate) size: Size2D,
    pub(crate) projection: CamProj,
    pub(crate) fov: f32,
    pub(crate) ortho_scale: f32,
@@ -78,7 +78,7 @@ impl NerveCamera {
 }
 
 impl NerveCamera {
-   pub fn from(size: WinSize, projection: CamProj) -> Self {
+   pub fn from(size: Size2D, projection: CamProj) -> Self {
       let fov = 50.0;
       let (widthf, heightf) = (size.w as f32, size.h as f32);
       let proj_matrix = perspective(Deg(fov), widthf / heightf, 0.01, 1000.0);
@@ -109,7 +109,7 @@ impl NerveCamera {
          },
       }
    }
-   pub fn set_size(&mut self, size: WinSize) {
+   pub fn set_size(&mut self, size: Size2D) {
       self.size = size;
       self.update_proj()
    }

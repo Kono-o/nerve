@@ -1,5 +1,5 @@
 use crate::renderer::{NerveCamera, NerveRenderer};
-use crate::{NerveEvents, NerveGameInfo, NerveWindow, WinSize};
+use crate::{NerveEvents, NerveGameInfo, NerveWindow, Size2D};
 
 pub struct NerveGame {
    pub renderer: NerveRenderer,
@@ -10,7 +10,7 @@ pub struct NerveGame {
 }
 
 impl NerveGame {
-   fn resize_children(&mut self, new_size: WinSize) {
+   fn resize_children(&mut self, new_size: Size2D) {
       self.renderer.set_size(new_size);
       self.cam.set_size(new_size);
    }
