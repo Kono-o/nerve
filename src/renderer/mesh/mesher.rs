@@ -38,14 +38,14 @@ impl Default for NerveMeshSrc {
    }
 }
 
-fn dump_into(data: &mut Vec<[f32; 3]>, words: &mut Vec<&str>) {
+fn dump_into_3(data: &mut Vec<[f32; 3]>, words: &mut Vec<&str>) {
    let mut elem: [f32; 3] = [0.0; 3];
    for i in 1..=3 {
       elem[i - 1] = words[i].parse::<f32>().unwrap();
    }
    data.push(elem);
 }
-fn dump_into_uvm(data: &mut Vec<[f32; 2]>, words: &mut Vec<&str>) {
+fn dump_into_2(data: &mut Vec<[f32; 2]>, words: &mut Vec<&str>) {
    let mut elem: [f32; 2] = [0.0; 2];
    for i in 1..=2 {
       elem[i - 1] = words[i].parse::<f32>().unwrap();
@@ -60,8 +60,9 @@ fn str_vec_to_usize(strs: Vec<&str>) -> Vec<usize> {
    }
    vec
 }
+
 impl NerveMeshSrc {
-   pub fn from(obj_path: &str) -> NerveMeshSrc {
+   pub fn from_obj(obj_path: &str) -> NerveMeshSrc {
       let mut pos_attr: PositionAttr = PositionAttr::empty();
       let mut col_attr: ColorAttr = ColorAttr::empty();
       let mut uvm_attr: UVMapAttr = UVMapAttr::empty();
@@ -85,9 +86,9 @@ impl NerveMeshSrc {
             continue;
          }
          match words[0] {
-            "v" => dump_into(&mut pos_data, &mut words),
-            "vt" => dump_into_uvm(&mut uvm_data, &mut words),
-            "vn" => dump_into(&mut nrm_data, &mut words),
+            "v" => dump_into_3(&mut pos_data, &mut words),
+            "vt" => dump_into_2(&mut uvm_data, &mut words),
+            "vn" => dump_into_3(&mut nrm_data, &mut words),
             "f" => {
                if words.len() > 4 {
                   panic!("non-triangulated meshes not supported!");

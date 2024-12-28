@@ -1,5 +1,5 @@
+use cgmath::{vec3, Deg, Matrix4, Rad, SquareMatrix, Vector3};
 use std::ops::Add;
-use cgmath::{Deg, Matrix4, Rad, SquareMatrix, vec3, Vector3};
 
 #[derive(Clone)]
 pub struct Transform {
@@ -65,13 +65,13 @@ impl Transform {
    pub fn translate(&mut self, x: f32, y: f32, z: f32) {
       self.pos = self.pos.add(vec3(x, y, z));
    }
-   pub fn translate_x(&mut self, x: f32) {
+   pub fn move_x(&mut self, x: f32) {
       self.pos.x += x;
    }
-   pub fn translate_y(&mut self, y: f32) {
+   pub fn move_y(&mut self, y: f32) {
       self.pos.y += y;
    }
-   pub fn translate_z(&mut self, z: f32) {
+   pub fn move_z(&mut self, z: f32) {
       self.pos.z += z;
    }
 
@@ -133,7 +133,7 @@ impl Transform {
    pub fn set_scale(&mut self, x: f32, y: f32, z: f32) {
       self.scale = vec3(x, y, z);
    }
-   pub fn set_scale_uniform(&mut self, xyz: f32) {
+   pub fn set_scale(&mut self, xyz: f32) {
       self.set_scale(xyz, xyz, xyz);
    }
    pub fn set_scale_x(&mut self, x: f32) {

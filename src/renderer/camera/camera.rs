@@ -147,10 +147,10 @@ impl NerveCamera {
       self.transform.pos += speed * self.front.cross(vec3(0.0, 1.0, 0.0).normalize());
    }
    pub fn fly_up(&mut self, speed: f32) {
-      self.transform.translate_y(speed);
+      self.transform.move_y(speed);
    }
    pub fn fly_down(&mut self, speed: f32) {
-      self.transform.translate_y(-speed);
+      self.transform.move_y(-speed);
    }
 
    pub fn spin_x(&mut self, speed: f32) {

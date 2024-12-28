@@ -1,24 +1,12 @@
 use crate::renderer::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::{NerveShader, Transform};
 use cgmath::Matrix4;
-use gl::types::*;
 
 pub enum DrawMode {
    Points,
    Lines,
    Triangles,
    Strip,
-}
-
-impl DrawMode {
-   pub(crate) fn gl_enum(&self) -> GLenum {
-      match self {
-         DrawMode::Points => gl::POINTS,
-         DrawMode::Lines => gl::LINES,
-         DrawMode::Triangles => gl::TRIANGLES,
-         DrawMode::Strip => gl::TRIANGLE_STRIP,
-      }
-   }
 }
 
 pub struct NerveMesh {
@@ -78,6 +66,7 @@ impl NerveMesh {
    pub fn toggle_visibility(&mut self) {
       self.visible = !self.visible;
    }
+
    pub(crate) fn matrix(&self) -> Matrix4<f32> {
       self.transform.matrix
    }

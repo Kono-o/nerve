@@ -127,18 +127,18 @@ impl NerveTexture {
 }
 
 pub struct NerveShaderSrc {
-   pub(crate) textures: Vec<NerveTexture>,
-   pub(crate) vert_src: String,
-   pub(crate) frag_src: String,
+   pub textures: Vec<NerveTexture>,
+   pub vert_src: String,
+   pub frag_src: String,
 }
 
 impl Default for NerveShaderSrc {
    fn default() -> Self {
-      NerveShaderSrc::from(
+      NerveShaderSrc::from_paths(
          "nerve/assets/shaders/mesh/default.vert",
          "nerve/assets/shaders/mesh/default.frag",
       )
-      .attach_png(
+      .attach_tex_from_path(
          "nerve/assets/textures/missing.png",
          TexFilter::Closest,
          TexWrap::Repeat,
@@ -155,10 +155,14 @@ impl NerveShaderSrc {
       }
    }
 
-   pub fn from(vert_src: &str, frag_src: &str) -> Self {
-      NerveShaderSrc::empty().attach_src(vert_src, frag_src)
+   pub fn from(vert_src: String, frag_src: String) -> Self {
+      Self {
+         textures: Vec::new(),
+         vert_src,
+         frag_src,
+      }
    }
-   pub fn attach_src(mut self, vert_path: &str, frag_path: &str) -> Self {
+   pub fn from_paths(vert_path: &str, frag_path: &str) -> Self {
       let (vert_src, frag_src) = match (
          PathBuf::from_str(&vert_path).unwrap().exists(),
          PathBuf::from_str(&frag_path).unwrap().exists(),
@@ -172,15 +176,12 @@ impl NerveShaderSrc {
       if vert_src.is_empty() || frag_src.is_empty() {
          panic!("shader is empty!");
       }
-      self.vert_src = vert_src;
-      self.frag_src = frag_src;
-      self
+      NerveShaderSrc::from(vert_src, frag_src)
    }
 
-   pub fn attach_png(mut self, path: &str, filter: TexFilter, wrap: TexWrap) -> Self {
+   pub fn attach_tex_from_path(mut self, path: &str, filter: TexFilter, wrap: TexWrap) -> Self {
       self.attach_tex(NerveTexture::from(path, filter, wrap))
    }
-
    pub fn attach_tex(mut self, tex: NerveTexture) -> Self {
       self.textures.push(tex);
       self
