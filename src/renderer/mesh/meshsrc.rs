@@ -1,4 +1,3 @@
-use crate::renderer::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::*;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -20,7 +19,6 @@ pub struct NerveMeshSrc {
    pub nrm_attr: NormalAttr,
    pub indices: Indices,
    pub cus_attrs: Vec<CustomAttr>,
-   pub start_with_custom: bool,
 }
 impl Default for NerveMeshSrc {
    fn default() -> Self {
@@ -33,7 +31,6 @@ impl Default for NerveMeshSrc {
          nrm_attr: NormalAttr::empty(),
          indices: Indices::empty(),
          cus_attrs: Vec::new(),
-         start_with_custom: false,
       }
    }
 }
@@ -136,15 +133,21 @@ impl NerveMeshSrc {
       self.cus_attrs.push(cus_attr);
       self
    }
+   pub fn starts_with_custom(&self) -> bool {
+      self.pos_attr.is_empty()
+         && self.col_attr.is_empty()
+         && self.uvm_attr.is_empty()
+         && self.nrm_attr.is_empty()
+   }
    pub fn set_shader(mut self, shader: NerveShader) -> NerveMeshSrc {
       self.shader = shader;
       self
    }
-   fn has_custom_attrs(&self) -> bool {
+   pub(crate) fn has_custom_attrs(&self) -> bool {
       !self.cus_attrs.is_empty()
    }
 
-   pub fn mesh(&mut self) -> NerveMesh {
+   /* pub fn mesh(&mut self) -> NerveMesh {
       let mut gl_verts_obj = GLVerts::new();
       let mut gl_index_obj = GLIndices::new();
 
@@ -272,5 +275,5 @@ impl NerveMeshSrc {
          transform: self.transform.clone(),
          ..Default::default()
       }
-   }
+   } */
 }

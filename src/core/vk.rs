@@ -1,4 +1,4 @@
-use crate::renderer::{Renderer, ShaderType};
+use crate::renderer::{AttrInfo, Renderer, ShaderType};
 use crate::{Cull, DrawMode, NerveTexture, PolyMode, Size2D, Uniform, RGB};
 use cgmath::Matrix4;
 use glfw::PWindow;
@@ -14,46 +14,72 @@ impl Renderer for VKRenderer {
          println!("vk not available!")
       }
    }
+
    fn info(&self) -> (String, String, String) {
       todo!()
    }
 
-   fn set_bg_color(&self, color: RGB) {
+   fn set_clear(&self, color: RGB) {
       todo!()
    }
+
    fn resize(&self, size: Size2D) {
       todo!()
    }
+
    fn poly_mode(&self, mode: PolyMode) {
       todo!()
    }
+
    fn enable_msaa(&self, enable: bool) {
       todo!()
    }
+
    fn enable_depth(&self, enable: bool) {
       todo!()
    }
+
    fn enable_cull(&self, enable: bool) {
       todo!()
    }
+
    fn set_cull_face(&self, face: Cull) {
       todo!()
    }
+
    fn set_wire_width(&self, thickness: f32) {
       todo!()
    }
+
    fn bind_program(&self, id: u32) {
       todo!()
    }
+
    fn unbind_program(&self) {
       todo!()
    }
 
-   fn bind_texture_at_slot(&self, tex_id: u32, slot: u32) {
+   fn bind_texture_at(&self, tex_id: u32, slot: u32) {
       todo!()
    }
 
    fn unbind_texture(&self) {
+      todo!()
+   }
+
+   fn bind_buffer(&self, v_id: u32, b_id: u32) {
+      todo!()
+   }
+
+   fn unbind_buffer(&self) {
+      todo!()
+   }
+
+   fn bind_index_buffer(&self, id: u32) {
+      todo!()
+   }
+
+   fn unbind_index_buffer(&self) {
       todo!()
    }
 
@@ -73,7 +99,7 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn create_texture_at_slot(&self, tex: &NerveTexture, slot: u32) -> u32 {
+   fn create_texture(&self, tex: &NerveTexture) -> u32 {
       todo!()
    }
 
@@ -94,6 +120,34 @@ impl Renderer for VKRenderer {
    }
 
    fn set_uni_m4f32(&self, id: u32, name: &str, matrix: Matrix4<f32>) {
+      todo!()
+   }
+
+   fn create_buffer(&self) -> (u32, u32) {
+      todo!()
+   }
+
+   fn set_attr_layout(&self, info: &AttrInfo, attr_id: u32, stride: usize, local_offset: usize) {
+      todo!()
+   }
+
+   fn fill_buffer(&self, v_id: u32, b_id: u32, buffer: &Vec<u8>) {
+      todo!()
+   }
+
+   fn fill_index_buffer(&self, id: u32, buffer: &Vec<u32>) {
+      todo!()
+   }
+
+   fn delete_buffer(&self, v_id: u32, b_id: u32) {
+      todo!()
+   }
+
+   fn create_index_buffer(&self) -> u32 {
+      todo!()
+   }
+
+   fn delete_index_buffer(&self, id: u32) {
       todo!()
    }
 

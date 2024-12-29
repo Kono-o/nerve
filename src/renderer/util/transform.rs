@@ -117,7 +117,7 @@ impl Transform {
    pub fn scale(&mut self, x: f32, y: f32, z: f32) {
       self.scale = self.scale.add(vec3(x, y, z));
    }
-   pub fn scale_uniformly(&mut self, xyz: f32) {
+   pub fn scale_xyz(&mut self, xyz: f32) {
       self.scale(xyz, xyz, xyz);
    }
    pub fn scale_x(&mut self, x: f32) {
@@ -133,7 +133,7 @@ impl Transform {
    pub fn set_scale(&mut self, x: f32, y: f32, z: f32) {
       self.scale = vec3(x, y, z);
    }
-   pub fn set_scale(&mut self, xyz: f32) {
+   pub fn set_scale_xyz(&mut self, xyz: f32) {
       self.set_scale(xyz, xyz, xyz);
    }
    pub fn set_scale_x(&mut self, x: f32) {

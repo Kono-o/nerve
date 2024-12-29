@@ -1,9 +1,20 @@
-use gl::types::GLenum;
 use std::any::TypeId;
 
 #[derive(Clone, Debug)]
+pub enum AttrType {
+   U8,
+   I8,
+   U16,
+   I16,
+   U32,
+   I32,
+   F32,
+   F64,
+}
+
+#[derive(Clone, Debug)]
 pub(crate) struct AttrInfo {
-   pub(crate) typ: GLenum,
+   pub(crate) typ: AttrType,
    pub(crate) typ_str: String,
    pub(crate) exists: bool,
    pub(crate) byte_count: usize,
@@ -12,7 +23,7 @@ pub(crate) struct AttrInfo {
 impl AttrInfo {
    pub(crate) fn empty() -> AttrInfo {
       AttrInfo {
-         typ: 0,
+         typ: AttrType::U8,
          typ_str: "".to_string(),
          exists: false,
          byte_count: 0,
@@ -124,7 +135,7 @@ macro_rules! attribute {
          }
          pub fn info(&mut self) -> AttrInfo {
             AttrInfo {
-               typ: self.info.typ,
+               typ: self.info.typ.clone(),
                typ_str: self.info.typ_str.clone(),
                exists: self.info.exists,
                byte_count: self.info.byte_count,
@@ -139,6 +150,7 @@ attribute!(ColorAttr, [f32; 3]);
 attribute!(UVMapAttr, [f32; 2]);
 attribute!(NormalAttr, [f32; 3]);
 attribute!(Indices, u32);
+
 pub struct CustomAttr {
    pub(crate) data: Vec<u8>,
    pub(crate) info: AttrInfo,
@@ -181,7 +193,7 @@ impl CustomAttr {
    }
    pub fn info(&self) -> AttrInfo {
       AttrInfo {
-         typ: self.info.typ,
+         typ: self.info.typ.clone(),
          typ_str: self.info.typ_str.clone(),
          exists: self.info.exists,
          byte_count: self.info.byte_count,
@@ -190,24 +202,21 @@ impl CustomAttr {
    }
 }
 
-// returns (type in gl enum, bytes in 1 element, no of elements)
-pub(crate) fn get_format<T: DataFormat + 'static>(_t: &T) -> (GLenum, String, usize, usize) {
+// returns attr (type, bytes in 1 element, no of elements)
+pub(crate) fn get_format<T: DataFormat + 'static>(_t: &T) -> (AttrType, String, usize, usize) {
    let id = TypeId::of::<T>();
 
-   let int8 = gl::BYTE;
-   let uint8 = gl::UNSIGNED_BYTE;
+   let int8 = AttrType::I8;
+   let uint8 = AttrType::U8;
 
-   let int8 = gl::BYTE;
-   let uint8 = gl::UNSIGNED_BYTE;
+   let int16 = AttrType::I16;
+   let uint16 = AttrType::U16;
 
-   let int16 = gl::SHORT;
-   let uint16 = gl::UNSIGNED_SHORT;
+   let int32 = AttrType::I32;
+   let uint32 = AttrType::U32;
 
-   let int32 = gl::INT;
-   let uint32 = gl::UNSIGNED_INT;
-
-   let float32 = gl::FLOAT;
-   let float64 = gl::DOUBLE;
+   let float32 = AttrType::F32;
+   let float64 = AttrType::F64;
 
    // INT8
    if id == TypeId::of::<i8>() {

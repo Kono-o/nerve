@@ -1,4 +1,3 @@
-use crate::renderer::mesh::glbuffers::{GLIndices, GLVerts};
 use crate::{NerveShader, Transform};
 use cgmath::Matrix4;
 
@@ -19,8 +18,8 @@ pub struct NerveMesh {
    pub(crate) is_empty: bool,
    pub(crate) vert_count: u32,
    pub(crate) ind_count: u32,
-   pub(crate) vert_object: GLVerts,
-   pub(crate) index_object: GLIndices,
+   pub(crate) buf_id: (u32, u32),
+   pub(crate) index_buf_id: u32,
    pub(crate) shader: NerveShader,
    pub(crate) layouts: Vec<String>,
 }
@@ -35,18 +34,8 @@ impl Default for NerveMesh {
          is_empty: true,
          vert_count: 0,
          ind_count: 0,
-         vert_object: GLVerts {
-            vao: 0,
-            vbo: 0,
-            attrib_id: 0,
-            local_offset: 0,
-            stride: 0,
-            buffer: vec![],
-         },
-         index_object: GLIndices {
-            ebo: 0,
-            buffer: vec![],
-         },
+         buf_id: (0, 0),
+         index_buf_id: 0,
          shader: NerveShader::empty(),
          draw_mode: DrawMode::Triangles,
          layouts: vec![],
@@ -80,7 +69,7 @@ impl NerveMesh {
    }
    pub fn kill(&mut self) {
       self.alive = false;
-      self.vert_object.delete();
-      self.index_object.delete();
+      //self.vert_object.delete();
+      //self.index_object.delete();
    }
 }

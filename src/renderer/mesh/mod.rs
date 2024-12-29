@@ -1,9 +1,7 @@
 mod attr;
-mod glbuffers;
 mod mesh;
-mod mesher;
+mod meshsrc;
 
 pub use attr::*;
-pub use mesh::DrawMode;
-pub use mesh::NerveMesh;
-pub use mesher::NerveMeshSrc;
+pub use mesh::*;
+pub use meshsrc::NerveMeshSrc;

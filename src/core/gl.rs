@@ -1,7 +1,7 @@
-use crate::renderer::{Renderer, ShaderType, TexFilter, TexFormat};
-use crate::{Cull, DrawMode, NerveTexture, PolyMode, Size2D, TexWrap, Uniform, RGB};
+use crate::renderer::{AttrInfo, Renderer, ShaderType, TexFilter, TexFormat};
+use crate::{AttrType, Cull, DrawMode, NerveTexture, PolyMode, Size2D, TexWrap, Uniform, RGB};
 use cgmath::{Matrix, Matrix4};
-use gl::types::{GLchar, GLenum, GLint, GLsizei};
+use gl::types::{GLchar, GLenum, GLint, GLsizei, GLsizeiptr};
 use glfw::{Context, PWindow};
 use std::ffi::{c_void, CStr, CString};
 use std::ptr;
@@ -36,7 +36,7 @@ impl Renderer for GLRenderer {
    }
 
    //STATE
-   fn set_bg_color(&self, color: RGB) {
+   fn set_clear(&self, color: RGB) {
       unsafe {
          gl::ClearColor(color.0, color.1, color.2, 1.0);
       }
@@ -103,7 +103,7 @@ impl Renderer for GLRenderer {
       unsafe { gl::UseProgram(0) }
    }
 
-   fn bind_texture_at_slot(&self, tex_id: u32, slot: u32) {
+   fn bind_texture_at(&self, tex_id: u32, slot: u32) {
       unsafe {
          gl::ActiveTexture(gl::TEXTURE0 + slot);
          gl::BindTexture(TEX, tex_id);
@@ -111,6 +111,31 @@ impl Renderer for GLRenderer {
    }
    fn unbind_texture(&self) {
       unsafe { gl::BindTexture(TEX, 0) }
+   }
+
+   fn bind_buffer(&self, v_id: u32, b_id: u32) {
+      unsafe {
+         gl::BindVertexArray(v_id);
+         gl::BindBuffer(gl::ARRAY_BUFFER, b_id);
+      }
+   }
+   fn unbind_buffer(&self) {
+      unsafe {
+         gl::BindVertexArray(0);
+         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+      }
+   }
+
+   fn bind_index_buffer(&self, id: u32) {
+      unsafe {
+         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, id);
+      }
+   }
+
+   fn unbind_index_buffer(&self) {
+      unsafe {
+         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
+      }
    }
 
    //SHADERS
@@ -175,11 +200,11 @@ impl Renderer for GLRenderer {
       unsafe { gl::DeleteProgram(id) }
    }
 
-   fn create_texture_at_slot(&self, tex: &NerveTexture, slot: u32) -> u32 {
+   fn create_texture(&self, tex: &NerveTexture) -> u32 {
       let mut id = 0;
       unsafe {
          gl::GenTextures(1, &mut id);
-         self.bind_texture_at_slot(id, slot);
+         self.bind_texture_at(id, 0);
 
          let wrap = match_tex_wrap_gl(&tex.wrap);
          let (min_filter, max_filter) = match_tex_filter_gl(&tex.filter);
@@ -237,7 +262,6 @@ impl Renderer for GLRenderer {
          gl::Uniform1i(loc, int)
       }
    }
-
    fn set_uni_m4f32(&self, id: u32, name: &str, matrix: Matrix4<f32>) {
       unsafe {
          let loc = self.get_uni_location(id, name) as GLint;
@@ -246,6 +270,73 @@ impl Renderer for GLRenderer {
    }
 
    //BUFFERS
+   fn create_buffer(&self) -> (u32, u32) {
+      let (mut v_id, mut b_id): (u32, u32) = (0, 0);
+      unsafe {
+         gl::GenVertexArrays(1, &mut v_id);
+         gl::GenBuffers(1, &mut b_id);
+      }
+      (v_id, b_id)
+   }
+   fn set_attr_layout(&self, attr: &AttrInfo, attr_id: u32, stride: usize, local_offset: usize) {
+      unsafe {
+         gl::VertexAttribPointer(
+            attr_id,
+            attr.elem_count as GLint,
+            match_attr_type(&attr.typ),
+            gl::FALSE,
+            stride as GLsizei,
+            match local_offset {
+               0 => ptr::null(),
+               _ => local_offset as *const c_void,
+            },
+         );
+         gl::EnableVertexAttribArray(attr_id);
+      }
+   }
+   fn fill_buffer(&self, v_id: u32, b_id: u32, buffer: &Vec<u8>) {
+      unsafe {
+         self.bind_buffer(v_id, b_id);
+         gl::BufferData(
+            gl::ARRAY_BUFFER,
+            (buffer.len() * 4) as GLsizeiptr,
+            &buffer[0] as *const u8 as *const c_void,
+            gl::DYNAMIC_DRAW,
+         );
+      }
+   }
+
+   fn fill_index_buffer(&self, id: u32, buffer: &Vec<u32>) {
+      unsafe {
+         self.bind_index_buffer(id);
+         gl::BufferData(
+            gl::ELEMENT_ARRAY_BUFFER,
+            (buffer.len() * size_of::<GLint>()) as GLsizeiptr,
+            &buffer[0] as *const u32 as *const c_void,
+            gl::DYNAMIC_DRAW,
+         );
+      }
+   }
+
+   fn delete_buffer(&self, v_id: u32, b_id: u32) {
+      unsafe {
+         gl::DeleteVertexArrays(1, &v_id);
+         gl::DeleteBuffers(1, &b_id);
+      }
+   }
+
+   fn create_index_buffer(&self) -> u32 {
+      let mut id: u32 = 0;
+      unsafe {
+         gl::GenBuffers(1, &mut id);
+      }
+      id
+   }
+   fn delete_index_buffer(&self, id: u32) {
+      unsafe {
+         gl::DeleteBuffers(1, &id);
+      }
+   }
 
    //DRAW
    fn clear(&self) {
@@ -325,4 +416,17 @@ fn match_tex_wrap_gl(tf: &TexWrap) -> GLint {
       TexWrap::Clip => gl::CLAMP_TO_BORDER,
    };
    wrap as GLint
+}
+
+fn match_attr_type(attr_type: &AttrType) -> GLenum {
+   match attr_type {
+      AttrType::I8 => gl::BYTE,
+      AttrType::U8 => gl::UNSIGNED_BYTE,
+      AttrType::I16 => gl::SHORT,
+      AttrType::U16 => gl::UNSIGNED_SHORT,
+      AttrType::I32 => gl::INT,
+      AttrType::U32 => gl::UNSIGNED_INT,
+      AttrType::F32 => gl::FLOAT,
+      AttrType::F64 => gl::DOUBLE,
+   }
 }
