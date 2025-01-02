@@ -4,4 +4,4 @@ mod meshsrc;
 
 pub use attr::*;
 pub use mesh::*;
-pub use meshsrc::NerveMeshSrc;
+pub use meshsrc::*;

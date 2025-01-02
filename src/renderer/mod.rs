@@ -1,4 +1,5 @@
 mod camera;
+pub mod core;
 mod mesh;
 mod renderer;
 mod shader;

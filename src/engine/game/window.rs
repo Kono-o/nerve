@@ -34,8 +34,8 @@ impl NerveWindow {
    ) {
       self.window.set_monitor(
          mode,
-         prev_pos.x,
-         prev_pos.y,
+         prev_pos.x as i32,
+         prev_pos.y as i32,
          prev_size.w,
          prev_size.h,
          refresh_rate,
@@ -46,8 +46,8 @@ impl NerveWindow {
       self.size = self.get_size();
       self.coord = self.get_coord();
       self.cursor_coord = self.get_cursor_coord();
-      self.cursor_offset = self.get_cursor_offset();
       self.cursor_coord_global = self.get_cursor_coord_global();
+      self.cursor_offset = self.get_cursor_offset();
    }
    pub(crate) fn post_update(&mut self) {
       self.swap();
@@ -58,15 +58,16 @@ impl NerveWindow {
       Size2D::from(w as u32, h as u32)
    }
    fn get_coord(&self) -> ScreenCoord {
-      ScreenCoord::from_tup(self.window.get_pos())
+      let (x, y) = self.window.get_pos();
+      ScreenCoord::from(x as f64, y as f64)
    }
    fn get_cursor_coord(&self) -> ScreenCoord {
       let (x, y) = self.window.get_cursor_pos();
-      ScreenCoord::from(x as i32, y as i32)
+      ScreenCoord::from(x, y)
    }
    fn get_cursor_coord_global(&self) -> ScreenCoord {
       let (x, y) = self.window.get_cursor_pos();
-      ScreenCoord::from(x as i32 + self.coord.x, y as i32 + self.coord.y)
+      ScreenCoord::from(x + self.coord.x, y + self.coord.y)
    }
    fn get_cursor_offset(&mut self) -> ScreenOffset {
       let coord = self.cursor_coord;
@@ -100,14 +101,14 @@ impl NerveWindow {
    }
    pub fn set_coord(&mut self, coord: ScreenCoord) {
       self.coord = coord;
-      self.window.set_pos(coord.x, coord.y);
+      self.window.set_pos(coord.x as i32, coord.y as i32);
    }
 
    pub fn is_cursor_inside(&self) -> bool {
       self.cursor_coord.is_inside(self.size)
    }
 
-   pub fn set_cursor_pos(&mut self, coord: ScreenCoord) {
+   pub fn set_cursor_coord(&mut self, coord: ScreenCoord) {
       self.cursor_coord = coord;
       self.window.set_cursor_pos(coord.x as f64, coord.y as f64)
    }

@@ -1,10 +1,11 @@
-use crate::core::{GLRenderer, VKRenderer};
 use crate::engine::{ButtonState, KeyBitMap, MouseBitMap};
+use crate::renderer::core::{GLRenderer, VKRenderer};
 use crate::renderer::{CamProj, NerveCamera, NerveRenderer, Renderer};
 use crate::{
    NerveEvents, NerveGame, NerveGameInfo, NerveWindow, ScreenCoord, ScreenOffset, Size2D,
 };
 use glfw::{Glfw, GlfwReceiver, OpenGlProfileHint, PWindow, SwapInterval, WindowEvent, WindowHint};
+use std::time::Instant;
 
 #[derive(Copy, Clone)]
 pub enum RenderAPI {
@@ -128,10 +129,12 @@ impl NerveGameBuilder {
       let (cx, cy) = (size.w / 2, size.h / 2);
       window.set_cursor_pos(cx as f64, cy as f64);
       let cam = NerveCamera::from(size, CamProj::Persp);
-      let coord = ScreenCoord::from_tup(window.get_pos());
-      let cursor_coord = ScreenCoord::from(cx as i32, cy as i32);
-      let cursor_coord_global = ScreenCoord::from(cx as i32 + coord.x, cy as i32 + coord.y);
+      let (x, y) = window.get_pos();
+      let coord = ScreenCoord::from(x as f64, y as f64);
+      let cursor_coord = ScreenCoord::from(cx as f64, cy as f64);
+      let cursor_coord_global = ScreenCoord::from(cx as f64 + coord.x, cy as f64 + coord.y);
 
+      let current_time = Instant::now();
       NerveGame {
          renderer: NerveRenderer::from(core, self.render_api, cam.view_matrix, cam.proj_matrix),
          window: NerveWindow {
@@ -175,14 +178,18 @@ impl NerveGameBuilder {
             window_close_event: false,
          },
          info: NerveGameInfo {
-            glfw,
-            prev_time: 0.0,
-            prev_sec: 0.0,
-            local_frame: 0,
             frame: 0,
-            fps: 0,
-            time: 0.0,
+            fps: 0.0,
+            current_time,
             delta: 0.0,
+            glfw,
+            prev_time: current_time,
+            prev_sec: current_time,
+            local_frame: 0,
+            time: 0.0,
+            start_time: current_time,
+            prev_deltas: vec![],
+            prev_deltas_size: 128,
          },
          cam,
       }

@@ -124,7 +124,7 @@ impl NerveRenderer {
          msaa_samples: 0,
          culling: true,
       };
-      let default_shader = renderer.compile(&NerveShaderSrc::default());
+      let default_shader = renderer.compile(NerveShaderSrc::default());
       renderer.set_culling(true);
       renderer.set_wire_width(2.0);
       renderer.set_bg_color(bg_color);
@@ -207,7 +207,7 @@ impl NerveRenderer {
    pub fn default_shader(&self) -> NerveShader {
       self.default_shader.clone()
    }
-   pub fn compile(&self, src: &NerveShaderSrc) -> NerveShader {
+   pub fn compile(&self, src: NerveShaderSrc) -> NerveShader {
       let p_id = self.core.create_program(&src.vert_src, &src.frag_src);
       self.core.bind_program(p_id);
 

@@ -1,4 +1,3 @@
-mod core;
 mod engine;
 mod renderer;
 
