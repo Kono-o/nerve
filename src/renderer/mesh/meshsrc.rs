@@ -9,14 +9,14 @@ macro_rules! str {
 }
 
 pub struct NEMeshSrc {
-   pub shader: NEShader,
-   pub transform: Transform,
-   pub pos_attr: PosATTR,
-   pub col_attr: ColATTR,
-   pub uvm_attr: UVMATTR,
-   pub nrm_attr: NrmATTR,
-   pub indices: Indices,
-   pub cus_attrs: Vec<CustomATTR>,
+   pub(crate) shader: NEShader,
+   pub(crate) transform: Transform,
+   pub(crate) pos_attr: PosATTR,
+   pub(crate) col_attr: ColATTR,
+   pub(crate) uvm_attr: UVMATTR,
+   pub(crate) nrm_attr: NrmATTR,
+   pub(crate) indices: Indices,
+   pub(crate) cus_attrs: Vec<CustomATTR>,
 }
 impl Default for NEMeshSrc {
    fn default() -> Self {

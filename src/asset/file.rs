@@ -52,7 +52,7 @@ impl NEError {
             let kind_msg = match kind {
                NEInitErrKind::GlfwInit => "glfw init failed",
                NEInitErrKind::APIUnavailable(api) => &format!("{api} is unavailable"),
-               NEInitErrKind::APIWrongVersion(api) => &format!("{api} not a real version"),
+               NEInitErrKind::APIWrongVersion(api) => &format!("{api} unsupported/invalid version"),
                NEInitErrKind::NoMonitor => "no monitor found",
                NEInitErrKind::NotVidMode => "no vid mode found",
                NEInitErrKind::WindowHasNoContext => "window has no context",
@@ -82,7 +82,7 @@ impl NEError {
    }
    pub fn log(&self) {
       let msg = self.msg();
-      println!("{msg}");
+      println!("\x1b[31m{msg}\x1b[0m");
    }
    pub fn log_and_exit(&self) {
       self.log();

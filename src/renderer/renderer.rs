@@ -178,6 +178,10 @@ impl NERenderer {
       self.msaa = enable;
       self.core.enable_msaa(enable);
    }
+   pub fn toggle_msaa(&mut self) {
+      self.msaa = !self.msaa;
+      self.core.enable_msaa(self.msaa)
+   }
    pub fn set_culling(&mut self, enable: bool) {
       if self.culling != enable {
          self.toggle_culling()

@@ -8,12 +8,30 @@ use crate::{
 use glfw::{
    Error, Glfw, GlfwReceiver, OpenGlProfileHint, PWindow, SwapInterval, WindowEvent, WindowHint,
 };
+use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
 #[derive(Copy, Clone)]
 pub enum RenderAPI {
    OpenGL(u32, u32),
    Vulkan,
+}
+
+impl Display for RenderAPI {
+   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+      write!(f, "{}", self.api_str())
+   }
+}
+
+impl RenderAPI {
+   pub(crate) fn api_str(&self) -> String {
+      match self {
+         RenderAPI::OpenGL(v0, v1) => {
+            format!("OpenGL {v0}.{v1}")
+         }
+         RenderAPI::Vulkan => "Vulkan".to_string(),
+      }
+   }
 }
 
 pub enum WinMode {
@@ -124,7 +142,8 @@ fn init_nerve(
    match api {
       RenderAPI::OpenGL(v0, v1) => {
          glfw.window_hint(WindowHint::ContextVersion(*v0, *v1));
-         glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Core));
+         glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Compat));
+         glfw.window_hint(WindowHint::Samples(Some(4)));
 
          let (mut window, events, is_full, size) = match window_from(glfw, mode, title) {
             NEResult::OK((w, e, isf, s)) => (w, e, isf, s),
@@ -264,6 +283,7 @@ impl NEGameBuilder {
             prev_deltas_size: 128,
          },
          cam,
+         is_paused: false,
       })
    }
 }

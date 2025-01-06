@@ -7,6 +7,7 @@ pub struct NEGame {
    pub events: NEEvents,
    pub info: NEGameInfo,
    pub cam: NECamera,
+   pub is_paused: bool,
 }
 
 impl NEGame {
