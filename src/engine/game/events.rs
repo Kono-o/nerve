@@ -176,7 +176,7 @@ pub(crate) fn key_index(key: &Key) -> usize {
    }
 }
 
-pub struct NerveEvents {
+pub struct NEEvents {
    pub(crate) events: GlfwReceiver<(f64, WindowEvent)>,
    pub(crate) key_bitmap: KeyBitMap,
    pub(crate) mouse_bitmap: MouseBitMap,
@@ -186,7 +186,7 @@ pub struct NerveEvents {
    pub(crate) window_close_event: bool,
 }
 
-impl NerveEvents {
+impl NEEvents {
    pub(crate) fn pre_update(&mut self) {
       self.catch()
    }
@@ -265,7 +265,7 @@ impl NerveEvents {
    }
 }
 
-pub struct NerveGameInfo {
+pub struct NEGameInfo {
    pub fps: f64,
    pub time: f64,
    pub delta: f64,
@@ -281,7 +281,7 @@ pub struct NerveGameInfo {
    pub(crate) local_frame: u32,
 }
 
-impl NerveGameInfo {
+impl NEGameInfo {
    pub(crate) fn pre_update(&mut self) {
       self.calculate()
    }

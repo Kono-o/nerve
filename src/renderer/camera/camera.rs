@@ -11,7 +11,7 @@ pub enum CamProj {
    Persp,
 }
 
-pub struct NerveCamera {
+pub struct NECamera {
    pub(crate) size: Size2D,
    pub(crate) projection: CamProj,
    pub(crate) fov: f32,
@@ -24,7 +24,7 @@ pub struct NerveCamera {
    pub(crate) transform: Transform,
 }
 
-impl NerveCamera {
+impl NECamera {
    fn update_proj(&mut self) {
       self.proj_matrix = match self.projection {
          CamProj::Persp => perspective(
@@ -77,7 +77,7 @@ impl NerveCamera {
    pub(crate) fn post_update(&mut self) {}
 }
 
-impl NerveCamera {
+impl NECamera {
    pub fn from(size: Size2D, projection: CamProj) -> Self {
       let fov = 50.0;
       let (widthf, heightf) = (size.w as f32, size.h as f32);

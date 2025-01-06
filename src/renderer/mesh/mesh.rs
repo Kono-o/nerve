@@ -1,4 +1,4 @@
-use crate::{NerveShader, Transform};
+use crate::{NEShader, Transform};
 use cgmath::Matrix4;
 
 pub enum DrawMode {
@@ -8,7 +8,7 @@ pub enum DrawMode {
    Strip,
 }
 
-pub struct NerveMesh {
+pub struct NEMesh {
    pub visible: bool,
    pub transform: Transform,
    pub draw_mode: DrawMode,
@@ -20,11 +20,11 @@ pub struct NerveMesh {
    pub(crate) ind_count: u32,
    pub(crate) buf_id: (u32, u32),
    pub(crate) index_buf_id: u32,
-   pub(crate) shader: NerveShader,
+   pub(crate) shader: NEShader,
    pub(crate) layouts: Vec<String>,
 }
 
-impl Default for NerveMesh {
+impl Default for NEMesh {
    fn default() -> Self {
       Self {
          visible: true,
@@ -36,14 +36,14 @@ impl Default for NerveMesh {
          ind_count: 0,
          buf_id: (0, 0),
          index_buf_id: 0,
-         shader: NerveShader::empty(),
+         shader: NEShader::empty(),
          draw_mode: DrawMode::Triangles,
          layouts: vec![],
       }
    }
 }
-impl NerveMesh {
-   pub fn set_shader(&mut self, shader: NerveShader) {
+impl NEMesh {
+   pub fn set_shader(&mut self, shader: NEShader) {
       self.shader = shader
    }
    pub fn set_draw_mode(&mut self, draw_mode: DrawMode) {

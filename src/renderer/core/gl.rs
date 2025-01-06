@@ -1,5 +1,5 @@
-use crate::renderer::{AttrInfo, Renderer, ShaderType, TexFilter, TexFormat};
-use crate::{AttrType, Cull, DrawMode, NerveTexture, PolyMode, Size2D, TexWrap, Uniform, RGB};
+use crate::renderer::{ATTRInfo, Renderer, ShaderType, TexFilter, TexFormat};
+use crate::{ATTRType, Cull, DrawMode, NETexture, PolyMode, Size2D, TexWrap, Uniform, RGB};
 use cgmath::{Matrix, Matrix4};
 use gl::types::{GLchar, GLenum, GLint, GLsizei, GLsizeiptr};
 use glfw::{Context, PWindow};
@@ -200,7 +200,7 @@ impl Renderer for GLRenderer {
       unsafe { gl::DeleteProgram(id) }
    }
 
-   fn create_texture(&self, tex: &NerveTexture) -> u32 {
+   fn create_texture(&self, tex: &NETexture) -> u32 {
       let mut id = 0;
       unsafe {
          gl::GenTextures(1, &mut id);
@@ -278,7 +278,7 @@ impl Renderer for GLRenderer {
       }
       (v_id, b_id)
    }
-   fn set_attr_layout(&self, attr: &AttrInfo, attr_id: u32, stride: usize, local_offset: usize) {
+   fn set_attr_layout(&self, attr: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize) {
       unsafe {
          gl::VertexAttribPointer(
             attr_id,
@@ -378,7 +378,7 @@ fn match_shader_type_gl(t: &ShaderType) -> GLenum {
    }
 }
 fn match_tex_format_gl(tf: &TexFormat) -> (GLenum, GLint) {
-   let mut base = match tf {
+   let base = match tf {
       TexFormat::R(_) => gl::RED,
       TexFormat::RG(_) => gl::RG,
       TexFormat::RGB(_) => gl::RGB,
@@ -418,15 +418,15 @@ fn match_tex_wrap_gl(tf: &TexWrap) -> GLint {
    wrap as GLint
 }
 
-fn match_attr_type(attr_type: &AttrType) -> GLenum {
+fn match_attr_type(attr_type: &ATTRType) -> GLenum {
    match attr_type {
-      AttrType::I8 => gl::BYTE,
-      AttrType::U8 => gl::UNSIGNED_BYTE,
-      AttrType::I16 => gl::SHORT,
-      AttrType::U16 => gl::UNSIGNED_SHORT,
-      AttrType::I32 => gl::INT,
-      AttrType::U32 => gl::UNSIGNED_INT,
-      AttrType::F32 => gl::FLOAT,
-      AttrType::F64 => gl::DOUBLE,
+      ATTRType::I8 => gl::BYTE,
+      ATTRType::U8 => gl::UNSIGNED_BYTE,
+      ATTRType::I16 => gl::SHORT,
+      ATTRType::U16 => gl::UNSIGNED_SHORT,
+      ATTRType::I32 => gl::INT,
+      ATTRType::U32 => gl::UNSIGNED_INT,
+      ATTRType::F32 => gl::FLOAT,
+      ATTRType::F64 => gl::DOUBLE,
    }
 }

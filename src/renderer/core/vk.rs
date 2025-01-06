@@ -1,5 +1,5 @@
-use crate::renderer::{AttrInfo, Renderer, ShaderType};
-use crate::{Cull, DrawMode, NerveTexture, PolyMode, Size2D, Uniform, RGB};
+use crate::renderer::{ATTRInfo, Renderer, ShaderType};
+use crate::{Cull, DrawMode, NETexture, PolyMode, Size2D, Uniform, RGB};
 use cgmath::Matrix4;
 use glfw::PWindow;
 
@@ -99,7 +99,7 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn create_texture(&self, tex: &NerveTexture) -> u32 {
+   fn create_texture(&self, tex: &NETexture) -> u32 {
       todo!()
    }
 
@@ -127,7 +127,7 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn set_attr_layout(&self, info: &AttrInfo, attr_id: u32, stride: usize, local_offset: usize) {
+   fn set_attr_layout(&self, info: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize) {
       todo!()
    }
 

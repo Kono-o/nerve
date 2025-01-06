@@ -1,15 +1,15 @@
-use crate::renderer::{NerveCamera, NerveRenderer};
-use crate::{NerveEvents, NerveGameInfo, NerveWindow, Size2D};
+use crate::renderer::NECamera;
+use crate::{NEEvents, NEGameInfo, NERenderer, NEWindow, Size2D};
 
-pub struct NerveGame {
-   pub renderer: NerveRenderer,
-   pub window: NerveWindow,
-   pub events: NerveEvents,
-   pub info: NerveGameInfo,
-   pub cam: NerveCamera,
+pub struct NEGame {
+   pub renderer: NERenderer,
+   pub window: NEWindow,
+   pub events: NEEvents,
+   pub info: NEGameInfo,
+   pub cam: NECamera,
 }
 
-impl NerveGame {
+impl NEGame {
    fn resize_children(&mut self, new_size: Size2D) {
       self.renderer.set_size(new_size);
       self.cam.set_size(new_size);
@@ -41,7 +41,7 @@ impl NerveGame {
       self.cam.post_update();
    }
 
-   pub fn set_cam(&mut self, camera: NerveCamera) {
+   pub fn set_cam(&mut self, camera: NECamera) {
       self.cam = camera
    }
 }

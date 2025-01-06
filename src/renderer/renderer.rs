@@ -1,7 +1,7 @@
-use crate::renderer::AttrInfo;
+use crate::renderer::ATTRInfo;
 use crate::{
-   color, DataFormat, DrawMode, NerveCamera, NerveMesh, NerveMeshSrc, NerveShader, NerveShaderSrc,
-   NerveTexture, RenderAPI, Size2D, Uniform, RGB,
+   color, DataType, DrawMode, NECamera, NEMesh, NEMeshSrc, NEShader, NEShaderSrc, NETexture,
+   RenderAPI, Size2D, Uniform, RGB,
 };
 use cgmath::Matrix4;
 
@@ -54,7 +54,7 @@ pub(crate) trait Renderer {
    fn create_program(&self, vert: &str, frag: &str) -> u32;
    fn delete_program(&self, id: u32);
 
-   fn create_texture(&self, tex: &NerveTexture) -> u32;
+   fn create_texture(&self, tex: &NETexture) -> u32;
    fn delete_texture(&self, id: u32);
    fn get_uni_location(&self, id: u32, name: &str) -> u32;
 
@@ -64,7 +64,7 @@ pub(crate) trait Renderer {
 
    //BUFFERS
    fn create_buffer(&self) -> (u32, u32);
-   fn set_attr_layout(&self, info: &AttrInfo, attr_id: u32, stride: usize, local_offset: usize);
+   fn set_attr_layout(&self, info: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize);
    fn fill_buffer(&self, v_id: u32, b_id: u32, buffer: &Vec<u8>);
    fn fill_index_buffer(&self, id: u32, buffer: &Vec<u32>);
    fn delete_buffer(&self, v_id: u32, b_id: u32);
@@ -77,13 +77,13 @@ pub(crate) trait Renderer {
    fn draw_no_index(&self, draw_mode: &DrawMode, vert_count: u32);
 }
 
-pub struct NerveRenderer {
+pub struct NERenderer {
    pub(crate) core: Box<dyn Renderer>,
 
    pub(crate) cam_view: Matrix4<f32>,
    pub(crate) cam_proj: Matrix4<f32>,
 
-   pub default_shader: NerveShader,
+   pub default_shader: NEShader,
 
    pub gpu: String,
    pub api: RenderAPI,
@@ -98,7 +98,7 @@ pub struct NerveRenderer {
    pub culling: bool,
 }
 //PRIVATE
-impl NerveRenderer {
+impl NERenderer {
    pub(crate) fn from(
       core: Box<dyn Renderer>,
       api: RenderAPI,
@@ -112,7 +112,7 @@ impl NerveRenderer {
          core,
          cam_view,
          cam_proj,
-         default_shader: NerveShader::empty(),
+         default_shader: NEShader::empty(),
          gpu,
          api,
          api_ver,
@@ -124,7 +124,7 @@ impl NerveRenderer {
          msaa_samples: 0,
          culling: true,
       };
-      let default_shader = renderer.compile(NerveShaderSrc::default());
+      let default_shader = renderer.compile(NEShaderSrc::default());
       renderer.set_culling(true);
       renderer.set_wire_width(2.0);
       renderer.set_bg_color(bg_color);
@@ -138,7 +138,7 @@ impl NerveRenderer {
       self.core.clear()
    }
 
-   pub(crate) fn pre_update(&mut self, cam: &NerveCamera) {
+   pub(crate) fn pre_update(&mut self, cam: &NECamera) {
       self.cam_view = cam.view_matrix;
       self.cam_proj = cam.proj_matrix;
       self.clear()
@@ -146,7 +146,7 @@ impl NerveRenderer {
    pub(crate) fn post_update(&self) {}
 }
 //PUBLIC
-impl NerveRenderer {
+impl NERenderer {
    pub fn display_info(&self) {
       let api = match self.api {
          RenderAPI::OpenGL(_, _) => "OpenGL",
@@ -204,10 +204,10 @@ impl NerveRenderer {
    pub fn set_wire_width(&mut self, width: f32) {
       self.core.set_wire_width(width);
    }
-   pub fn default_shader(&self) -> NerveShader {
+   pub fn default_shader(&self) -> NEShader {
       self.default_shader.clone()
    }
-   pub fn compile(&self, src: NerveShaderSrc) -> NerveShader {
+   pub fn compile(&self, src: NEShaderSrc) -> NEShader {
       let p_id = self.core.create_program(&src.vert_src, &src.frag_src);
       self.core.bind_program(p_id);
 
@@ -220,28 +220,28 @@ impl NerveRenderer {
             image_ids.push(t_id);
          }
       }
-      NerveShader {
+      NEShader {
          id: p_id,
          image_ids,
          exists_on_gpu: true,
       }
    }
 
-   pub fn delete_shader(&self, shader: NerveShader) {
+   pub fn delete_shader(&self, shader: NEShader) {
       self.core.delete_shader(shader.id)
    }
 
-   pub fn mesh(&self, mut src: NerveMeshSrc) -> NerveMesh {
+   pub fn mesh(&self, mut src: NEMeshSrc) -> NEMesh {
       let (v_id, b_id) = self.core.create_buffer();
       let i_id = self.core.create_index_buffer();
 
-      let (mut pos_info, mut pos_data) = (AttrInfo::empty(), &Vec::new());
-      let (mut col_info, mut col_data) = (AttrInfo::empty(), &Vec::new());
-      let (mut uvm_info, mut uvm_data) = (AttrInfo::empty(), &Vec::new());
-      let (mut nrm_info, mut nrm_data) = (AttrInfo::empty(), &Vec::new());
-      let (mut ind_info, mut ind_data) = (AttrInfo::empty(), &Vec::new());
+      let (mut pos_info, mut pos_data) = (ATTRInfo::empty(), &Vec::new());
+      let (mut col_info, mut col_data) = (ATTRInfo::empty(), &Vec::new());
+      let (mut uvm_info, mut uvm_data) = (ATTRInfo::empty(), &Vec::new());
+      let (mut nrm_info, mut nrm_data) = (ATTRInfo::empty(), &Vec::new());
+      let (mut ind_info, mut ind_data) = (ATTRInfo::empty(), &Vec::new());
 
-      let mut cus_infos: Vec<AttrInfo> = Vec::new();
+      let mut cus_infos: Vec<ATTRInfo> = Vec::new();
       let mut cus_datas: Vec<&Vec<u8>> = Vec::new();
 
       let mut ind_count = 0;
@@ -381,7 +381,7 @@ impl NerveRenderer {
          self.core.unbind_index_buffer();
       }
       src.transform.calc_matrix();
-      NerveMesh {
+      NEMesh {
          shader: src.shader.clone(),
          has_indices: ind_info.exists,
          vert_count,
@@ -395,7 +395,7 @@ impl NerveRenderer {
       }
    }
 
-   pub fn draw(&self, mesh: &mut NerveMesh) {
+   pub fn draw(&self, mesh: &mut NEMesh) {
       if !mesh.shader.exists_on_gpu || !mesh.visible || !mesh.alive {
          return;
       }
@@ -420,7 +420,7 @@ impl NerveRenderer {
    }
 }
 
-fn push_into_buffer<T: DataFormat>(buffer: &mut Vec<u8>, attr: &[T]) {
+fn push_into_buffer<T: DataType>(buffer: &mut Vec<u8>, attr: &[T]) {
    for elem in attr.iter() {
       let bytes = elem.u8ify();
       for byte in bytes.iter() {

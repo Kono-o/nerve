@@ -1,7 +1,7 @@
 use crate::{ScreenCoord, ScreenOffset, Size2D};
 use glfw::{Context, CursorMode, Glfw, PWindow, SwapInterval, WindowMode};
 
-pub struct NerveWindow {
+pub struct NEWindow {
    pub(crate) glfw: Glfw,
    pub(crate) window: PWindow,
 
@@ -24,7 +24,7 @@ pub struct NerveWindow {
    pub cursor_offset: ScreenOffset,
 }
 
-impl NerveWindow {
+impl NEWindow {
    pub(crate) fn set_monitor(
       &mut self,
       mode: WindowMode,

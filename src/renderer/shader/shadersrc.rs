@@ -48,7 +48,7 @@ impl TexFormat {
    }
 }
 
-pub struct NerveTexture {
+pub struct NETexture {
    pub(crate) exists: bool,
    pub(crate) bytes: Vec<u8>,
    pub(crate) bit_depth: u8,
@@ -60,9 +60,9 @@ pub struct NerveTexture {
    pub(crate) size: Size2D,
 }
 
-impl NerveTexture {
-   pub fn empty() -> NerveTexture {
-      NerveTexture {
+impl NETexture {
+   pub fn empty() -> NETexture {
+      NETexture {
          bytes: Vec::new(),
          exists: false,
          typ: TexFormat::RGB(8),
@@ -74,7 +74,7 @@ impl NerveTexture {
       }
    }
 
-   pub fn from(tex_path: &str, filter: TexFilter, wrap: TexWrap) -> NerveTexture {
+   pub fn from(tex_path: &str, filter: TexFilter, wrap: TexWrap) -> NETexture {
       let mut tex = match File::open(tex_path) {
          Ok(file) => file,
          Err(error) => panic!("{tex_path}: {error}"),
@@ -103,7 +103,7 @@ impl NerveTexture {
       let mut pixel_size = tex_fmt.elem_count() * bit_depth;
 
       let size = Size2D::from(info.width, info.height);
-      NerveTexture {
+      NETexture {
          bytes,
          exists: true,
          size,
@@ -116,15 +116,15 @@ impl NerveTexture {
    }
 }
 
-pub struct NerveShaderSrc {
-   pub textures: Vec<NerveTexture>,
+pub struct NEShaderSrc {
+   pub textures: Vec<NETexture>,
    pub vert_src: String,
    pub frag_src: String,
 }
 
-impl Default for NerveShaderSrc {
+impl Default for NEShaderSrc {
    fn default() -> Self {
-      NerveShaderSrc::from_paths(
+      NEShaderSrc::from_paths(
          "nerve/assets/shaders/mesh/default.vert",
          "nerve/assets/shaders/mesh/default.frag",
       )
@@ -136,8 +136,8 @@ impl Default for NerveShaderSrc {
    }
 }
 
-impl NerveShaderSrc {
-   pub fn empty() -> NerveShaderSrc {
+impl NEShaderSrc {
+   pub fn empty() -> NEShaderSrc {
       Self {
          textures: Vec::new(),
          vert_src: String::new(),
@@ -145,14 +145,14 @@ impl NerveShaderSrc {
       }
    }
 
-   pub fn from(vert_src: &str, frag_src: &str) -> NerveShaderSrc {
+   pub fn from(vert_src: &str, frag_src: &str) -> NEShaderSrc {
       Self {
          textures: Vec::new(),
          vert_src: vert_src.to_string(),
          frag_src: frag_src.to_string(),
       }
    }
-   pub fn from_paths(vert_path: &str, frag_path: &str) -> NerveShaderSrc {
+   pub fn from_paths(vert_path: &str, frag_path: &str) -> NEShaderSrc {
       let (vert_src, frag_src) = match (
          PathBuf::from_str(&vert_path).unwrap().exists(),
          PathBuf::from_str(&frag_path).unwrap().exists(),
@@ -166,7 +166,7 @@ impl NerveShaderSrc {
       if vert_src.is_empty() || frag_src.is_empty() {
          panic!("shader is empty!");
       }
-      NerveShaderSrc::from(&vert_src, &frag_src)
+      NEShaderSrc::from(&vert_src, &frag_src)
    }
 
    pub fn attach_tex_from_path(
@@ -174,10 +174,10 @@ impl NerveShaderSrc {
       path: &str,
       filter: TexFilter,
       wrap: TexWrap,
-   ) -> NerveShaderSrc {
-      self.attach_tex(NerveTexture::from(path, filter, wrap))
+   ) -> NEShaderSrc {
+      self.attach_tex(NETexture::from(path, filter, wrap))
    }
-   pub fn attach_tex(mut self, tex: NerveTexture) -> NerveShaderSrc {
+   pub fn attach_tex(mut self, tex: NETexture) -> NEShaderSrc {
       self.textures.push(tex);
       self
    }

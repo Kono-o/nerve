@@ -1,7 +1,7 @@
 use std::any::TypeId;
 
 #[derive(Clone, Debug)]
-pub enum AttrType {
+pub enum ATTRType {
    U8,
    I8,
    U16,
@@ -13,17 +13,17 @@ pub enum AttrType {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct AttrInfo {
-   pub(crate) typ: AttrType,
+pub(crate) struct ATTRInfo {
+   pub(crate) typ: ATTRType,
    pub(crate) typ_str: String,
    pub(crate) exists: bool,
    pub(crate) byte_count: usize,
    pub(crate) elem_count: usize,
 }
-impl AttrInfo {
-   pub(crate) fn empty() -> AttrInfo {
-      AttrInfo {
-         typ: AttrType::U8,
+impl ATTRInfo {
+   pub(crate) fn empty() -> ATTRInfo {
+      ATTRInfo {
+         typ: ATTRType::U8,
          typ_str: "".to_string(),
          exists: false,
          byte_count: 0,
@@ -32,12 +32,12 @@ impl AttrInfo {
    }
 }
 
-pub trait DataFormat {
+pub trait DataType {
    fn u8ify(&self) -> Vec<u8>;
 }
 macro_rules! impl_dataformat {
    ([$t:ty; $s:literal]) => {
-      impl DataFormat for [$t; $s] {
+      impl DataType for [$t; $s] {
          fn u8ify(&self) -> Vec<u8> {
             let mut vec: Vec<u8> = Vec::new();
             for elem in self.iter() {
@@ -50,7 +50,7 @@ macro_rules! impl_dataformat {
       }
    };
    ($t:ty) => {
-      impl DataFormat for $t {
+      impl DataType for $t {
          fn u8ify(&self) -> Vec<u8> {
             let mut vec: Vec<u8> = Vec::new();
             for byte in self.to_ne_bytes().iter() {
@@ -83,7 +83,7 @@ macro_rules! attribute {
       #[derive(Debug)]
       pub struct $attr {
          pub(crate) data: Vec<$typ>,
-         pub(crate) info: AttrInfo,
+         pub(crate) info: ATTRInfo,
       }
       impl $attr {
          pub fn from(vec: Vec<$typ>) -> $attr {
@@ -92,7 +92,7 @@ macro_rules! attribute {
             for elem in vec.iter() {
                data.push(*elem);
             }
-            let mut info = AttrInfo::empty();
+            let mut info = ATTRInfo::empty();
             if vec_len > 0 {
                info.exists = true;
                (info.typ, info.typ_str, info.byte_count, info.elem_count) = get_format(&vec[0]);
@@ -118,7 +118,7 @@ macro_rules! attribute {
          pub fn empty() -> $attr {
             $attr {
                data: Vec::new(),
-               info: AttrInfo::empty(),
+               info: ATTRInfo::empty(),
             }
          }
          pub fn shove(&mut self, elem: $typ) {
@@ -133,8 +133,8 @@ macro_rules! attribute {
          pub fn data(&self) -> &Vec<$typ> {
             &self.data
          }
-         pub fn info(&mut self) -> AttrInfo {
-            AttrInfo {
+         pub fn info(&mut self) -> ATTRInfo {
+            ATTRInfo {
                typ: self.info.typ.clone(),
                typ_str: self.info.typ_str.clone(),
                exists: self.info.exists,
@@ -145,18 +145,18 @@ macro_rules! attribute {
       }
    };
 }
-attribute!(PositionAttr, [f32; 3]);
-attribute!(ColorAttr, [f32; 3]);
-attribute!(UVMapAttr, [f32; 2]);
-attribute!(NormalAttr, [f32; 3]);
+attribute!(PosATTR, [f32; 3]);
+attribute!(ColATTR, [f32; 3]);
+attribute!(UVMATTR, [f32; 2]);
+attribute!(NrmATTR, [f32; 3]);
 attribute!(Indices, u32);
 
-pub struct CustomAttr {
+pub struct CustomATTR {
    pub(crate) data: Vec<u8>,
-   pub(crate) info: AttrInfo,
+   pub(crate) info: ATTRInfo,
 }
-impl CustomAttr {
-   pub fn from<T: DataFormat + 'static>(vec: Vec<T>) -> CustomAttr {
+impl CustomATTR {
+   pub fn from<T: DataType + 'static>(vec: Vec<T>) -> CustomATTR {
       let mut data: Vec<u8> = Vec::new();
       let vec_len = vec.len();
       for elem in vec.iter() {
@@ -165,21 +165,21 @@ impl CustomAttr {
             data.push(*byte);
          }
       }
-      let mut info = AttrInfo::empty();
+      let mut info = ATTRInfo::empty();
       if vec_len > 0 {
          info.exists = true;
          (info.typ, info.typ_str, info.byte_count, info.elem_count) = get_format(&vec[0]);
       }
-      CustomAttr { data, info }
+      CustomATTR { data, info }
    }
-   pub fn from_array<T: DataFormat + Clone + 'static>(array: &[T]) -> CustomAttr {
+   pub fn from_array<T: DataType + Clone + 'static>(array: &[T]) -> CustomATTR {
       let mut vec = Vec::from(array);
-      CustomAttr::from(vec)
+      CustomATTR::from(vec)
    }
-   pub fn empty() -> CustomAttr {
-      CustomAttr {
+   pub fn empty() -> CustomATTR {
+      CustomATTR {
          data: Vec::new(),
-         info: AttrInfo::empty(),
+         info: ATTRInfo::empty(),
       }
    }
    pub fn is_empty(&self) -> bool {
@@ -191,8 +191,8 @@ impl CustomAttr {
    pub fn data(&self) -> &Vec<u8> {
       &self.data
    }
-   pub fn info(&self) -> AttrInfo {
-      AttrInfo {
+   pub fn info(&self) -> ATTRInfo {
+      ATTRInfo {
          typ: self.info.typ.clone(),
          typ_str: self.info.typ_str.clone(),
          exists: self.info.exists,
@@ -203,20 +203,20 @@ impl CustomAttr {
 }
 
 // returns attr (type, bytes in 1 element, no of elements)
-pub(crate) fn get_format<T: DataFormat + 'static>(_t: &T) -> (AttrType, String, usize, usize) {
+pub(crate) fn get_format<T: DataType + 'static>(_t: &T) -> (ATTRType, String, usize, usize) {
    let id = TypeId::of::<T>();
 
-   let int8 = AttrType::I8;
-   let uint8 = AttrType::U8;
+   let int8 = ATTRType::I8;
+   let uint8 = ATTRType::U8;
 
-   let int16 = AttrType::I16;
-   let uint16 = AttrType::U16;
+   let int16 = ATTRType::I16;
+   let uint16 = ATTRType::U16;
 
-   let int32 = AttrType::I32;
-   let uint32 = AttrType::U32;
+   let int32 = ATTRType::I32;
+   let uint32 = ATTRType::U32;
 
-   let float32 = AttrType::F32;
-   let float64 = AttrType::F64;
+   let float32 = ATTRType::F32;
+   let float64 = ATTRType::F64;
 
    // INT8
    if id == TypeId::of::<i8>() {
