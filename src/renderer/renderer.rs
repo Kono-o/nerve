@@ -125,6 +125,7 @@ impl NERenderer {
          culling: true,
       };
       let default_shader = renderer.compile(NEShaderAsset::default());
+      renderer.set_msaa(true);
       renderer.set_culling(true);
       renderer.set_wire_width(2.0);
       renderer.set_bg_color(bg_color);
@@ -150,41 +151,37 @@ impl NERenderer {
    pub fn log_info(&self) {
       log_info!("api: {} (glsl: {})", self.api.api_str(), self.glsl_ver);
       log_info!("gpu: {}", self.gpu);
-
-      match self.poly_mode {
-         PolyMode::Points => {
-            log_info!("mode: POINTS");
+      log_info!(
+         "mode: {}",
+         match self.poly_mode {
+            PolyMode::Points => "POINTS",
+            PolyMode::WireFrame => "WIREFRAME",
+            PolyMode::Filled => "RASTERIZE",
          }
-         PolyMode::WireFrame => {
-            log_info!("mode: WIREFRAME");
-         }
-         PolyMode::Filled => {
-            log_info!("mode: RASTERIZE");
-         }
-      }
-
-      match self.culling {
-         true => {
-            let cull_face = match self.cull_face {
-               Cull::Clock => "clockwise",
-               Cull::AntiClock => "anti-clockwise",
+      );
+      log_info!(
+         "cull: {}",
+         if self.culling {
+            let cull_face = if matches!(self.cull_face, Cull::Clock) {
+               "clockwise"
+            } else {
+               "anti-clockwise"
             };
-            log_info!("cull: ON [{}]", cull_face);
+            format!("ON [{}]", cull_face)
+         } else {
+            "OFF".to_string()
          }
-         false => {
-            log_info!("cull: OFF");
+      );
+      log_info!(
+         "msaa: {}",
+         if self.msaa {
+            format!("ON [{} samples]", self.msaa_samples)
+         } else {
+            "OFF".to_string()
          }
-      }
-
-      match self.msaa {
-         true => {
-            log_info!("msaa: ON [{} samples]", self.msaa_samples);
-         }
-         false => {
-            log_info!("msaa: OFF");
-         }
-      }
+      );
    }
+
    pub fn set_msaa_samples(&mut self, samples: u32) {
       self.msaa_samples = samples
    }

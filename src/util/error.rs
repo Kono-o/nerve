@@ -57,7 +57,7 @@ impl NEError {
                NEFileErrKind::NoFile => "does not exist",
                NEFileErrKind::NoPerms => "no permissions",
                NEFileErrKind::NotValidPath => "path not valid",
-               NEFileErrKind::Unsupported => "unsupported type",
+               NEFileErrKind::Unsupported => "unsupported file format",
                NEFileErrKind::Unknown => "unknown error",
             };
             severe = NEErrorSeverity::Fatal;

@@ -12,6 +12,7 @@ pub struct NEWindow {
    pub is_cursor_hidden: bool,
    pub is_cursor_off: bool,
    pub is_fullscreen: bool,
+   pub is_borderless: bool,
    pub is_resizable: bool,
    pub is_running: bool,
    pub is_vsync: bool,
@@ -150,6 +151,7 @@ impl NEWindow {
          self.toggle_fullscreen()
       }
    }
+
    pub fn toggle_fullscreen(&mut self) {
       self.is_fullscreen = !self.is_fullscreen;
       if self.is_fullscreen {

@@ -45,7 +45,6 @@ impl NEMeshAsset {
          kind: NEFileErrKind::Unsupported,
          path: path.to_string(),
       });
-
       match pathbuf.extension() {
          Some(ex) => match ex.to_str().unwrap_or("") {
             "obj" => {

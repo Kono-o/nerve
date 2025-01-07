@@ -13,8 +13,8 @@ pub enum CamProj {
 
 pub struct NECamera {
    pub(crate) size: Size2D,
-   pub(crate) projection: CamProj,
-   pub(crate) fov: f32,
+   pub(crate) proj: CamProj,
+   pub fov: f32,
    pub(crate) ortho_scale: f32,
    pub(crate) clip: (f32, f32),
 
@@ -26,7 +26,7 @@ pub struct NECamera {
 
 impl NECamera {
    fn update_proj(&mut self) {
-      self.proj_matrix = match self.projection {
+      self.proj_matrix = match self.proj {
          CamProj::Persp => perspective(
             Deg(self.fov),
             self.size.w as f32 / self.size.h as f32,
@@ -78,7 +78,7 @@ impl NECamera {
 }
 
 impl NECamera {
-   pub fn from(size: Size2D, projection: CamProj) -> Self {
+   pub fn from(size: Size2D, proj: CamProj) -> Self {
       let fov = 50.0;
       let (widthf, heightf) = (size.w as f32, size.h as f32);
       let proj_matrix = perspective(Deg(fov), widthf / heightf, 0.01, 1000.0);
@@ -94,7 +94,7 @@ impl NECamera {
 
       Self {
          size,
-         projection,
+         proj,
          fov,
          ortho_scale: 2.0,
          clip: (0.01, 1000.0),
@@ -114,7 +114,7 @@ impl NECamera {
       self.update_proj()
    }
    pub fn set_proj(&mut self, proj: CamProj) {
-      self.projection = proj;
+      self.proj = proj;
       self.update_proj()
    }
    pub fn set_fov(&mut self, fov: f32) {

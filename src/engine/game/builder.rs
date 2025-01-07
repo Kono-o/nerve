@@ -44,6 +44,7 @@ pub enum FPS {
 pub struct NEGameBuilder {
    pub mode: WinMode,
    pub render_api: RenderAPI,
+   pub decorated: bool,
    pub title: String,
    pub fps: FPS,
 }
@@ -52,6 +53,7 @@ impl Default for NEGameBuilder {
    fn default() -> Self {
       Self {
          render_api: RenderAPI::OpenGL(4, 5),
+         decorated: false,
          title: "<Nerve-Game>".to_string(),
          mode: WinMode::Windowed(1280, 720),
          fps: FPS::Vsync,
@@ -128,6 +130,7 @@ fn window_from(
 fn init_nerve(
    glfw: &mut Glfw,
    api: &RenderAPI,
+   decorated: bool,
    mode: &WinMode,
    title: &str,
 ) -> NEResult<(
@@ -142,6 +145,7 @@ fn init_nerve(
          glfw.window_hint(WindowHint::ContextVersion(*v0, *v1));
          glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Compat));
          glfw.window_hint(WindowHint::Samples(Some(4)));
+         glfw.window_hint(WindowHint::Decorated(decorated));
 
          let (mut window, events, is_full, size) = match window_from(glfw, mode, title) {
             NEResult::OK((w, e, isf, s)) => (w, e, isf, s),
@@ -206,11 +210,16 @@ impl NEGameBuilder {
             });
          }
       };
-      let (core, mut window, events, is_fullscreen, size) =
-         match init_nerve(&mut glfw, &self.render_api, &self.mode, &self.title) {
-            NEResult::OK((c, w, e, isf, s)) => (c, w, e, isf, s),
-            NEResult::ER(e) => return NEResult::ER(e),
-         };
+      let (core, mut window, events, is_fullscreen, size) = match init_nerve(
+         &mut glfw,
+         &self.render_api,
+         self.decorated,
+         &self.mode,
+         &self.title,
+      ) {
+         NEResult::OK((c, w, e, isf, s)) => (c, w, e, isf, s),
+         NEResult::ER(e) => return NEResult::ER(e),
+      };
       core.init(api_str, &mut window);
       let (swap_interval, is_vsync) = match self.fps {
          FPS::Vsync => (SwapInterval::Adaptive, true),
@@ -239,6 +248,7 @@ impl NEGameBuilder {
             is_cursor_hidden: false,
             is_cursor_off: false,
             is_fullscreen,
+            is_borderless: false,
             is_resizable: true,
             is_running: true,
             is_vsync,
