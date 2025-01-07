@@ -1,5 +1,6 @@
 use crate::renderer::NECamera;
-use crate::{NEEvents, NEGameInfo, NERenderer, NEWindow, Size2D};
+use crate::{ansi, proc};
+use crate::{log_info, NEEvents, NEGameInfo, NERenderer, NEWindow, Size2D};
 
 pub struct NEGame {
    pub renderer: NERenderer,
@@ -26,6 +27,9 @@ impl NEGame {
       }
    }
 
+   pub fn start(&mut self) {
+      log_info!("game started!");
+   }
    pub fn pre_update(&mut self) {
       self.renderer.pre_update(&self.cam);
       self.window.pre_update();
@@ -34,6 +38,7 @@ impl NEGame {
       self.cam.pre_update();
       self.handle_events();
    }
+   pub fn update(&mut self) {}
    pub fn post_update(&mut self) {
       self.renderer.post_update();
       self.window.post_update();
@@ -41,8 +46,24 @@ impl NEGame {
       self.info.post_update();
       self.cam.post_update();
    }
+   pub fn end(&mut self) {
+      log_info!("game ended!");
+      proc::end_success()
+   }
 
    pub fn set_cam(&mut self, camera: NECamera) {
       self.cam = camera
+   }
+   pub fn pause(&mut self) {
+      self.is_paused = true;
+   }
+   pub fn unpause(&mut self) {
+      self.is_paused = false;
+   }
+   pub fn toggle_pause(&mut self) {
+      match self.is_paused {
+         true => self.unpause(),
+         false => self.pause(),
+      }
    }
 }

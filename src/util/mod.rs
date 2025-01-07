@@ -1,6 +1,7 @@
 mod consts;
 mod error;
 mod log;
+pub mod proc;
 mod result;
 
 pub use consts::*;

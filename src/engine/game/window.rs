@@ -92,9 +92,9 @@ impl NEWindow {
       self.window.make_current()
    }
 
-   pub fn set_title(&mut self, title: String) {
+   pub fn set_title(&mut self, title: &str) {
       self.window.set_title(&title);
-      self.title = title;
+      self.title = title.to_string();
    }
    pub fn set_size(&mut self, size: Size2D) {
       self.window.set_size(size.w as i32, size.h as i32);

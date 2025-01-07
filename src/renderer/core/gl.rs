@@ -1,6 +1,8 @@
 use crate::asset::ATTRInfo;
 use crate::renderer::{Renderer, ShaderType, TexFilter, TexFormat};
-use crate::{ATTRType, Cull, DrawMode, NETexture, PolyMode, Size2D, TexWrap, Uniform, RGB};
+use crate::{
+   ATTRType, Cull, DrawMode, NEResult, NETexture, PolyMode, Size2D, TexWrap, Uniform, RGB,
+};
 use cgmath::{Matrix, Matrix4};
 use gl::types::{GLchar, GLenum, GLint, GLsizei, GLsizeiptr};
 use glfw::{Context, PWindow};
@@ -13,9 +15,10 @@ pub(crate) struct GLRenderer;
 const TEX: GLenum = gl::TEXTURE_2D;
 
 impl Renderer for GLRenderer {
-   fn init(&self, window: &mut PWindow) {
+   fn init(&self, _name: String, window: &mut PWindow) -> NEResult<()> {
       window.make_current();
       gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
+      NEResult::OK(())
    }
    fn info(&self) -> (String, String, String) {
       unsafe {

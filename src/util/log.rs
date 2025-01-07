@@ -1,5 +1,5 @@
 #[macro_export]
-macro_rules! log_custom {
+macro_rules! log_color {
     ($fmt:expr, $color:expr) => {
        let fmt = format!($fmt);
         println!("{}{}{}", $color.0, fmt, $color.1);

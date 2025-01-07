@@ -14,7 +14,7 @@ use std::time::Instant;
 #[derive(Copy, Clone)]
 pub enum RenderAPI {
    OpenGL(u32, u32),
-   VulkanUnsupportedRn,
+   Vulkan(u32, u32),
 }
 
 impl Display for RenderAPI {
@@ -26,10 +26,8 @@ impl Display for RenderAPI {
 impl RenderAPI {
    pub(crate) fn api_str(&self) -> String {
       match self {
-         RenderAPI::OpenGL(v0, v1) => {
-            format!("OpenGL {v0}.{v1}")
-         }
-         RenderAPI::VulkanUnsupportedRn => "Vulkan".to_string(),
+         RenderAPI::OpenGL(v0, v1) => format!("OpenGL {v0}.{v1}"),
+         RenderAPI::Vulkan(v0, v1) => format!("Vulkan {v0}.{v1}"),
       }
    }
 }
@@ -152,7 +150,7 @@ fn init_nerve(
 
          NEResult::OK((Box::new(GLRenderer), window, events, is_full, size))
       }
-      RenderAPI::VulkanUnsupportedRn => {
+      RenderAPI::Vulkan(_v0, _v1) => {
          glfw.window_hint(WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
 
          let (window, events, is_full, size) = match window_from(glfw, mode, title) {
@@ -169,6 +167,7 @@ pub(crate) enum NEInitErrKind {
    GlfwInit,
    APIUnavailable(String),
    APIWrongVersion(String),
+   APIUnsupported(String),
    NoMonitor,
    NotVidMode,
    WindowHasNoContext,
@@ -178,19 +177,21 @@ pub(crate) enum NEInitErrKind {
 
 impl NEGameBuilder {
    pub fn build(&self) -> NEResult<NEGame> {
-      let api = self.render_api.clone();
+      let api_str = self.render_api.api_str();
+      let api_str_m = api_str.clone();
+      match self.render_api {
+         RenderAPI::Vulkan(_, _) => {
+            return NEResult::ER(NEError::Init {
+               kind: NEInitErrKind::APIUnsupported(api_str),
+            })
+         }
+         _ => {}
+      }
       let glfw_error_log = move |err: Error, desc: String| {
-         let api_str = match api {
-            RenderAPI::OpenGL(v0, v1) => {
-               format!("OpenGL {v0}.{v1}")
-            }
-            RenderAPI::VulkanUnsupportedRn => "Vulkan".to_string(),
-         };
+         let api = api_str_m.clone();
          let kind = match err {
-            Error::ApiUnavailable => NEInitErrKind::APIUnavailable(api_str),
-            Error::VersionUnavailable | Error::InvalidValue => {
-               NEInitErrKind::APIWrongVersion(api_str)
-            }
+            Error::ApiUnavailable => NEInitErrKind::APIUnavailable(api),
+            Error::VersionUnavailable | Error::InvalidValue => NEInitErrKind::APIWrongVersion(api),
             Error::NoWindowContext => NEInitErrKind::WindowHasNoContext,
             _ => NEInitErrKind::Unknown(desc),
          };
@@ -210,7 +211,7 @@ impl NEGameBuilder {
             NEResult::OK((c, w, e, isf, s)) => (c, w, e, isf, s),
             NEResult::ER(e) => return NEResult::ER(e),
          };
-      core.init(&mut window);
+      core.init(api_str, &mut window);
       let (swap_interval, is_vsync) = match self.fps {
          FPS::Vsync => (SwapInterval::Adaptive, true),
          FPS::Max => (SwapInterval::None, false),

@@ -1,8 +1,7 @@
 use crate::asset::{NEFileErrKind, NEObjErrKind};
 use crate::engine::NEInitErrKind;
-use crate::util::consts::{ansi, exit};
-use crate::{log_fatal, log_warn};
-use std::process;
+use crate::util::consts::ansi;
+use crate::{log_fatal, log_warn, proc};
 
 #[derive(Copy, Clone)]
 pub enum NEErrorSeverity {
@@ -41,8 +40,9 @@ impl NEError {
          NEError::Init { kind } => {
             let kind_msg = match kind {
                NEInitErrKind::GlfwInit => "glfw init failed",
-               NEInitErrKind::APIUnavailable(api) => &format!("{api} is unavailable"),
-               NEInitErrKind::APIWrongVersion(api) => &format!("{api} unsupported/invalid version"),
+               NEInitErrKind::APIUnavailable(api) => &format!("{api} unavailable"),
+               NEInitErrKind::APIWrongVersion(api) => &format!("{api} invalid version"),
+               NEInitErrKind::APIUnsupported(api) => &format!("{api} unsupported"),
                NEInitErrKind::NoMonitor => "no monitor found",
                NEInitErrKind::NotVidMode => "no vid mode found",
                NEInitErrKind::WindowHasNoContext => "window has no context",
@@ -84,8 +84,7 @@ impl NEError {
          }
          NEErrorSeverity::Fatal => {
             log_fatal!("{msg}");
-            log_fatal!("EXITING WITH CODE {}.", exit::ERROR);
-            process::exit(exit::ERROR);
+            proc::end_error()
          }
       }
    }

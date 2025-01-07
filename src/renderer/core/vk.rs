@@ -1,6 +1,7 @@
 use crate::asset::ATTRInfo;
+use crate::engine::NEInitErrKind;
 use crate::renderer::{Renderer, ShaderType};
-use crate::{Cull, DrawMode, NETexture, PolyMode, Size2D, Uniform, RGB};
+use crate::{Cull, DrawMode, NEError, NEResult, NETexture, PolyMode, Size2D, Uniform, RGB};
 use cgmath::Matrix4;
 use glfw::PWindow;
 
@@ -8,11 +9,14 @@ use glfw::PWindow;
 pub(crate) struct VKRenderer;
 
 impl Renderer for VKRenderer {
-   fn init(&self, window: &mut PWindow) {
+   fn init(&self, name: String, window: &mut PWindow) -> NEResult<()> {
       if window.glfw.vulkan_supported() {
-         println!("vk available!")
+         /**body**/
+         NEResult::OK(())
       } else {
-         println!("vk not available!")
+         NEResult::ER(NEError::Init {
+            kind: NEInitErrKind::APIUnavailable(name),
+         })
       }
    }
 

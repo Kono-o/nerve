@@ -1,6 +1,6 @@
 use crate::asset::ATTRInfo;
 use crate::{
-   ansi, color, log_info, DataType, DrawMode, NECamera, NEMesh, NEMeshAsset, NEShader,
+   ansi, color, log_info, DataType, DrawMode, NECamera, NEMesh, NEMeshAsset, NEResult, NEShader,
    NEShaderAsset, NETexture, RenderAPI, Size2D, Uniform, RGB,
 };
 use cgmath::Matrix4;
@@ -24,7 +24,7 @@ pub(crate) enum ShaderType {
 }
 
 pub(crate) trait Renderer {
-   fn init(&self, window: &mut glfw::PWindow);
+   fn init(&self, name: String, window: &mut glfw::PWindow) -> NEResult<()>;
    fn info(&self) -> (String, String, String);
 
    //STATE
