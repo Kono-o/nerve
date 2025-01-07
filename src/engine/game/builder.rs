@@ -14,7 +14,7 @@ use std::time::Instant;
 #[derive(Copy, Clone)]
 pub enum RenderAPI {
    OpenGL(u32, u32),
-   Vulkan,
+   VulkanUnsupportedRn,
 }
 
 impl Display for RenderAPI {
@@ -29,7 +29,7 @@ impl RenderAPI {
          RenderAPI::OpenGL(v0, v1) => {
             format!("OpenGL {v0}.{v1}")
          }
-         RenderAPI::Vulkan => "Vulkan".to_string(),
+         RenderAPI::VulkanUnsupportedRn => "Vulkan".to_string(),
       }
    }
 }
@@ -152,7 +152,7 @@ fn init_nerve(
 
          NEResult::OK((Box::new(GLRenderer), window, events, is_full, size))
       }
-      RenderAPI::Vulkan => {
+      RenderAPI::VulkanUnsupportedRn => {
          glfw.window_hint(WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
 
          let (window, events, is_full, size) = match window_from(glfw, mode, title) {
@@ -184,7 +184,7 @@ impl NEGameBuilder {
             RenderAPI::OpenGL(v0, v1) => {
                format!("OpenGL {v0}.{v1}")
             }
-            RenderAPI::Vulkan => "Vulkan".to_string(),
+            RenderAPI::VulkanUnsupportedRn => "Vulkan".to_string(),
          };
          let kind = match err {
             Error::ApiUnavailable => NEInitErrKind::APIUnavailable(api_str),
@@ -194,7 +194,7 @@ impl NEGameBuilder {
             Error::NoWindowContext => NEInitErrKind::WindowHasNoContext,
             _ => NEInitErrKind::Unknown(desc),
          };
-         NEError::Init { kind }.log_and_exit();
+         NEError::Init { kind }.log();
       };
 
       let mut glfw = match glfw::init(glfw_error_log) {

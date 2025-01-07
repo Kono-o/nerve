@@ -1,7 +1,7 @@
 use crate::asset::ATTRInfo;
 use crate::{
-   color, DataType, DrawMode, NECamera, NEMesh, NEMeshAsset, NEShader, NEShaderAsset,
-   NETexture, RenderAPI, Size2D, Uniform, RGB,
+   ansi, color, log_info, DataType, DrawMode, NECamera, NEMesh, NEMeshAsset, NEShader,
+   NEShaderAsset, NETexture, RenderAPI, Size2D, Uniform, RGB,
 };
 use cgmath::Matrix4;
 
@@ -120,8 +120,8 @@ impl NERenderer {
          poly_mode: PolyMode::Filled,
          cull_face: Cull::AntiClock,
          bg_color,
-         msaa: false,
-         msaa_samples: 0,
+         msaa: true,
+         msaa_samples: 4,
          culling: true,
       };
       let default_shader = renderer.compile(NEShaderAsset::default());
@@ -147,14 +147,43 @@ impl NERenderer {
 }
 //PUBLIC
 impl NERenderer {
-   pub fn display_info(&self) {
-      let api = match self.api {
-         RenderAPI::OpenGL(_, _) => "OpenGL",
-         RenderAPI::Vulkan => "Vulkan",
-      };
-      println!("gpu: {}", self.gpu);
-      println!("api: {} {}", api, self.api_ver);
-      println!("gls: {}", self.glsl_ver);
+   pub fn log_info(&self) {
+      log_info!("api: {} (glsl: {})", self.api.api_str(), self.glsl_ver);
+      log_info!("gpu: {}", self.gpu);
+
+      match self.poly_mode {
+         PolyMode::Points => {
+            log_info!("mode: POINTS");
+         }
+         PolyMode::WireFrame => {
+            log_info!("mode: WIREFRAME");
+         }
+         PolyMode::Filled => {
+            log_info!("mode: RASTERIZE");
+         }
+      }
+
+      match self.culling {
+         true => {
+            let cull_face = match self.cull_face {
+               Cull::Clock => "clockwise",
+               Cull::AntiClock => "anti-clockwise",
+            };
+            log_info!("cull: ON [{}]", cull_face);
+         }
+         false => {
+            log_info!("cull: OFF");
+         }
+      }
+
+      match self.msaa {
+         true => {
+            log_info!("msaa: ON [{} samples]", self.msaa_samples);
+         }
+         false => {
+            log_info!("msaa: OFF");
+         }
+      }
    }
    pub fn set_msaa_samples(&mut self, samples: u32) {
       self.msaa_samples = samples
@@ -327,7 +356,7 @@ impl NERenderer {
             .core
             .set_attr_layout(&pos_info, attr_id, stride, local_offset);
          local_offset += (pos_info.elem_count * pos_info.byte_count);
-         layouts.push(format!("position(f32x3): {:?}", attr_id));
+         layouts.push(format!("pos attr (f32x3): {:?}", attr_id));
          attr_id += 1;
       }
       if col_info.exists {
@@ -335,7 +364,7 @@ impl NERenderer {
             .core
             .set_attr_layout(&col_info, attr_id, stride, local_offset);
          local_offset += (col_info.elem_count * col_info.byte_count);
-         layouts.push(format!("color(f32x3): {:?}", attr_id));
+         layouts.push(format!("col attr (f32x3): {:?}", attr_id));
          attr_id += 1;
       }
       if uvm_info.exists {
@@ -343,7 +372,7 @@ impl NERenderer {
             .core
             .set_attr_layout(&uvm_info, attr_id, stride, local_offset);
          local_offset += (uvm_info.elem_count * uvm_info.byte_count);
-         layouts.push(format!("uvmap(f32x2): {:?}", attr_id));
+         layouts.push(format!("uvm attr (f32x2): {:?}", attr_id));
          attr_id += 1;
       }
       if nrm_info.exists {
@@ -351,7 +380,7 @@ impl NERenderer {
             .core
             .set_attr_layout(&nrm_info, attr_id, stride, local_offset);
          local_offset += (nrm_info.elem_count * nrm_info.byte_count);
-         layouts.push(format!("normal(f32x3): {:?}", attr_id));
+         layouts.push(format!("nrm attr (f32x3): {:?}", attr_id));
          attr_id += 1;
       }
 
@@ -362,7 +391,7 @@ impl NERenderer {
                .set_attr_layout(&cus_info, attr_id, stride, local_offset);
             local_offset += (nrm_info.elem_count * nrm_info.byte_count);
             let format = cus_info.typ_str.clone();
-            layouts.push(format!("custom-{i}({format}): {:?}", attr_id));
+            layouts.push(format!("custom attr {i}({format}): {:?}", attr_id));
             attr_id += 1;
          }
       }

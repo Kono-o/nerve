@@ -1,27 +1,42 @@
 use crate::asset::{NEFileErrKind, NEObjErrKind};
 use crate::engine::NEInitErrKind;
 use crate::util::consts::{ansi, exit};
+use crate::{log_fatal, log_warn};
 use std::process;
 
-macro_rules! colprintln {
-    ($fmt:expr, $color:expr) => {
-       let fmt = format!($fmt);
-        println!("{}{}{}", $color.0, fmt, $color.1);
-    };
-    ($fmt:expr, $color:expr, $($args:tt)*) => {
-       let fmt = format!($fmt, $($args)*);
-        println!("{}{}{}", $color.0, fmt, $color.1);
-    };
+#[derive(Copy, Clone)]
+pub enum NEErrorSeverity {
+   Warn,
+   Fatal,
 }
 
 pub enum NEError {
-   Init { kind: NEInitErrKind },
-   File { kind: NEFileErrKind, path: String },
-   Obj { kind: NEObjErrKind, path: String },
+   Init {
+      kind: NEInitErrKind,
+   },
+   File {
+      kind: NEFileErrKind,
+      path: String,
+   },
+   Obj {
+      kind: NEObjErrKind,
+      path: String,
+   },
+   Custom {
+      severity: NEErrorSeverity,
+      msg: String,
+   },
 }
 
 impl NEError {
-   pub fn msg(&self) -> String {
+   pub fn custom(severity: NEErrorSeverity, msg: &str) -> NEError {
+      NEError::Custom {
+         severity,
+         msg: msg.to_string(),
+      }
+   }
+   pub fn msg(&self) -> (NEErrorSeverity, String) {
+      let mut severe = NEErrorSeverity::Warn;
       let msg = match self {
          NEError::Init { kind } => {
             let kind_msg = match kind {
@@ -32,8 +47,9 @@ impl NEError {
                NEInitErrKind::NotVidMode => "no vid mode found",
                NEInitErrKind::WindowHasNoContext => "window has no context",
                NEInitErrKind::CouldNotMakeWindow => "could not make window",
-               NEInitErrKind::Unknown(desc) => &format!("unknown error {desc}"),
+               NEInitErrKind::Unknown(desc) => &format!("unknown error [{desc}]"),
             };
+            severe = NEErrorSeverity::Fatal;
             format!("(init) -> {kind_msg}")
          }
          NEError::File { kind, path } => {
@@ -44,6 +60,7 @@ impl NEError {
                NEFileErrKind::Unsupported => "unsupported type",
                NEFileErrKind::Unknown => "unknown error",
             };
+            severe = NEErrorSeverity::Fatal;
             format!("(file) -> {kind_msg} [{path}]")
          }
          NEError::Obj { kind, path } => {
@@ -52,16 +69,24 @@ impl NEError {
             };
             format!("(obj) -> {kind_msg} [{path}]")
          }
+         NEError::Custom { severity, msg } => {
+            severe = *severity;
+            format!("(custom) -> {msg}")
+         }
       };
-      format!("NERVE ERROR: {msg}")
+      (severe, format!("NERVE ERROR: {msg}"))
    }
    pub fn log(&self) {
-      let msg = self.msg();
-
-      colprintln!("{msg}", ansi::BRIGHT_RED);
-   }
-   pub fn log_and_exit(&self) {
-      self.log();
-      process::exit(exit::ERROR);
+      let (severe, msg) = self.msg();
+      match severe {
+         NEErrorSeverity::Warn => {
+            log_warn!("{msg}");
+         }
+         NEErrorSeverity::Fatal => {
+            log_fatal!("{msg}");
+            log_fatal!("EXITING WITH CODE {}.", exit::ERROR);
+            process::exit(exit::ERROR);
+         }
+      }
    }
 }

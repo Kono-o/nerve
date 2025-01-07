@@ -1,6 +1,4 @@
-use crate::util::consts::exit;
 use crate::util::NEError;
-use std::process;
 
 pub enum NEResult<N> {
    OK(N),
@@ -13,7 +11,7 @@ impl<N> NEResult<N> {
          NEResult::OK(n) => n,
          NEResult::ER(e) => {
             e.log();
-            process::exit(exit::ERROR)
+            panic!()
          }
       }
    }

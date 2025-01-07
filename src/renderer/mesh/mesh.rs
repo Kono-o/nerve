@@ -1,3 +1,4 @@
+use crate::{ansi, log_info};
 use crate::{NEShader, Transform};
 use cgmath::Matrix4;
 
@@ -62,10 +63,42 @@ impl NEMesh {
    pub(crate) fn update(&mut self) {
       self.transform.calc_matrix()
    }
-   pub fn display_layouts(&self) {
+   pub fn log_info(&self) {
       for attr in self.layouts.clone() {
-         println!("{}", attr);
+         log_info!("{}", attr);
       }
+      log_info!(
+         "life: {}",
+         match self.alive {
+            true => {
+               let vis = match self.visible {
+                  true => "visible",
+                  false => "hidden",
+               };
+               format!("ALIVE [{}]", vis)
+            }
+            false => "DEAD".to_string(),
+         }
+      );
+      log_info!(
+         "mode: {}",
+         match self.draw_mode {
+            DrawMode::Points => "POINTS",
+            DrawMode::Lines => "LINES",
+            DrawMode::Triangles => "TRIANGLE",
+            DrawMode::Strip => "STRIP",
+         }
+      );
+      log_info!("verts: {}", self.vert_count);
+      log_info!(
+         "index: {}",
+         match self.has_indices {
+            true => {
+               format!("{} (exists)", self.ind_count)
+            }
+            false => "0, (none)".to_string(),
+         }
+      );
    }
    pub fn kill(&mut self) {
       self.alive = false;
