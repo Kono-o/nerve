@@ -1,7 +1,7 @@
-use crate::renderer::ATTRInfo;
+use crate::asset::ATTRInfo;
 use crate::{
-   color, DataType, DrawMode, NECamera, NEMesh, NEMeshSrc, NEShader, NEShaderSrc, NETexture,
-   RenderAPI, Size2D, Uniform, RGB,
+   color, DataType, DrawMode, NECamera, NEMesh, NEMeshAsset, NEShader, NEShaderAsset,
+   NETexture, RenderAPI, Size2D, Uniform, RGB,
 };
 use cgmath::Matrix4;
 
@@ -124,7 +124,7 @@ impl NERenderer {
          msaa_samples: 0,
          culling: true,
       };
-      let default_shader = renderer.compile(NEShaderSrc::default());
+      let default_shader = renderer.compile(NEShaderAsset::default());
       renderer.set_culling(true);
       renderer.set_wire_width(2.0);
       renderer.set_bg_color(bg_color);
@@ -211,7 +211,7 @@ impl NERenderer {
    pub fn default_shader(&self) -> NEShader {
       self.default_shader.clone()
    }
-   pub fn compile(&self, src: NEShaderSrc) -> NEShader {
+   pub fn compile(&self, src: NEShaderAsset) -> NEShader {
       let p_id = self.core.create_program(&src.vert_src, &src.frag_src);
       self.core.bind_program(p_id);
 
@@ -235,7 +235,7 @@ impl NERenderer {
       self.core.delete_shader(shader.id)
    }
 
-   pub fn mesh(&self, mut src: NEMeshSrc) -> NEMesh {
+   pub fn mesh(&self, mut src: NEMeshAsset) -> NEMesh {
       let (v_id, b_id) = self.core.create_buffer();
       let i_id = self.core.create_index_buffer();
 

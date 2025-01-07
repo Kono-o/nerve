@@ -1,5 +1,5 @@
-use crate::asset::file;
-use crate::asset::file::{NEError, NEResult};
+use crate::asset::io::file;
+use crate::util::{NEError, NEResult};
 use crate::{ColATTR, Indices, NrmATTR, PosATTR, UVMATTR};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};

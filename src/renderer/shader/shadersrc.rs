@@ -116,15 +116,15 @@ impl NETexture {
    }
 }
 
-pub struct NEShaderSrc {
+pub struct NEShaderAsset {
    pub textures: Vec<NETexture>,
    pub vert_src: String,
    pub frag_src: String,
 }
 
-impl Default for NEShaderSrc {
+impl Default for NEShaderAsset {
    fn default() -> Self {
-      NEShaderSrc::from_paths(
+      NEShaderAsset::from_paths(
          "nerve/assets/shaders/mesh/default.vert",
          "nerve/assets/shaders/mesh/default.frag",
       )
@@ -136,8 +136,8 @@ impl Default for NEShaderSrc {
    }
 }
 
-impl NEShaderSrc {
-   pub fn empty() -> NEShaderSrc {
+impl NEShaderAsset {
+   pub fn empty() -> NEShaderAsset {
       Self {
          textures: Vec::new(),
          vert_src: String::new(),
@@ -145,14 +145,14 @@ impl NEShaderSrc {
       }
    }
 
-   pub fn from(vert_src: &str, frag_src: &str) -> NEShaderSrc {
+   pub fn from(vert_src: &str, frag_src: &str) -> NEShaderAsset {
       Self {
          textures: Vec::new(),
          vert_src: vert_src.to_string(),
          frag_src: frag_src.to_string(),
       }
    }
-   pub fn from_paths(vert_path: &str, frag_path: &str) -> NEShaderSrc {
+   pub fn from_paths(vert_path: &str, frag_path: &str) -> NEShaderAsset {
       let (vert_src, frag_src) = match (
          PathBuf::from_str(&vert_path).unwrap().exists(),
          PathBuf::from_str(&frag_path).unwrap().exists(),
@@ -166,7 +166,7 @@ impl NEShaderSrc {
       if vert_src.is_empty() || frag_src.is_empty() {
          panic!("shader is empty!");
       }
-      NEShaderSrc::from(&vert_src, &frag_src)
+      NEShaderAsset::from(&vert_src, &frag_src)
    }
 
    pub fn attach_tex_from_path(
@@ -174,10 +174,10 @@ impl NEShaderSrc {
       path: &str,
       filter: TexFilter,
       wrap: TexWrap,
-   ) -> NEShaderSrc {
+   ) -> NEShaderAsset {
       self.attach_tex(NETexture::from(path, filter, wrap))
    }
-   pub fn attach_tex(mut self, tex: NETexture) -> NEShaderSrc {
+   pub fn attach_tex(mut self, tex: NETexture) -> NEShaderAsset {
       self.textures.push(tex);
       self
    }

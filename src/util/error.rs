@@ -1,42 +1,17 @@
-use crate::asset::obj::NEObjErrKind;
-use crate::consts;
+use crate::asset::{NEFileErrKind, NEObjErrKind};
 use crate::engine::NEInitErrKind;
-use std::io::ErrorKind;
-use std::{fs, process};
+use crate::util::consts::{ansi, exit};
+use std::process;
 
-pub(crate) enum NEFileErrKind {
-   NoFile,
-   NoPerms,
-   NotValidPath,
-   Unsupported,
-   Unknown,
-}
-
-pub enum NEResult<N> {
-   OK(N),
-   ER(NEError),
-}
-
-impl<N> NEResult<N> {
-   pub fn unwrap(self) -> N {
-      match self {
-         NEResult::OK(n) => n,
-         NEResult::ER(e) => {
-            e.log();
-            process::exit(consts::ERROR_EXIT_CODE)
-         }
-      }
-   }
-
-   pub fn is_ok(&self) -> bool {
-      match self {
-         NEResult::OK(_) => true,
-         NEResult::ER(_) => false,
-      }
-   }
-   pub fn is_err(&self) -> bool {
-      !self.is_ok()
-   }
+macro_rules! colprintln {
+    ($fmt:expr, $color:expr) => {
+       let fmt = format!($fmt);
+        println!("{}{}{}", $color.0, fmt, $color.1);
+    };
+    ($fmt:expr, $color:expr, $($args:tt)*) => {
+       let fmt = format!($fmt, $($args)*);
+        println!("{}{}{}", $color.0, fmt, $color.1);
+    };
 }
 
 pub enum NEError {
@@ -82,29 +57,11 @@ impl NEError {
    }
    pub fn log(&self) {
       let msg = self.msg();
-      println!("\x1b[31m{msg}\x1b[0m");
+
+      colprintln!("{msg}", ansi::BRIGHT_RED);
    }
    pub fn log_and_exit(&self) {
       self.log();
-      process::exit(consts::ERROR_EXIT_CODE);
-   }
-}
-
-pub(crate) fn load_from_disk(path: &str) -> NEResult<fs::File> {
-   let mut errkind;
-   match fs::File::open(path) {
-      Ok(f) => NEResult::OK(f),
-      Err(e) => {
-         errkind = match e.kind() {
-            ErrorKind::NotFound => NEFileErrKind::NoFile,
-            ErrorKind::PermissionDenied => NEFileErrKind::NoPerms,
-            ErrorKind::InvalidInput => NEFileErrKind::NotValidPath,
-            _ => NEFileErrKind::Unknown,
-         };
-         NEResult::ER(NEError::File {
-            path: path.to_string(),
-            kind: errkind,
-         })
-      }
+      process::exit(exit::ERROR);
    }
 }

@@ -1,6 +1,6 @@
-pub mod color;
+pub mod rgba;
 mod transform;
 
-pub use color::RGB;
-pub use color::RGBA;
+pub use rgba::RGB;
+pub use rgba::RGBA;
 pub use transform::*;

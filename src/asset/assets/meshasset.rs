@@ -1,3 +1,4 @@
+use crate::util::{NEError, NEResult};
 use crate::*;
 use std::fmt::Debug;
 use std::path::PathBuf;
@@ -8,7 +9,7 @@ macro_rules! str {
    };
 }
 
-pub struct NEMeshSrc {
+pub struct NEMeshAsset {
    pub(crate) shader: NEShader,
    pub(crate) transform: Transform,
    pub(crate) pos_attr: PosATTR,
@@ -18,9 +19,9 @@ pub struct NEMeshSrc {
    pub(crate) indices: Indices,
    pub(crate) cus_attrs: Vec<CustomATTR>,
 }
-impl Default for NEMeshSrc {
+impl Default for NEMeshAsset {
    fn default() -> Self {
-      NEMeshSrc {
+      NEMeshAsset {
          shader: NEShader::empty(),
          transform: Default::default(),
          pos_attr: PosATTR::empty(),
@@ -33,8 +34,8 @@ impl Default for NEMeshSrc {
    }
 }
 
-impl NEMeshSrc {
-   pub fn from_path(path: &str) -> NEResult<NEMeshSrc> {
+impl NEMeshAsset {
+   pub fn from_path(path: &str) -> NEResult<NEMeshAsset> {
       let pathbuf = PathBuf::from(path);
       let not_valid = NEResult::ER(NEError::File {
          kind: NEFileErrKind::NotValidPath,
@@ -52,7 +53,7 @@ impl NEMeshSrc {
                   NEResult::OK(o) => o,
                   NEResult::ER(e) => return NEResult::ER(e),
                };
-               NEMeshSrc::from_obj(obj)
+               NEMeshAsset::from_obj(obj)
             }
             _ => unsupported,
          },
@@ -60,8 +61,8 @@ impl NEMeshSrc {
       }
    }
 
-   pub(crate) fn from_obj(obj: NEObj) -> NEResult<NEMeshSrc> {
-      NEResult::OK(NEMeshSrc {
+   pub(crate) fn from_obj(obj: NEObj) -> NEResult<NEMeshAsset> {
+      NEResult::OK(NEMeshAsset {
          pos_attr: obj.pos_attr,
          col_attr: obj.col_attr,
          uvm_attr: obj.uvm_attr,

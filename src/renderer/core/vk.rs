@@ -1,4 +1,5 @@
-use crate::renderer::{ATTRInfo, Renderer, ShaderType};
+use crate::asset::ATTRInfo;
+use crate::renderer::{Renderer, ShaderType};
 use crate::{Cull, DrawMode, NETexture, PolyMode, Size2D, Uniform, RGB};
 use cgmath::Matrix4;
 use glfw::PWindow;

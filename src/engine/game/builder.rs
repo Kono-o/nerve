@@ -1,9 +1,9 @@
 use crate::engine::{ButtonState, KeyBitMap, MouseBitMap};
 use crate::renderer::core::{GLRenderer, VKRenderer};
 use crate::renderer::{CamProj, NECamera, Renderer};
+use crate::util::{NEError, NEResult};
 use crate::{
-   NEError, NEEvents, NEGame, NEGameInfo, NERenderer, NEResult, NEWindow, ScreenCoord,
-   ScreenOffset, Size2D,
+   NEEvents, NEGame, NEGameInfo, NERenderer, NEWindow, ScreenCoord, ScreenOffset, Size2D,
 };
 use glfw::{
    Error, Glfw, GlfwReceiver, OpenGlProfileHint, PWindow, SwapInterval, WindowEvent, WindowHint,
@@ -70,53 +70,53 @@ fn window_from(
    let mut size = Size2D { w: 0, h: 0 };
 
    let window_and_events: NEResult<(PWindow, GlfwReceiver<(f64, WindowEvent)>)> = glfw
-      .with_primary_monitor(|glfw, monitor| match monitor {
-         None => {
-            return NEResult::ER(NEError::Init {
+      .with_primary_monitor(|glfw, monitor| {
+         return match monitor {
+            None => NEResult::ER(NEError::Init {
                kind: NEInitErrKind::NoMonitor,
-            })
-         }
+            }),
 
-         Some(monitor) => {
-            let vid_mode = match monitor.get_video_mode() {
-               None => {
-                  return NEResult::ER(NEError::Init {
-                     kind: NEInitErrKind::NotVidMode,
-                  })
-               }
-               Some(vm) => vm,
-            };
-            let mode = match mode {
-               WinMode::Windowed(mut w, mut h) => {
-                  const DIV: u32 = 3;
-                  let min_h = vid_mode.height / DIV;
-                  let min_w = vid_mode.width / DIV;
-
-                  if w < min_w {
-                     w = min_w;
-                  };
-                  if h < min_h {
-                     h = min_h;
+            Some(monitor) => {
+               let vid_mode = match monitor.get_video_mode() {
+                  None => {
+                     return NEResult::ER(NEError::Init {
+                        kind: NEInitErrKind::NotVidMode,
+                     })
                   }
+                  Some(vm) => vm,
+               };
+               let mode = match mode {
+                  WinMode::Windowed(mut w, mut h) => {
+                     const DIV: u32 = 3;
+                     let min_h = vid_mode.height / DIV;
+                     let min_w = vid_mode.width / DIV;
 
-                  size.w = w;
-                  size.h = h;
-                  glfw::WindowMode::Windowed
+                     if w < min_w {
+                        w = min_w;
+                     };
+                     if h < min_h {
+                        h = min_h;
+                     }
+
+                     size.w = w;
+                     size.h = h;
+                     glfw::WindowMode::Windowed
+                  }
+                  WinMode::Full => {
+                     is_fullscreen = true;
+                     size.w = vid_mode.width;
+                     size.h = vid_mode.height;
+                     glfw::WindowMode::FullScreen(monitor)
+                  }
+               };
+               match glfw.create_window(size.w, size.h, &title, mode) {
+                  None => NEResult::ER(NEError::Init {
+                     kind: NEInitErrKind::CouldNotMakeWindow,
+                  }),
+                  Some(we) => NEResult::OK(we),
                }
-               WinMode::Full => {
-                  is_fullscreen = true;
-                  size.w = vid_mode.width;
-                  size.h = vid_mode.height;
-                  glfw::WindowMode::FullScreen(monitor)
-               }
-            };
-            return match glfw.create_window(size.w, size.h, &title, mode) {
-               None => NEResult::ER(NEError::Init {
-                  kind: NEInitErrKind::CouldNotMakeWindow,
-               }),
-               Some(we) => NEResult::OK(we),
-            };
-         }
+            }
+         };
       });
    let (mut window, events) = match window_and_events {
       NEResult::OK((w, e)) => (w, e),
