@@ -53,7 +53,7 @@ impl Default for NEGameBuilder {
    fn default() -> Self {
       Self {
          render_api: RenderAPI::OpenGL(4, 5),
-         decorated: false,
+         decorated: true,
          title: "<Nerve-Game>".to_string(),
          mode: WinMode::Windowed(1280, 720),
          fps: FPS::Vsync,
@@ -65,9 +65,16 @@ fn window_from(
    glfw: &mut Glfw,
    mode: &WinMode,
    title: &str,
-) -> NEResult<(PWindow, GlfwReceiver<(f64, WindowEvent)>, bool, Size2D)> {
+) -> NEResult<(
+   PWindow,
+   GlfwReceiver<(f64, WindowEvent)>,
+   bool,
+   Size2D,
+   Size2D,
+)> {
    let mut is_fullscreen = false;
    let mut size = Size2D { w: 0, h: 0 };
+   let mut monitor_size = Size2D { w: 0, h: 0 };
 
    let window_and_events: NEResult<(PWindow, GlfwReceiver<(f64, WindowEvent)>)> = glfw
       .with_primary_monitor(|glfw, monitor| {
@@ -80,14 +87,16 @@ fn window_from(
                let vid_mode = match monitor.get_video_mode() {
                   None => {
                      return NEResult::ER(NEError::Init {
-                        kind: NEInitErrKind::NotVidMode,
+                        kind: NEInitErrKind::NoVidMode,
                      })
                   }
                   Some(vm) => vm,
                };
+               monitor_size = Size2D::from(vid_mode.width, vid_mode.height);
+
                let mode = match mode {
                   WinMode::Windowed(mut w, mut h) => {
-                     const DIV: u32 = 3;
+                     const DIV: u32 = 10;
                      let min_h = vid_mode.height / DIV;
                      let min_w = vid_mode.width / DIV;
 
@@ -122,9 +131,10 @@ fn window_from(
       NEResult::OK((w, e)) => (w, e),
       NEResult::ER(e) => return NEResult::ER(e),
    };
+   window.hide();
    window.set_all_polling(true);
    window.set_framebuffer_size_polling(true);
-   NEResult::OK((window, events, is_fullscreen, size))
+   NEResult::OK((window, events, is_fullscreen, size, monitor_size))
 }
 
 fn init_nerve(
@@ -139,6 +149,7 @@ fn init_nerve(
    GlfwReceiver<(f64, WindowEvent)>,
    bool,
    Size2D,
+   Size2D,
 )> {
    match api {
       RenderAPI::OpenGL(v0, v1) => {
@@ -147,22 +158,37 @@ fn init_nerve(
          glfw.window_hint(WindowHint::Samples(Some(4)));
          glfw.window_hint(WindowHint::Decorated(decorated));
 
-         let (mut window, events, is_full, size) = match window_from(glfw, mode, title) {
-            NEResult::OK((w, e, isf, s)) => (w, e, isf, s),
-            NEResult::ER(e) => return NEResult::ER(e),
-         };
+         let (mut window, events, is_full, size, monitor_size) =
+            match window_from(glfw, mode, title) {
+               NEResult::OK((w, e, isf, s, ms)) => (w, e, isf, s, ms),
+               NEResult::ER(e) => return NEResult::ER(e),
+            };
 
-         NEResult::OK((Box::new(GLRenderer), window, events, is_full, size))
+         NEResult::OK((
+            Box::new(GLRenderer),
+            window,
+            events,
+            is_full,
+            size,
+            monitor_size,
+         ))
       }
       RenderAPI::Vulkan(_v0, _v1) => {
          glfw.window_hint(WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
 
-         let (window, events, is_full, size) = match window_from(glfw, mode, title) {
-            NEResult::OK((w, e, isf, s)) => (w, e, isf, s),
+         let (window, events, is_full, size, monitor_size) = match window_from(glfw, mode, title) {
+            NEResult::OK((w, e, isf, s, ms)) => (w, e, isf, s, ms),
             NEResult::ER(e) => return NEResult::ER(e),
          };
 
-         NEResult::OK((Box::new(VKRenderer), window, events, is_full, size))
+         NEResult::OK((
+            Box::new(VKRenderer),
+            window,
+            events,
+            is_full,
+            size,
+            monitor_size,
+         ))
       }
    }
 }
@@ -173,7 +199,7 @@ pub(crate) enum NEInitErrKind {
    APIWrongVersion(String),
    APIUnsupported(String),
    NoMonitor,
-   NotVidMode,
+   NoVidMode,
    WindowHasNoContext,
    CouldNotMakeWindow,
    Unknown(String),
@@ -210,14 +236,14 @@ impl NEGameBuilder {
             });
          }
       };
-      let (core, mut window, events, is_fullscreen, size) = match init_nerve(
+      let (core, mut window, events, is_fullscreen, window_size, monitor_size) = match init_nerve(
          &mut glfw,
          &self.render_api,
          self.decorated,
          &self.mode,
          &self.title,
       ) {
-         NEResult::OK((c, w, e, isf, s)) => (c, w, e, isf, s),
+         NEResult::OK((c, w, e, isf, s, ms)) => (c, w, e, isf, s, ms),
          NEResult::ER(e) => return NEResult::ER(e),
       };
       core.init(api_str, &mut window);
@@ -227,37 +253,44 @@ impl NEGameBuilder {
       };
       glfw.set_swap_interval(swap_interval);
 
-      let (cx, cy) = (size.w / 2, size.h / 2);
-      window.set_cursor_pos(cx as f64, cy as f64);
-      let cam = NECamera::from(size, CamProj::Persp);
-      let (x, y) = window.get_pos();
-      let coord = ScreenCoord::from(x as f64, y as f64);
-      let cursor_coord = ScreenCoord::from(cx as f64, cy as f64);
-      let cursor_coord_global = ScreenCoord::from(cx as f64 + coord.x, cy as f64 + coord.y);
+      let (cx, cy) = (window_size.w / 2, window_size.h / 2);
+      let (mx, my) = (monitor_size.w / 2, monitor_size.h / 2);
+      let (wx, wy) = (mx - cx, my - cy); //centre of monitor
+      let window_coord = ScreenCoord::from(wx as f64, wy as f64);
 
+      let cursor_coord = ScreenCoord::from(cx as f64, cy as f64);
+      let cursor_coord_global =
+         ScreenCoord::from(cx as f64 + window_coord.x, cy as f64 + window_coord.y);
+
+      let cam = NECamera::from(window_size, CamProj::Persp);
       let current_time = Instant::now();
+
+      let mut window = NEWindow {
+         glfw: glfw.clone(),
+         window,
+         prev_cursor_coord: cursor_coord,
+         cursor_offset: ScreenOffset::empty(),
+         prev_coord: window_coord,
+         prev_size: window_size,
+         is_cursor_hidden: false,
+         is_cursor_off: false,
+         is_fullscreen,
+         is_hidden: true,
+         is_borderless: !self.decorated,
+         is_resizable: true,
+         is_running: true,
+         is_vsync,
+         size: window_size,
+         coord: window_coord,
+         title: self.title.clone(),
+         cursor_coord,
+         cursor_coord_global,
+      };
+      window.set_coord(window_coord);
+
       NEResult::OK(NEGame {
          renderer: NERenderer::from(core, self.render_api, cam.view_matrix, cam.proj_matrix),
-         window: NEWindow {
-            glfw: glfw.clone(),
-            window,
-            prev_cursor_coord: cursor_coord,
-            cursor_offset: ScreenOffset::empty(),
-            prev_coord: coord,
-            prev_size: size,
-            is_cursor_hidden: false,
-            is_cursor_off: false,
-            is_fullscreen,
-            is_borderless: false,
-            is_resizable: true,
-            is_running: true,
-            is_vsync,
-            size,
-            coord,
-            title: self.title.clone(),
-            cursor_coord,
-            cursor_coord_global,
-         },
+         window,
          events: NEEvents {
             events,
             key_bitmap: KeyBitMap(
@@ -276,7 +309,7 @@ impl NEGameBuilder {
             ),
             keys_to_reset: Vec::new(),
             mouse_to_reset: Vec::new(),
-            window_resize_event: (false, size),
+            window_resize_event: (false, window_size),
             window_close_event: false,
          },
          info: NEGameInfo {

@@ -44,7 +44,7 @@ impl NEError {
                NEInitErrKind::APIWrongVersion(api) => &format!("{api} invalid version"),
                NEInitErrKind::APIUnsupported(api) => &format!("{api} unsupported"),
                NEInitErrKind::NoMonitor => "no monitor found",
-               NEInitErrKind::NotVidMode => "no vid mode found",
+               NEInitErrKind::NoVidMode => "no vid mode found",
                NEInitErrKind::WindowHasNoContext => "window has no context",
                NEInitErrKind::CouldNotMakeWindow => "could not make window",
                NEInitErrKind::Unknown(desc) => &format!("unknown error [{desc}]"),

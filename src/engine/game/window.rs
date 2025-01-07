@@ -15,14 +15,15 @@ pub struct NEWindow {
    pub is_borderless: bool,
    pub is_resizable: bool,
    pub is_running: bool,
+   pub is_hidden: bool,
    pub is_vsync: bool,
 
    pub size: Size2D,
-   pub coord: ScreenCoord,
    pub title: String,
+   pub coord: ScreenCoord,
    pub cursor_coord: ScreenCoord,
-   pub cursor_coord_global: ScreenCoord,
    pub cursor_offset: ScreenOffset,
+   pub cursor_coord_global: ScreenCoord,
 }
 
 impl NEWindow {
@@ -47,11 +48,25 @@ impl NEWindow {
       self.size = self.get_size();
       self.coord = self.get_coord();
       self.cursor_coord = self.get_cursor_coord();
-      self.cursor_coord_global = self.get_cursor_coord_global();
       self.cursor_offset = self.get_cursor_offset();
+      self.cursor_coord_global = self.get_cursor_coord_global();
    }
    pub(crate) fn post_update(&mut self) {
       self.swap();
+   }
+
+   pub(crate) fn set_visibility(&mut self, hide: bool) {
+      if !self.is_hidden != hide {
+         self.toggle_visibility();
+      }
+   }
+
+   pub(crate) fn toggle_visibility(&mut self) {
+      match self.is_hidden {
+         true => self.window.show(),
+         false => self.window.hide(),
+      }
+      self.is_hidden = !self.is_hidden;
    }
 
    fn get_size(&mut self) -> Size2D {
@@ -130,7 +145,6 @@ impl NEWindow {
 
    pub fn set_cursor_usage(&mut self, enable: bool) {
       if self.is_cursor_off != enable {
-         self.is_cursor_off = enable;
          self.toggle_cursor_usage()
       }
    }

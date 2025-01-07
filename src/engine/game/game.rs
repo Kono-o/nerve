@@ -28,7 +28,10 @@ impl NEGame {
    }
 
    pub fn start(&mut self) {
-      log_info!("game started!");
+      if self.window.is_hidden {
+         self.window.set_visibility(true)
+      }
+      log_info!("{} started!", self.window.title);
    }
    pub fn pre_update(&mut self) {
       self.renderer.pre_update(&self.cam);
@@ -46,8 +49,12 @@ impl NEGame {
       self.info.post_update();
       self.cam.post_update();
    }
-   pub fn end(&mut self) {
-      log_info!("game ended!");
+   pub fn end(self) {
+      log_info!("{} ended!", self.window.title);
+      drop(self);
+   }
+   pub fn end_and_exit(self) {
+      self.end();
       proc::end_success()
    }
 
