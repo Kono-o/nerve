@@ -288,7 +288,8 @@ impl NEGameBuilder {
 
       let cam = NECamera::from(window_size, CamProj::Persp);
       let renderer = NERenderer::from(core, self.render_api, cam.view_matrix, cam.proj_matrix);
-      let mut scene = NEScene::new();
+      let scene_name = format!("{}-init-scene", window.title);
+      let mut scene = NEScene::new(&scene_name);
       scene.replace_cam(cam);
 
       NEResult::OK(NEGame {

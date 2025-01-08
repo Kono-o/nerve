@@ -426,12 +426,15 @@ impl NERenderer {
       }
    }
 
-   pub fn draw(&self, mesh: &mut NEMesh) {
+   pub fn render(&self, mesh: &mut NEMesh) {
       if !mesh.visible || !mesh.alive {
          return;
       }
       mesh.update();
-      let s = mesh.shader.id;
+      let s = match mesh.shader.exists_on_gpu {
+         true => mesh.shader.id,
+         false => self.default_shader.id,
+      };
       self.core.bind_program(s);
       self.core.set_uni_m4f32(s, "uCamView", self.cam_view);
       self.core.set_uni_m4f32(s, "uCamProj", self.cam_proj);

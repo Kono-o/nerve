@@ -14,6 +14,18 @@ macro_rules! log_color {
 macro_rules! log_info {
     ($fmt:expr) => {
         let fmt = format!($fmt);
+        println!("{}{}{}", ansi::BOLD_BLUE.prefix, fmt, ansi::BOLD_BLUE.suffix);
+    };
+    ($fmt:expr, $($args:tt)*) => {
+        let fmt = format!($fmt, $($args)*);
+        println!("{}{}{}", ansi::BOLD_BLUE.prefix, fmt, ansi::BOLD_BLUE.suffix);
+    };
+}
+
+#[macro_export]
+macro_rules! log_event {
+    ($fmt:expr) => {
+        let fmt = format!($fmt);
         println!("{}{}{}", ansi::BOLD_GREEN.prefix, fmt, ansi::BOLD_GREEN.suffix);
     };
     ($fmt:expr, $($args:tt)*) => {

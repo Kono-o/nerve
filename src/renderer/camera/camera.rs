@@ -71,11 +71,20 @@ impl NECamera {
       .normalize();
    }
 
+   pub(crate) fn start(&mut self) {
+      self.initialized = true
+   }
+
    pub(crate) fn pre_update(&mut self) {
       self.update_proj();
       self.update_view()
    }
+
+   pub(crate) fn update(&mut self) {}
+
    pub(crate) fn post_update(&mut self) {}
+
+   pub(crate) fn end(&mut self) {}
 }
 
 impl NECamera {
@@ -127,7 +136,7 @@ impl NECamera {
    pub fn set_fov(&mut self, fov: f32) {
       self.fov = fov;
    }
-   pub fn add_pov(&mut self, value: f32) {
+   pub fn add_fov(&mut self, value: f32) {
       self.fov += value;
    }
    pub fn set_ortho_scale(&mut self, value: f32) {

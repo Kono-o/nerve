@@ -33,6 +33,7 @@ impl NEGame {
    }
 
    pub fn start(&mut self) {
+      log_info!("game [{}] started!", self.window.title);
       if self.window.is_hidden {
          self.window.set_visibility(true)
       }
@@ -42,7 +43,6 @@ impl NEGame {
          &mut self.events,
          &mut self.time,
       );
-      log_info!("{} started!", self.window.title);
    }
 
    pub fn pre_update(&mut self) {
@@ -87,12 +87,21 @@ impl NEGame {
          &mut self.events,
          &mut self.time,
       );
-      log_info!("{} ended!", self.window.title);
+      log_info!("game [{}] ended!", self.window.title);
       drop(self);
    }
    pub fn end_and_exit(self) {
       self.end();
       proc::end_success()
+   }
+
+   pub fn render(&mut self) {
+      self.scene.render(
+         &mut self.renderer,
+         &mut self.window,
+         &mut self.events,
+         &mut self.time,
+      );
    }
 
    pub fn pause(&mut self) {
