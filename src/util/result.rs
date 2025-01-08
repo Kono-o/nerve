@@ -6,7 +6,7 @@ pub enum NEResult<N> {
 }
 
 impl<N> NEResult<N> {
-   pub fn unwrap(self) -> N {
+   pub fn unpack(self) -> N {
       match self {
          NEResult::OK(n) => n,
          NEResult::ER(e) => {
@@ -25,4 +25,9 @@ impl<N> NEResult<N> {
    pub fn is_err(&self) -> bool {
       !self.is_ok()
    }
+}
+
+pub enum NEOption<N> {
+   Yes(N),
+   Nope,
 }

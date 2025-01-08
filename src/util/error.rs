@@ -1,4 +1,4 @@
-use crate::asset::{NEFileErrKind, NEObjErrKind};
+use crate::asset::{NEFileErrKind, NEGLSLErrKind, NEObjErrKind};
 use crate::engine::NEInitErrKind;
 use crate::util::consts::ansi;
 use crate::{log_fatal, log_warn, proc};
@@ -19,6 +19,10 @@ pub enum NEError {
    },
    Obj {
       kind: NEObjErrKind,
+      path: String,
+   },
+   GLSL {
+      kind: NEGLSLErrKind,
       path: String,
    },
    Custom {
@@ -67,7 +71,15 @@ impl NEError {
             let kind_msg = match kind {
                NEObjErrKind::NonTriMesh => "not triangulated!",
             };
+            severe = NEErrorSeverity::Fatal;
             format!("(obj) -> {kind_msg} [{path}]")
+         }
+         NEError::GLSL { kind, path } => {
+            let kind_msg = match kind {
+               NEGLSLErrKind::IsEmpty => "is empty!",
+            };
+            severe = NEErrorSeverity::Fatal;
+            format!("(glsl) -> {kind_msg} [{path}]")
          }
          NEError::Custom { severity, msg } => {
             severe = *severity;

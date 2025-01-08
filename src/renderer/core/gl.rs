@@ -1,7 +1,8 @@
-use crate::asset::ATTRInfo;
-use crate::renderer::{Renderer, ShaderType, TexFilter, TexFormat};
+use crate::asset::{ATTRInfo, TexFormat};
+use crate::renderer::{Renderer, ShaderType};
 use crate::{
-   ATTRType, Cull, DrawMode, NEResult, NETexture, PolyMode, Size2D, TexWrap, Uniform, RGB,
+   ATTRType, Cull, DrawMode, NEResult, NETexture, PolyMode, Size2D, TexFilter, TexWrap, Uniform,
+   RGB,
 };
 use cgmath::{Matrix, Matrix4};
 use gl::types::{GLchar, GLenum, GLint, GLsizei, GLsizeiptr};

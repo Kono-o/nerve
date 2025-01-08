@@ -25,24 +25,6 @@ pub struct NEMesh {
    pub(crate) layouts: Vec<String>,
 }
 
-impl Default for NEMesh {
-   fn default() -> Self {
-      Self {
-         visible: true,
-         alive: true,
-         transform: Transform::default(),
-         has_indices: false,
-         is_empty: true,
-         vert_count: 0,
-         ind_count: 0,
-         buf_id: (0, 0),
-         index_buf_id: 0,
-         shader: NEShader::empty(),
-         draw_mode: DrawMode::Triangles,
-         layouts: vec![],
-      }
-   }
-}
 impl NEMesh {
    pub fn set_shader(&mut self, shader: NEShader) {
       self.shader = shader
@@ -99,10 +81,5 @@ impl NEMesh {
             false => "0, (none)".to_string(),
          }
       );
-   }
-   pub fn kill(&mut self) {
-      self.alive = false;
-      //self.vert_object.delete();
-      //self.index_object.delete();
    }
 }

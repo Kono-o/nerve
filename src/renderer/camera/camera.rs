@@ -12,16 +12,16 @@ pub enum CamProj {
 }
 
 pub struct NECamera {
-   pub(crate) size: Size2D,
-   pub(crate) proj: CamProj,
    pub fov: f32,
    pub(crate) ortho_scale: f32,
    pub(crate) clip: (f32, f32),
-
+   pub(crate) size: Size2D,
+   pub(crate) proj: CamProj,
    pub(crate) front: Vector3<f32>,
    pub(crate) proj_matrix: Matrix4<f32>,
    pub(crate) view_matrix: Matrix4<f32>,
    pub(crate) transform: Transform,
+   pub(crate) initialized: bool,
 }
 
 impl NECamera {
@@ -72,14 +72,21 @@ impl NECamera {
    }
 
    pub(crate) fn pre_update(&mut self) {
+      self.update_proj();
       self.update_view()
    }
    pub(crate) fn post_update(&mut self) {}
 }
 
 impl NECamera {
+   pub fn new() -> NECamera {
+      let mut cam = NECamera::from(Size2D { w: 1, h: 1 }, CamProj::Persp);
+      cam.initialized = false;
+      cam
+   }
+
    pub fn from(size: Size2D, proj: CamProj) -> Self {
-      let fov = 50.0;
+      let fov = 75.0;
       let (widthf, heightf) = (size.w as f32, size.h as f32);
       let proj_matrix = perspective(Deg(fov), widthf / heightf, 0.01, 1000.0);
 
@@ -90,6 +97,7 @@ impl NECamera {
       let rot_inverse = Matrix4::<f32>::from_angle_x(Rad::from(Deg(-rot.x)))
          * Matrix4::<f32>::from_angle_y(Rad::from(Deg(-rot.y)))
          * Matrix4::<f32>::from_angle_z(Rad::from(Deg(-rot.z)));
+
       let view_matrix = pos_inverse * rot_inverse;
 
       Self {
@@ -107,31 +115,26 @@ impl NECamera {
             rot,
             scale: vec3(1.0, 1.0, 1.0),
          },
+         initialized: true,
       }
    }
    pub fn set_size(&mut self, size: Size2D) {
       self.size = size;
-      self.update_proj()
    }
    pub fn set_proj(&mut self, proj: CamProj) {
       self.proj = proj;
-      self.update_proj()
    }
    pub fn set_fov(&mut self, fov: f32) {
       self.fov = fov;
-      self.update_proj()
    }
    pub fn add_pov(&mut self, value: f32) {
       self.fov += value;
-      self.update_proj()
    }
    pub fn set_ortho_scale(&mut self, value: f32) {
       self.ortho_scale = value;
-      self.update_proj()
    }
    pub fn add_ortho_scale(&mut self, value: f32) {
       self.ortho_scale += value;
-      self.update_proj()
    }
 
    pub fn fly_forw(&mut self, speed: f32) {

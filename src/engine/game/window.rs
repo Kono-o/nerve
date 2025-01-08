@@ -173,8 +173,14 @@ impl NEWindow {
          self.prev_size = self.get_size();
 
          self.glfw.with_primary_monitor(|_, m| {
-            let monitor = m.expect("no monitor found!");
-            let mode = monitor.get_video_mode().unwrap();
+            let monitor = match m {
+               None => return,
+               Some(m) => m,
+            };
+            let mode = match monitor.get_video_mode() {
+               None => return,
+               Some(vm) => vm,
+            };
             self.window.set_monitor(
                WindowMode::FullScreen(&monitor),
                0,

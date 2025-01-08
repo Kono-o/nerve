@@ -3,7 +3,6 @@ use crate::util::{NEError, NEResult};
 use crate::{ColATTR, Indices, NrmATTR, PosATTR, UVMATTR};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
 
 trait ParseWords {
    fn parse_2_to_f32(&self) -> [f32; 2];
@@ -63,8 +62,6 @@ impl NEObj {
       let mut uvm_data = Vec::new();
       let mut nrm_data = Vec::new();
       let mut verts = HashMap::new();
-
-      let pathbuf = PathBuf::from(path);
 
       let obj_file = match file::load_from_disk(path) {
          NEResult::OK(of) => of,

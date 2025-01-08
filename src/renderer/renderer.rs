@@ -108,11 +108,12 @@ impl NERenderer {
       let (gpu, api_ver, glsl_ver) = core.info();
       let bg_color = color::OBSIDIAN;
       core.enable_depth(true);
+
       let mut renderer = Self {
          core,
          cam_view,
          cam_proj,
-         default_shader: NEShader::empty(),
+         default_shader: NEShader::temporary(),
          gpu,
          api,
          api_ver,
@@ -124,12 +125,12 @@ impl NERenderer {
          msaa_samples: 4,
          culling: true,
       };
-      let default_shader = renderer.compile(NEShaderAsset::default());
+      let default_shader_asset = NEShaderAsset::fallback().unpack();
+      renderer.default_shader = renderer.compile(default_shader_asset);
       renderer.set_msaa(true);
       renderer.set_culling(true);
       renderer.set_wire_width(2.0);
       renderer.set_bg_color(bg_color);
-      renderer.default_shader = default_shader;
       renderer
    }
    pub(crate) fn set_size(&mut self, size: Size2D) {
@@ -237,21 +238,21 @@ impl NERenderer {
    pub fn default_shader(&self) -> NEShader {
       self.default_shader.clone()
    }
-   pub fn compile(&self, src: NEShaderAsset) -> NEShader {
-      let p_id = self.core.create_program(&src.vert_src, &src.frag_src);
-      self.core.bind_program(p_id);
+   pub fn compile(&self, asset: NEShaderAsset) -> NEShader {
+      let prog_id = self.core.create_program(&asset.v_src, &asset.f_src);
+      self.core.bind_program(prog_id);
 
       let mut image_ids = Vec::new();
-      for (i, texture) in src.textures.iter().enumerate() {
-         if texture.exists {
-            let name = format!("tDif{}", i + 1);
-            let t_id = self.core.create_texture(texture);
-            self.core.set_uni_i32(p_id, &name, i as i32);
-            image_ids.push(t_id);
-         }
-      }
+      //for (i, texture) in asset.textures.iter().enumerate() {
+      //   if texture.exists {
+      //      let name = format!("tDif{}", i + 1);
+      //      let tex_id = self.core.create_texture(texture);
+      //      self.core.set_uni_i32(prog_id, &name, i);
+      //      image_ids.push(tex_id);
+      //   }
+      //}
       NEShader {
-         id: p_id,
+         id: prog_id,
          image_ids,
          exists_on_gpu: true,
       }
@@ -261,8 +262,8 @@ impl NERenderer {
       self.core.delete_shader(shader.id)
    }
 
-   pub fn mesh(&self, mut src: NEMeshAsset) -> NEMesh {
-      let (v_id, b_id) = self.core.create_buffer();
+   pub fn mesh(&self, mut asset: NEMeshAsset) -> NEMesh {
+      let (vao_id, bfo_id) = self.core.create_buffer();
       let i_id = self.core.create_index_buffer();
 
       let (mut pos_info, mut pos_data) = (ATTRInfo::empty(), &Vec::new());
@@ -274,38 +275,36 @@ impl NERenderer {
       let mut cus_infos: Vec<ATTRInfo> = Vec::new();
       let mut cus_datas: Vec<&Vec<u8>> = Vec::new();
 
-      let mut ind_count = 0;
-      let mut vert_count = 0;
-      let mut stride = 0;
+      let (mut ind_count, mut vert_count, mut stride) = (0, 0, 0);
 
-      let mut pos_exists = src.pos_attr.has_data();
-      let mut col_exists = src.col_attr.has_data();
-      let mut uvm_exists = src.uvm_attr.has_data();
-      let mut nrm_exists = src.nrm_attr.has_data();
-      let mut cus_exists = src.has_custom_attrs();
+      let mut pos_exists = asset.pos_attr.has_data();
+      let mut col_exists = asset.col_attr.has_data();
+      let mut uvm_exists = asset.uvm_attr.has_data();
+      let mut nrm_exists = asset.nrm_attr.has_data();
+      let mut cus_exists = asset.has_custom_attrs();
 
       if pos_exists {
-         pos_info = src.pos_attr.info();
-         pos_data = src.pos_attr.data();
+         pos_info = asset.pos_attr.info();
+         pos_data = asset.pos_attr.data();
          stride += pos_info.elem_count * pos_info.byte_count;
       }
       if col_exists {
-         col_info = src.col_attr.info();
-         col_data = src.col_attr.data();
+         col_info = asset.col_attr.info();
+         col_data = asset.col_attr.data();
          stride += col_info.elem_count * col_info.byte_count;
       }
       if uvm_exists {
-         uvm_info = src.uvm_attr.info();
-         uvm_data = src.uvm_attr.data();
+         uvm_info = asset.uvm_attr.info();
+         uvm_data = asset.uvm_attr.data();
          stride += uvm_info.elem_count * uvm_info.byte_count;
       }
       if nrm_exists {
-         nrm_info = src.nrm_attr.info();
-         nrm_data = src.nrm_attr.data();
+         nrm_info = asset.nrm_attr.info();
+         nrm_data = asset.nrm_attr.data();
          stride += nrm_info.elem_count * nrm_info.byte_count;
       }
       if cus_exists {
-         for cus_attr in src.cus_attrs.iter() {
+         for cus_attr in asset.cus_attrs.iter() {
             let cus_info = cus_attr.info();
             let cus_data = cus_attr.data();
             stride += cus_info.elem_count * cus_info.byte_count;
@@ -314,7 +313,7 @@ impl NERenderer {
          }
       }
       let mut end = pos_data.len();
-      if cus_exists && src.starts_with_custom() {
+      if cus_exists && asset.starts_with_custom() {
          end = cus_datas[0].len() / (cus_infos[0].byte_count * cus_infos[0].elem_count);
       }
 
@@ -334,10 +333,10 @@ impl NERenderer {
             push_into_buffer(&mut buffer, &nrm_data[i]);
          }
          if cus_exists {
-            for (j, _attr) in src.cus_attrs.iter().enumerate() {
+            for (j, _attr) in asset.cus_attrs.iter().enumerate() {
                let cus_byte_count = cus_infos[j].byte_count * cus_infos[j].elem_count;
                let cus_data = cus_datas[j];
-               let start = (i * cus_byte_count);
+               let start = i * cus_byte_count;
                let end = ((i + 1) * (cus_byte_count)) - 1;
                push_into_buffer(&mut buffer, &cus_data[start..=end]);
             }
@@ -346,13 +345,13 @@ impl NERenderer {
 
       let mut attr_id = 0;
       let mut local_offset = 0;
-      self.core.bind_buffer(v_id, b_id);
+      self.core.bind_buffer(vao_id, bfo_id);
       let mut layouts: Vec<String> = Vec::new();
       if pos_info.exists {
          self
             .core
             .set_attr_layout(&pos_info, attr_id, stride, local_offset);
-         local_offset += (pos_info.elem_count * pos_info.byte_count);
+         local_offset += pos_info.elem_count * pos_info.byte_count;
          layouts.push(format!("pos attr (f32x3): {:?}", attr_id));
          attr_id += 1;
       }
@@ -360,7 +359,7 @@ impl NERenderer {
          self
             .core
             .set_attr_layout(&col_info, attr_id, stride, local_offset);
-         local_offset += (col_info.elem_count * col_info.byte_count);
+         local_offset += col_info.elem_count * col_info.byte_count;
          layouts.push(format!("col attr (f32x3): {:?}", attr_id));
          attr_id += 1;
       }
@@ -368,7 +367,7 @@ impl NERenderer {
          self
             .core
             .set_attr_layout(&uvm_info, attr_id, stride, local_offset);
-         local_offset += (uvm_info.elem_count * uvm_info.byte_count);
+         local_offset += uvm_info.elem_count * uvm_info.byte_count;
          layouts.push(format!("uvm attr (f32x2): {:?}", attr_id));
          attr_id += 1;
       }
@@ -376,7 +375,7 @@ impl NERenderer {
          self
             .core
             .set_attr_layout(&nrm_info, attr_id, stride, local_offset);
-         local_offset += (nrm_info.elem_count * nrm_info.byte_count);
+         local_offset += nrm_info.elem_count * nrm_info.byte_count;
          layouts.push(format!("nrm attr (f32x3): {:?}", attr_id));
          attr_id += 1;
       }
@@ -386,21 +385,21 @@ impl NERenderer {
             self
                .core
                .set_attr_layout(&cus_info, attr_id, stride, local_offset);
-            local_offset += (nrm_info.elem_count * nrm_info.byte_count);
+            local_offset += nrm_info.elem_count * nrm_info.byte_count;
             let format = cus_info.typ_str.clone();
             layouts.push(format!("custom attr {i}({format}): {:?}", attr_id));
             attr_id += 1;
          }
       }
       if buffer.len() > 0 {
-         self.core.fill_buffer(v_id, b_id, &buffer);
+         self.core.fill_buffer(vao_id, bfo_id, &buffer);
       }
       self.core.unbind_buffer();
 
       let mut index_buffer: Vec<u32> = Vec::new();
-      if src.indices.has_data() {
-         ind_info = src.indices.info();
-         ind_data = src.indices.data();
+      if asset.indices.has_data() {
+         ind_info = asset.indices.info();
+         ind_data = asset.indices.data();
          ind_info.exists = true;
          for index in ind_data.iter() {
             ind_count += 1;
@@ -410,23 +409,25 @@ impl NERenderer {
          self.core.fill_index_buffer(i_id, &index_buffer);
          self.core.unbind_index_buffer();
       }
-      src.transform.calc_matrix();
+      asset.transform.calc_matrix();
       NEMesh {
-         shader: src.shader.clone(),
+         alive: true,
+         visible: true,
+         shader: asset.shader.clone(),
          has_indices: ind_info.exists,
          vert_count,
          ind_count,
          is_empty: false,
          layouts,
-         buf_id: (v_id, b_id),
+         buf_id: (vao_id, bfo_id),
          index_buf_id: i_id,
-         transform: src.transform.clone(),
-         ..Default::default()
+         transform: asset.transform.clone(),
+         draw_mode: DrawMode::Triangles,
       }
    }
 
    pub fn draw(&self, mesh: &mut NEMesh) {
-      if !mesh.shader.exists_on_gpu || !mesh.visible || !mesh.alive {
+      if !mesh.visible || !mesh.alive {
          return;
       }
       mesh.update();

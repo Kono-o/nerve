@@ -1,6 +1,5 @@
 use crate::Size2D;
-use glfw::{flush_messages, Action, Glfw, GlfwReceiver, Key, MouseButton, WindowEvent};
-use std::time::Instant;
+use glfw::{flush_messages, Action, GlfwReceiver, Key, MouseButton, WindowEvent};
 
 #[derive(Copy, Clone)]
 pub(crate) struct ButtonState {
@@ -11,6 +10,12 @@ pub(crate) struct ButtonState {
 
 pub(crate) struct KeyBitMap(pub(crate) [ButtonState; 121]);
 pub(crate) struct MouseBitMap(pub(crate) [ButtonState; 8]);
+
+pub enum Is {
+   Pressed,
+   Released,
+   Held,
+}
 
 #[derive(Debug)]
 pub enum Mouse {
@@ -197,7 +202,7 @@ impl NEEvents {
    fn catch(&mut self) {
       for (_f, event) in flush_messages(&self.events) {
          match event {
-            WindowEvent::Key(k, _, a, _) => {
+            WindowEvent::Key(k, _s, a, _m) => {
                let key_in_bitmap = &mut self.key_bitmap.0[key_index(&k)];
                if let Action::Press = a {
                   key_in_bitmap.pressed = true;
@@ -208,7 +213,7 @@ impl NEEvents {
                }
                self.keys_to_reset.push(k);
             }
-            WindowEvent::MouseButton(m, a, _) => {
+            WindowEvent::MouseButton(m, a, _m) => {
                let m = Mouse::from(m);
                let mouse_in_bitmap = &mut self.mouse_bitmap.0[mouse_index(&m)];
                if let Action::Press = a {
@@ -263,67 +268,4 @@ impl NEEvents {
          Is::Held => mouse_in_bitmap.held,
       }
    }
-}
-
-pub struct NEGameInfo {
-   pub fps: f64,
-   pub time: f64,
-   pub delta: f64,
-   pub frame: u64,
-
-   pub(crate) glfw: Glfw,
-   pub(crate) prev_sec: Instant,
-   pub(crate) prev_time: Instant,
-   pub(crate) prev_deltas: Vec<f64>,
-   pub(crate) prev_deltas_size: usize,
-   pub(crate) start_time: Instant,
-   pub(crate) current_time: Instant,
-   pub(crate) local_frame: u32,
-}
-
-impl NEGameInfo {
-   pub(crate) fn pre_update(&mut self) {
-      self.calculate()
-   }
-   pub(crate) fn post_update(&mut self) {}
-
-   fn calculate(&mut self) {
-      self.frame += 1;
-      self.local_frame += 1;
-
-      self.current_time = Instant::now();
-      self.time = self
-         .current_time
-         .duration_since(self.start_time)
-         .as_secs_f64();
-      self.delta = self
-         .current_time
-         .duration_since(self.prev_time)
-         .as_secs_f64();
-      self.prev_time = self.current_time;
-
-      self.prev_deltas.push(self.delta);
-      if self.prev_deltas.len() > self.prev_deltas_size {
-         self.prev_deltas.remove(0);
-      }
-
-      let avg_delta = self.prev_deltas.iter().sum::<f64>() / self.prev_deltas.len() as f64;
-      self.fps = 1.0 / avg_delta;
-
-      if self
-         .current_time
-         .duration_since(self.prev_sec)
-         .as_secs_f32()
-         >= 1.0
-      {
-         self.local_frame = 0;
-         self.prev_sec = self.current_time
-      }
-   }
-}
-
-pub enum Is {
-   Pressed,
-   Released,
-   Held,
 }

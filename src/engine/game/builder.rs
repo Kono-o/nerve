@@ -3,7 +3,7 @@ use crate::renderer::core::{GLRenderer, VKRenderer};
 use crate::renderer::{CamProj, NECamera, Renderer};
 use crate::util::{NEError, NEResult};
 use crate::{
-   NEEvents, NEGame, NEGameInfo, NERenderer, NEWindow, ScreenCoord, ScreenOffset, Size2D,
+   NEEvents, NEGame, NERenderer, NEScene, NETime, NEWindow, ScreenCoord, ScreenOffset, Size2D,
 };
 use glfw::{
    Error, Glfw, GlfwReceiver, OpenGlProfileHint, PWindow, SwapInterval, WindowEvent, WindowHint,
@@ -262,9 +262,7 @@ impl NEGameBuilder {
       let cursor_coord_global =
          ScreenCoord::from(cx as f64 + window_coord.x, cy as f64 + window_coord.y);
 
-      let cam = NECamera::from(window_size, CamProj::Persp);
       let current_time = Instant::now();
-
       let mut window = NEWindow {
          glfw: glfw.clone(),
          window,
@@ -288,8 +286,13 @@ impl NEGameBuilder {
       };
       window.set_coord(window_coord);
 
+      let cam = NECamera::from(window_size, CamProj::Persp);
+      let renderer = NERenderer::from(core, self.render_api, cam.view_matrix, cam.proj_matrix);
+      let mut scene = NEScene::new();
+      scene.replace_cam(cam);
+
       NEResult::OK(NEGame {
-         renderer: NERenderer::from(core, self.render_api, cam.view_matrix, cam.proj_matrix),
+         renderer,
          window,
          events: NEEvents {
             events,
@@ -312,7 +315,7 @@ impl NEGameBuilder {
             window_resize_event: (false, window_size),
             window_close_event: false,
          },
-         info: NEGameInfo {
+         time: NETime {
             frame: 0,
             fps: 0.0,
             current_time,
@@ -321,12 +324,12 @@ impl NEGameBuilder {
             prev_time: current_time,
             prev_sec: current_time,
             local_frame: 0,
-            time: 0.0,
+            elapsed: 0.0,
             start_time: current_time,
             prev_deltas: vec![],
             prev_deltas_size: 128,
          },
-         cam,
+         scene,
          is_paused: false,
       })
    }

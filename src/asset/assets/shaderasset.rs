@@ -1,9 +1,8 @@
-use crate::Size2D;
+use crate::asset::{NEFileErrKind, NEGLSL};
+use crate::{NEError, NEResult, Size2D};
 use png::{BitDepth, ColorType};
-use std::fs;
 use std::fs::File;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum TexFormat {
@@ -117,68 +116,85 @@ impl NETexture {
 }
 
 pub struct NEShaderAsset {
-   pub textures: Vec<NETexture>,
-   pub vert_src: String,
-   pub frag_src: String,
-}
-
-impl Default for NEShaderAsset {
-   fn default() -> Self {
-      NEShaderAsset::from_paths(
-         "nerve/assets/shaders/mesh/default.vert",
-         "nerve/assets/shaders/mesh/default.frag",
-      )
-      .attach_tex_from_path(
-         "nerve/assets/textures/missing.png",
-         TexFilter::Closest,
-         TexWrap::Repeat,
-      )
-   }
+   pub(crate) v_src: String,
+   pub(crate) f_src: String,
 }
 
 impl NEShaderAsset {
-   pub fn empty() -> NEShaderAsset {
-      Self {
-         textures: Vec::new(),
-         vert_src: String::new(),
-         frag_src: String::new(),
-      }
+   pub fn fallback() -> NEResult<NEShaderAsset> {
+      NEShaderAsset::from_path("nerve/assets/glsl/fallback.glsl")
    }
 
-   pub fn from(vert_src: &str, frag_src: &str) -> NEShaderAsset {
-      Self {
-         textures: Vec::new(),
-         vert_src: vert_src.to_string(),
-         frag_src: frag_src.to_string(),
-      }
-   }
-   pub fn from_paths(vert_path: &str, frag_path: &str) -> NEShaderAsset {
-      let (vert_src, frag_src) = match (
-         PathBuf::from_str(&vert_path).unwrap().exists(),
-         PathBuf::from_str(&frag_path).unwrap().exists(),
-      ) {
-         (true, true) => (
-            fs::read_to_string(vert_path).unwrap_or("".to_string()),
-            fs::read_to_string(frag_path).unwrap_or("".to_string()),
-         ),
-         _ => panic!("shader src do not exist!"),
+   pub fn from(v_src: &str, f_src: &str) -> NEShaderAsset {
+      let glsl = NEGLSL {
+         v_src: v_src.to_string(),
+         f_src: f_src.to_string(),
       };
-      if vert_src.is_empty() || frag_src.is_empty() {
-         panic!("shader is empty!");
-      }
-      NEShaderAsset::from(&vert_src, &frag_src)
+      NEShaderAsset::from_glsl(glsl)
    }
 
-   pub fn attach_tex_from_path(
-      mut self,
-      path: &str,
-      filter: TexFilter,
-      wrap: TexWrap,
-   ) -> NEShaderAsset {
-      self.attach_tex(NETexture::from(path, filter, wrap))
+   pub fn from_paths(v_path: &str, f_path: &str) -> NEResult<NEShaderAsset> {
+      let v_pathbuf = PathBuf::from(v_path);
+      let f_pathbuf = PathBuf::from(f_path);
+
+      let both_paths = format!("{} or {}", v_path.to_string(), f_path.to_string());
+      let not_valid = NEResult::ER(NEError::File {
+         kind: NEFileErrKind::NotValidPath,
+         path: both_paths.clone(),
+      });
+
+      let unsupported = NEResult::ER(NEError::File {
+         kind: NEFileErrKind::Unsupported,
+         path: both_paths,
+      });
+
+      match (v_pathbuf.extension(), f_pathbuf.extension()) {
+         (Some(vex), Some(fex)) => match (vex.to_str().unwrap_or(""), fex.to_str().unwrap_or("")) {
+            ("vert", "frag") | ("v", "f") => {
+               let glsl = match NEGLSL::load_both_from_disk(v_path, f_path) {
+                  NEResult::ER(e) => return NEResult::ER(e),
+                  NEResult::OK(g) => g,
+               };
+               NEResult::OK(NEShaderAsset::from_glsl(glsl))
+            }
+            _ => unsupported,
+         },
+         _ => not_valid,
+      }
    }
-   pub fn attach_tex(mut self, tex: NETexture) -> NEShaderAsset {
-      self.textures.push(tex);
-      self
+
+   pub fn from_path(path: &str) -> NEResult<NEShaderAsset> {
+      let pathbuf = PathBuf::from(path);
+
+      let not_valid = NEResult::ER(NEError::File {
+         kind: NEFileErrKind::NotValidPath,
+         path: path.to_string(),
+      });
+
+      let unsupported = NEResult::ER(NEError::File {
+         kind: NEFileErrKind::Unsupported,
+         path: path.to_string(),
+      });
+
+      match pathbuf.extension() {
+         Some(ex) => match ex.to_str().unwrap_or("") {
+            "glsl" | "gl" | "shader" => {
+               let glsl = match NEGLSL::load_from_disk(path) {
+                  NEResult::ER(e) => return NEResult::ER(e),
+                  NEResult::OK(g) => g,
+               };
+               NEResult::OK(NEShaderAsset::from_glsl(glsl))
+            }
+            _ => unsupported,
+         },
+         None => not_valid,
+      }
+   }
+
+   pub(crate) fn from_glsl(glsl: NEGLSL) -> NEShaderAsset {
+      NEShaderAsset {
+         v_src: glsl.v_src,
+         f_src: glsl.f_src,
+      }
    }
 }
