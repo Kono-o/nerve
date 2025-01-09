@@ -1,7 +1,7 @@
 use crate::asset::{NEFileErrKind, NEGLSLErrKind, NEObjErrKind};
 use crate::engine::NEInitErrKind;
 use crate::util::consts::ansi;
-use crate::{log_warn, proc, NECompileErrKind};
+use crate::{log_fatal, log_warn, proc, NECompileErrKind};
 
 #[derive(Copy, Clone)]
 pub enum NEErrorSeverity {
@@ -123,7 +123,7 @@ impl NEError {
             log_warn!("{msg}");
          }
          NEErrorSeverity::Fatal => {
-            log_warn!("{msg}");
+            log_fatal!("{msg}");
             proc::end_error()
          }
       }
