@@ -1,4 +1,4 @@
-mod file;
+pub(crate) mod file;
 mod glsl;
 mod obj;
 

@@ -88,7 +88,7 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn create_shader(&self, src: &str, typ: ShaderType) -> u32 {
+   fn create_shader(&self, src: &str, typ: ShaderType) -> NEResult<u32> {
       todo!()
    }
 
@@ -96,7 +96,11 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn create_program(&self, vert: &str, frag: &str) -> u32 {
+   //fn create_spv_program(&self, binary: Vec<u8>) -> NEResult<u32> {
+   //   todo!()
+   //}
+
+   fn create_src_program(&self, vert: &str, frag: &str) -> NEResult<u32> {
       todo!()
    }
 
@@ -165,6 +169,10 @@ impl Renderer for VKRenderer {
    }
 
    fn draw_no_index(&self, draw_mode: &DrawMode, vert_count: u32) {
+      todo!()
+   }
+
+   fn create_program_src(&self, vert: &str, frag: &str) -> u32 {
       todo!()
    }
 }

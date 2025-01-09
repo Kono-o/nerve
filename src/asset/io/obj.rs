@@ -63,7 +63,7 @@ impl NEObj {
       let mut nrm_data = Vec::new();
       let mut verts = HashMap::new();
 
-      let obj_file = match file::load_from_disk(path) {
+      let obj_file = match file::find_on_disk(path) {
          NEResult::OK(of) => of,
          NEResult::ER(e) => return NEResult::ER(e),
       };

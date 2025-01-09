@@ -297,6 +297,7 @@ impl NEGameBuilder {
          window,
          events: NEEvents {
             events,
+            is_uncleared: false,
             key_bitmap: KeyBitMap(
                [ButtonState {
                   pressed: false,

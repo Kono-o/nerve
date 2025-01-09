@@ -1,8 +1,8 @@
 use crate::asset::{ATTRInfo, TexFormat};
 use crate::renderer::{Renderer, ShaderType};
 use crate::{
-   ATTRType, Cull, DrawMode, NEResult, NETexture, PolyMode, Size2D, TexFilter, TexWrap, Uniform,
-   RGB,
+   ATTRType, Cull, DrawMode, NECompileErrKind, NEError, NEResult, NETexture, PolyMode, Size2D,
+   TexFilter, TexWrap, Uniform, RGB,
 };
 use cgmath::{Matrix, Matrix4};
 use gl::types::{GLchar, GLenum, GLint, GLsizei, GLsizeiptr};
@@ -26,15 +26,15 @@ impl Renderer for GLRenderer {
          (
             CStr::from_ptr(gl::GetString(gl::RENDERER) as *const i8) //GPU
                .to_str()
-               .unwrap_or("")
+               .unwrap_or("UNKNOWN-GPU")
                .to_string(),
             CStr::from_ptr(gl::GetString(gl::VERSION) as *const i8) //API VERSION
                .to_str()
-               .unwrap_or("")
+               .unwrap_or("UNKNOWN-VERSION")
                .to_string(),
             CStr::from_ptr(gl::GetString(gl::SHADING_LANGUAGE_VERSION) as *const i8) //GLSL VERSION
                .to_str()
-               .unwrap_or("")
+               .unwrap_or("UNKNOWN-VERSION")
                .to_string(),
          )
       }
@@ -97,8 +97,8 @@ impl Renderer for GLRenderer {
          }
       }
    }
-   fn set_wire_width(&self, thickness: f32) {
-      unsafe { gl::LineWidth(thickness) }
+   fn set_wire_width(&self, width: f32) {
+      unsafe { gl::LineWidth(width) }
    }
 
    fn bind_program(&self, prog_id: u32) {
@@ -136,7 +136,6 @@ impl Renderer for GLRenderer {
          gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, id);
       }
    }
-
    fn unbind_index_buffer(&self) {
       unsafe {
          gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
@@ -144,11 +143,20 @@ impl Renderer for GLRenderer {
    }
 
    //SHADERS
-   fn create_shader(&self, src: &str, typ: ShaderType) -> u32 {
-      let log_len = 256;
+   fn create_shader(&self, src: &str, typ: ShaderType) -> NEResult<u32> {
+      let log_len = 512;
       let mut log = Vec::with_capacity(log_len);
       let mut success = gl::FALSE as GLint;
-      let src = CString::new(src.as_bytes()).expect("src empty!");
+      let src = match CString::new(src.as_bytes()) {
+         Ok(s) => s,
+         Err(_) => {
+            return NEResult::ER(NEError::Compile {
+               kind: NECompileErrKind::CStringFailed,
+               path: "".to_string(),
+               msg: "".to_string(),
+            })
+         }
+      };
       unsafe {
          let shader = gl::CreateShader(match_shader_type_gl(&typ));
          gl::ShaderSource(shader, 1, &src.as_ptr(), ptr::null());
@@ -163,23 +171,77 @@ impl Renderer for GLRenderer {
                log.as_mut_ptr() as *mut GLchar,
             );
             let log = std::str::from_utf8(&log).unwrap_or("");
-            panic!("failed to compile shader: {}", log);
+            return NEResult::ER(NEError::Compile {
+               kind: NECompileErrKind::CompileFailed,
+               path: "".to_string(),
+               msg: log.to_string(),
+            });
          }
-         shader as u32
+         NEResult::OK(shader as u32)
       }
    }
    fn delete_shader(&self, id: u32) {
       unsafe { gl::DeleteShader(id) }
    }
 
-   fn create_program(&self, vert: &str, frag: &str) -> u32 {
+   /**fn create_spv_program(&self, binary: Vec<u8>) -> NEResult<u32> {
       let log_len = 256;
       let mut log = Vec::with_capacity(log_len);
       let mut success = gl::FALSE as GLint;
       unsafe {
          let program = gl::CreateProgram();
-         let vert_shader = self.create_shader(vert, ShaderType::Vert);
-         let frag_shader = self.create_shader(frag, ShaderType::Frag);
+         let shader = gl::CreateShader(gl::VERTEX_SHADER); //DUMMY
+         gl::ShaderBinary(
+            1,
+            &shader,
+            gl::SHADER_BINARY_FORMAT_SPIR_V,
+            binary.as_ptr() as _,
+            binary.len() as _,
+         );
+         gl::SpecializeShader(
+            shader,
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+            std::ptr::null(),
+         );
+         gl::AttachShader(program, shader);
+         gl::LinkProgram(program);
+
+         gl::GetProgramiv(program, gl::LINK_STATUS, &mut success);
+         if success != gl::TRUE as GLint {
+            gl::GetProgramInfoLog(
+               program,
+               log_len as GLsizei,
+               std::ptr::null_mut(),
+               log.as_mut_ptr() as *mut GLchar,
+            );
+            let log = std::str::from_utf8(&log).unwrap_or("");
+            return NEResult::ER(NEError::Compile {
+               kind: NECompileErrKind::CompileFailed,
+               path: "".to_string(),
+               msg: log.to_string(),
+            });
+         }
+
+         NEResult::OK(program as u32)
+      }
+   }**/
+
+   fn create_src_program(&self, vert: &str, frag: &str) -> NEResult<u32> {
+      let log_len = 256;
+      let mut log = Vec::with_capacity(log_len);
+      let mut success = gl::FALSE as GLint;
+      unsafe {
+         let program = gl::CreateProgram();
+         let vert_shader = match self.create_shader(vert, ShaderType::Vert) {
+            NEResult::ER(e) => return NEResult::ER(e),
+            NEResult::OK(vs) => vs,
+         };
+         let frag_shader = match self.create_shader(frag, ShaderType::Frag) {
+            NEResult::ER(e) => return NEResult::ER(e),
+            NEResult::OK(fs) => fs,
+         };
 
          gl::AttachShader(program, vert_shader);
          gl::AttachShader(program, frag_shader);
@@ -194,11 +256,15 @@ impl Renderer for GLRenderer {
                log.as_mut_ptr() as *mut GLchar,
             );
             let log = std::str::from_utf8(&log).unwrap_or("");
-            panic!("failed to create program: {}", log);
+            return NEResult::ER(NEError::Compile {
+               kind: NECompileErrKind::CompileFailed,
+               path: "".to_string(),
+               msg: log.to_string(),
+            });
          }
          self.delete_shader(vert_shader);
          self.delete_shader(frag_shader);
-         program as u32
+         NEResult::OK(program as u32)
       }
    }
    fn delete_program(&self, id: u32) {
@@ -288,7 +354,7 @@ impl Renderer for GLRenderer {
          gl::VertexAttribPointer(
             attr_id,
             attr.elem_count as GLint,
-            match_attr_type(&attr.typ),
+            match_attr_type_gl(&attr.typ),
             gl::FALSE,
             stride as GLsizei,
             match local_offset {
@@ -366,6 +432,10 @@ impl Renderer for GLRenderer {
          gl::DrawArrays(draw_mode, 0, vert_count as GLsizei);
       }
    }
+
+   fn create_program_src(&self, vert: &str, frag: &str) -> u32 {
+      todo!()
+   }
 }
 
 fn match_draw_mode_gl(dm: &DrawMode) -> GLenum {
@@ -405,7 +475,6 @@ fn match_tex_format_gl(tf: &TexFormat) -> (GLenum, GLint) {
    };
    (base, sized as GLint)
 }
-
 fn match_tex_filter_gl(tf: &TexFilter) -> (GLint, GLint) {
    let (min, max) = match tf {
       TexFilter::Closest => (gl::NEAREST_MIPMAP_NEAREST, gl::NEAREST),
@@ -413,7 +482,6 @@ fn match_tex_filter_gl(tf: &TexFilter) -> (GLint, GLint) {
    };
    (min as GLint, max as GLint)
 }
-
 fn match_tex_wrap_gl(tf: &TexWrap) -> GLint {
    let wrap = match tf {
       TexWrap::Repeat => gl::REPEAT,
@@ -422,8 +490,7 @@ fn match_tex_wrap_gl(tf: &TexWrap) -> GLint {
    };
    wrap as GLint
 }
-
-fn match_attr_type(attr_type: &ATTRType) -> GLenum {
+fn match_attr_type_gl(attr_type: &ATTRType) -> GLenum {
    match attr_type {
       ATTRType::I8 => gl::BYTE,
       ATTRType::U8 => gl::UNSIGNED_BYTE,

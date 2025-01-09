@@ -1,3 +1,5 @@
+extern crate core;
+
 mod asset;
 mod engine;
 mod renderer;

@@ -1,7 +1,7 @@
-use crate::asset::ATTRInfo;
+use crate::asset::{file, ATTRInfo, ReadBytes};
 use crate::{
-   ansi, color, log_info, DataType, DrawMode, NECamera, NEMesh, NEMeshAsset, NEResult, NEShader,
-   NEShaderAsset, NETexture, RenderAPI, Size2D, Uniform, RGB,
+   ansi, color, log_info, paths, DataType, DrawMode, NECamera, NEError, NEMesh, NEMeshAsset,
+   NEResult, NEShader, NEShaderAsset, NETexture, RenderAPI, Size2D, Uniform, RGB,
 };
 use cgmath::Matrix4;
 
@@ -48,10 +48,11 @@ pub(crate) trait Renderer {
    fn unbind_index_buffer(&self);
 
    //SHADERS
-   fn create_shader(&self, src: &str, typ: ShaderType) -> u32;
+   fn create_shader(&self, src: &str, typ: ShaderType) -> NEResult<u32>;
    fn delete_shader(&self, id: u32);
 
-   fn create_program(&self, vert: &str, frag: &str) -> u32;
+   //fn create_spv_program(&self, binary: Vec<u8>) -> NEResult<u32>;
+   fn create_src_program(&self, vert: &str, frag: &str) -> NEResult<u32>;
    fn delete_program(&self, id: u32);
 
    fn create_texture(&self, tex: &NETexture) -> u32;
@@ -60,7 +61,7 @@ pub(crate) trait Renderer {
 
    fn set_uni(&self, id: u32, name: &str, uniform: Uniform);
    fn set_uni_i32(&self, id: u32, name: &str, int: i32);
-   fn set_uni_m4f32(&self, id: u32, name: &str, matrix: Matrix4<f32>); //BUFFERS
+   fn set_uni_m4f32(&self, id: u32, name: &str, matrix: Matrix4<f32>);
 
    //BUFFERS
    fn create_buffer(&self) -> (u32, u32);
@@ -75,6 +76,7 @@ pub(crate) trait Renderer {
    fn clear(&self);
    fn draw(&self, draw_mode: &DrawMode, index_count: u32);
    fn draw_no_index(&self, draw_mode: &DrawMode, vert_count: u32);
+   fn create_program_src(&self, vert: &str, frag: &str) -> u32;
 }
 
 pub struct NERenderer {
@@ -126,7 +128,7 @@ impl NERenderer {
          culling: true,
       };
       let default_shader_asset = NEShaderAsset::fallback().unpack();
-      renderer.default_shader = renderer.compile(default_shader_asset);
+      renderer.default_shader = renderer.compile(default_shader_asset).unpack();
       renderer.set_msaa(true);
       renderer.set_culling(true);
       renderer.set_wire_width(2.0);
@@ -220,10 +222,8 @@ impl NERenderer {
       self.core.enable_cull(self.culling);
    }
    pub fn set_cull_face(&mut self, cull_face: Cull) {
-      match self.cull_face {
-         cull_face => {}
-         _ => self.flip_cull_face(),
-      }
+      self.cull_face = cull_face;
+      self.core.set_cull_face(self.cull_face)
    }
    pub fn flip_cull_face(&mut self) {
       self.cull_face = match self.cull_face {
@@ -238,8 +238,44 @@ impl NERenderer {
    pub fn default_shader(&self) -> NEShader {
       self.default_shader.clone()
    }
-   pub fn compile(&self, asset: NEShaderAsset) -> NEShader {
-      let prog_id = self.core.create_program(&asset.v_src, &asset.f_src);
+
+   pub fn compile(&self, asset: NEShaderAsset) -> NEResult<NEShader> {
+      let mut ve_src = String::new();
+      let mut fe_src = String::new();
+
+      let _binary = match asset {
+         NEShaderAsset::SPIRV { binary } => binary,
+         NEShaderAsset::Source { name, v_src, f_src } => {
+            //let v_spv = match glsl_to_spv(&name, ShaderType::Vert, &v_src) {
+            //   NEResult::ER(e) => return NEResult::ER(e),
+            //   NEResult::OK(s) => s,
+            //};
+            //let f_spv = match glsl_to_spv(&name, ShaderType::Frag, &f_src) {
+            //   NEResult::ER(e) => return NEResult::ER(e),
+            //   NEResult::OK(s) => s,
+            //};
+
+            ve_src = v_src.clone();
+            fe_src = f_src.clone();
+
+            let mut binary = Vec::new();
+            //binary.extend_from_slice(&v_spv);
+            //binary.extend_from_slice(&f_spv);
+
+            let spv_path = paths::ASSET_SPV;
+            let spv_name = format!("{name}.{}", paths::SPV_EX);
+            match file::write_bytes_to_disk(spv_path, &spv_name, &binary) {
+               NEResult::ER(e) => return NEResult::ER(e),
+               _ => {}
+            }
+            binary
+         }
+      };
+
+      let prog_id = match self.core.create_src_program(&ve_src, &fe_src) {
+         NEResult::OK(id) => id,
+         NEResult::ER(e) => return NEResult::ER(e),
+      };
       self.core.bind_program(prog_id);
 
       let mut image_ids = Vec::new();
@@ -251,11 +287,11 @@ impl NERenderer {
       //      image_ids.push(tex_id);
       //   }
       //}
-      NEShader {
+      NEResult::OK(NEShader {
          id: prog_id,
          image_ids,
          exists_on_gpu: true,
-      }
+      })
    }
 
    pub fn delete_shader(&self, shader: NEShader) {
@@ -460,5 +496,60 @@ fn push_into_buffer<T: DataType>(buffer: &mut Vec<u8>, attr: &[T]) {
       for byte in bytes.iter() {
          buffer.push(*byte);
       }
+   }
+}
+
+pub enum NECompileErrKind {
+   NoGLSLValidator,
+   CompileFailed,
+   CStringFailed,
+}
+
+fn glsl_to_spv(name: &str, typ: ShaderType, src: &str) -> NEResult<Vec<u8>> {
+   let temp_path = paths::ASSET_SPV_TEMP;
+   let ex = match typ {
+      ShaderType::Vert => "vert".to_string(),
+      ShaderType::Frag => "frag".to_string(),
+   };
+   let name = format!("{name}.{ex}");
+   match file::write_str_to_disk(temp_path, &name, &src) {
+      NEResult::ER(e) => return NEResult::ER(e),
+      _ => {}
+   };
+   let temp_path = format!("{temp_path}{name}");
+   let spv_temp_path = format!("{temp_path}{name}.{}", paths::SPV_EX);
+   gen_spv_from_glsl_to_path(&temp_path, &spv_temp_path)
+}
+
+fn gen_spv_from_glsl_to_path(glsl_path: &str, spv_path: &str) -> NEResult<Vec<u8>> {
+   match std::process::Command::new("glslangValidator")
+      .arg("-V")
+      .arg(glsl_path)
+      .arg("-o")
+      .arg(spv_path)
+      .output()
+   {
+      Ok(out) => {
+         if !out.status.success() {
+            NEResult::ER(NEError::Compile {
+               msg: String::from_utf8_lossy(&out.stderr).to_string(),
+               kind: NECompileErrKind::CompileFailed,
+               path: glsl_path.to_string(),
+            })
+         } else {
+            match file::find_on_disk(spv_path) {
+               NEResult::ER(e) => NEResult::ER(e),
+               NEResult::OK(mut spv) => match spv.read_as_bytes(spv_path) {
+                  NEResult::ER(e) => NEResult::ER(e),
+                  NEResult::OK(binary) => NEResult::OK(binary),
+               },
+            }
+         }
+      }
+      Err(_) => NEResult::ER(NEError::Compile {
+         kind: NECompileErrKind::NoGLSLValidator,
+         path: "".to_string(),
+         msg: "".to_string(),
+      }),
    }
 }

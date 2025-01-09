@@ -13,11 +13,13 @@ pub(crate) fn end(code: i32) {
 }
 
 pub(crate) fn end_success() {
-   log_info!("process ended successfully! (code 0)");
-   process::exit(exit::SUCCESS)
+   let code = exit::SUCCESS;
+   log_info!("process ended successfully! (code {code})");
+   process::exit(code)
 }
 
 pub(crate) fn end_error() {
-   log_fatal!("process ended due to error! (code 1)");
-   process::exit(exit::ERROR)
+   let code = exit::ERROR;
+   log_fatal!("process ended due to fatal error! (code {code})");
+   process::exit(code)
 }

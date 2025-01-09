@@ -1,5 +1,5 @@
-use crate::asset::{NEFileErrKind, NEGLSL};
-use crate::{NEError, NEResult, Size2D};
+use crate::asset::{file, NEFileErrKind, ReadBytes, NEGLSL};
+use crate::{paths, NEError, NEResult, Size2D};
 use png::{BitDepth, ColorType};
 use std::fs::File;
 use std::path::PathBuf;
@@ -115,9 +115,15 @@ impl NETexture {
    }
 }
 
-pub struct NEShaderAsset {
-   pub(crate) v_src: String,
-   pub(crate) f_src: String,
+pub enum NEShaderAsset {
+   SPIRV {
+      binary: Vec<u8>,
+   },
+   Source {
+      name: String,
+      v_src: String,
+      f_src: String,
+   },
 }
 
 impl NEShaderAsset {
@@ -125,8 +131,9 @@ impl NEShaderAsset {
       NEShaderAsset::from_path("nerve/assets/glsl/fallback.glsl")
    }
 
-   pub fn from(v_src: &str, f_src: &str) -> NEShaderAsset {
+   pub fn from_src(v_src: &str, f_src: &str) -> NEShaderAsset {
       let glsl = NEGLSL {
+         name: "".to_string(), //ALSO FIX
          v_src: v_src.to_string(),
          f_src: f_src.to_string(),
       };
@@ -149,16 +156,18 @@ impl NEShaderAsset {
       });
 
       match (v_pathbuf.extension(), f_pathbuf.extension()) {
-         (Some(vex), Some(fex)) => match (vex.to_str().unwrap_or(""), fex.to_str().unwrap_or("")) {
-            ("vert", "frag") | ("v", "f") => {
-               let glsl = match NEGLSL::load_both_from_disk(v_path, f_path) {
-                  NEResult::ER(e) => return NEResult::ER(e),
-                  NEResult::OK(g) => g,
-               };
-               NEResult::OK(NEShaderAsset::from_glsl(glsl))
+         (Some(v_ex), Some(f_ex)) => {
+            match (v_ex.to_str().unwrap_or(""), f_ex.to_str().unwrap_or("")) {
+               ("vert", "frag") | ("vertex", "fragment") | ("v", "f") => {
+                  let glsl = match NEGLSL::load_both_from_disk(v_path, f_path) {
+                     NEResult::ER(e) => return NEResult::ER(e),
+                     NEResult::OK(g) => g,
+                  };
+                  NEResult::OK(NEShaderAsset::from_glsl(glsl))
+               }
+               _ => unsupported,
             }
-            _ => unsupported,
-         },
+         }
          _ => not_valid,
       }
    }
@@ -179,11 +188,34 @@ impl NEShaderAsset {
       match pathbuf.extension() {
          Some(ex) => match ex.to_str().unwrap_or("") {
             "glsl" | "gl" | "shader" => {
-               let glsl = match NEGLSL::load_from_disk(path) {
-                  NEResult::ER(e) => return NEResult::ER(e),
-                  NEResult::OK(g) => g,
+               let name = match pathbuf.file_stem() {
+                  None => {
+                     return NEResult::ER(NEError::File {
+                        kind: NEFileErrKind::NotValidName,
+                        path: path.to_string(),
+                     })
+                  }
+                  Some(n) => n.to_string_lossy().to_string(),
                };
-               NEResult::OK(NEShaderAsset::from_glsl(glsl))
+               let spv_path = format!("{}{}.{}", paths::ASSET_SPV, name, paths::SPV_EX);
+               let spv_pathbuf = PathBuf::from(&spv_path);
+               if spv_pathbuf.exists() {
+                  let mut spv = match file::find_on_disk(&spv_path) {
+                     NEResult::ER(e) => return NEResult::ER(e),
+                     NEResult::OK(s) => s,
+                  };
+                  let binary = match spv.read_as_bytes(&spv_path) {
+                     NEResult::ER(e) => return NEResult::ER(e),
+                     NEResult::OK(s) => s,
+                  };
+                  NEResult::OK(NEShaderAsset::SPIRV { binary })
+               } else {
+                  let glsl = match NEGLSL::load_from_disk(path) {
+                     NEResult::ER(e) => return NEResult::ER(e),
+                     NEResult::OK(g) => g,
+                  };
+                  NEResult::OK(NEShaderAsset::from_glsl(glsl))
+               }
             }
             _ => unsupported,
          },
@@ -192,7 +224,8 @@ impl NEShaderAsset {
    }
 
    pub(crate) fn from_glsl(glsl: NEGLSL) -> NEShaderAsset {
-      NEShaderAsset {
+      NEShaderAsset::Source {
+         name: "".to_string(), //FIX PLZ
          v_src: glsl.v_src,
          f_src: glsl.f_src,
       }
