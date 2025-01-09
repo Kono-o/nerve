@@ -85,7 +85,7 @@ pub struct NERenderer {
    pub(crate) cam_view: Matrix4<f32>,
    pub(crate) cam_proj: Matrix4<f32>,
 
-   pub default_shader: NEShader,
+   pub fallback_shader: NEShader,
 
    pub gpu: String,
    pub api: RenderAPI,
@@ -115,7 +115,7 @@ impl NERenderer {
          core,
          cam_view,
          cam_proj,
-         default_shader: NEShader::temporary(),
+         fallback_shader: NEShader::temporary(),
          gpu,
          api,
          api_ver,
@@ -127,8 +127,8 @@ impl NERenderer {
          msaa_samples: 4,
          culling: true,
       };
-      let default_shader_asset = NEShaderAsset::fallback().unpack();
-      renderer.default_shader = renderer.compile(default_shader_asset).unpack();
+      let fallback_shader_asset = NEShaderAsset::fallback().unpack();
+      renderer.fallback_shader = renderer.compile(fallback_shader_asset).unpack();
       renderer.set_msaa(true);
       renderer.set_culling(true);
       renderer.set_wire_width(2.0);
@@ -235,8 +235,8 @@ impl NERenderer {
    pub fn set_wire_width(&mut self, width: f32) {
       self.core.set_wire_width(width);
    }
-   pub fn default_shader(&self) -> NEShader {
-      self.default_shader.clone()
+   pub fn fallback_shader(&self) -> NEShader {
+      self.fallback_shader.clone()
    }
 
    pub fn compile(&self, asset: NEShaderAsset) -> NEResult<NEShader> {
@@ -264,10 +264,12 @@ impl NERenderer {
 
             let spv_path = paths::ASSET_SPV;
             let spv_name = format!("{name}.{}", paths::SPV_EX);
-            match file::write_bytes_to_disk(spv_path, &spv_name, &binary) {
-               NEResult::ER(e) => return NEResult::ER(e),
-               _ => {}
-            }
+            //match file::write_bytes_to_disk(spv_path, &spv_name, &binary) {
+            //   NEResult::ER(e) => return NEResult::ER(e),
+            //   _ => {}
+            //}
+
+            //CLEAR TMP
             binary
          }
       };
@@ -469,7 +471,7 @@ impl NERenderer {
       mesh.update();
       let s = match mesh.shader.exists_on_gpu {
          true => mesh.shader.id,
-         false => self.default_shader.id,
+         false => self.fallback_shader.id,
       };
       self.core.bind_program(s);
       self.core.set_uni_m4f32(s, "uCamView", self.cam_view);
