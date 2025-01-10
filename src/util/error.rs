@@ -1,7 +1,7 @@
 use crate::asset::{NEFileErrKind, NEGLSLErrKind, NEObjErrKind};
 use crate::engine::NEInitErrKind;
 use crate::util::consts::ansi;
-use crate::util::gfx;
+use crate::util::env;
 use crate::{log_fatal, log_warn, proc, NECompileErrKind, NEOpenGLErrKind};
 
 #[derive(Copy, Clone)]
@@ -72,8 +72,8 @@ impl NEError {
                NEOpenGLErrKind::CStringFailed => "cstring failed",
                NEOpenGLErrKind::SPIRVNotFound => &format!(
                   "could not find [{}] or [{}]",
-                  gfx::SPIRV_EXTENSIONS,
-                  gfx::GL_SPIRV
+                  env::SPIRV_EXTENSIONS,
+                  env::GL_SPIRV
                ),
             };
             severe = NEErrorSeverity::Fatal;
@@ -116,10 +116,11 @@ impl NEError {
             let kind_msg = match kind {
                NECompileErrKind::NoGLSLValidator => &format!(
                   "[{}] does not exist, install Vulkan SDK from {}",
-                  gfx::GLSL_VALIDATOR,
-                  gfx::VULKAN_SDK_URL
+                  env::GLSL_VALIDATOR,
+                  env::VULKAN_SDK_URL
                ),
-               NECompileErrKind::CompileFailed => "compilation failed",
+               NECompileErrKind::GLSLCompileFailed => "compilation failed",
+               NECompileErrKind::CreateProgramFailed => "program creation failed",
                NECompileErrKind::CStringFailed => "could not parse src into c-str",
             };
             severe = NEErrorSeverity::Fatal;

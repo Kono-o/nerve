@@ -10,7 +10,7 @@ impl Renderer for VKRenderer {
    fn log_info(&self) {
       todo!()
    }
-
+   //STATE
    fn set_clear(&self, color: RGB) {
       todo!()
    }
@@ -75,6 +75,7 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
+   //SHADERS
    fn create_shader(&self, src: &str, typ: ShaderType) -> NEResult<u32> {
       todo!()
    }
@@ -83,7 +84,7 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn create_spv_program(&self, binary: &Vec<u8>) -> NEResult<u32> {
+   fn create_spv_program(&self, binary: &Vec<u8>, x: &Vec<u8>) -> NEResult<u32> {
       todo!()
    }
 

@@ -1,5 +1,7 @@
+use crate::ansi;
 use crate::asset::{file, NEFileErrKind, ReadBytes, NEGLSL};
-use crate::{paths, NEError, NEResult, Size2D};
+use crate::util::ex;
+use crate::{log_info, path, NEError, NEResult, Size2D};
 use png::{BitDepth, ColorType};
 use std::fs::File;
 use std::path::PathBuf;
@@ -117,7 +119,8 @@ impl NETexture {
 
 pub enum NEShaderAsset {
    SPIRV {
-      binary: Vec<u8>,
+      v_bin: Vec<u8>,
+      f_bin: Vec<u8>,
    },
    Source {
       name: String,
@@ -158,7 +161,7 @@ impl NEShaderAsset {
       match (v_pathbuf.extension(), f_pathbuf.extension()) {
          (Some(v_ex), Some(f_ex)) => {
             match (v_ex.to_str().unwrap_or(""), f_ex.to_str().unwrap_or("")) {
-               ("vert", "frag") | ("vertex", "fragment") | ("v", "f") => {
+               (ex::VERT, ex::FRAG) => {
                   let glsl = match NEGLSL::load_both_from_disk(v_path, f_path) {
                      NEResult::ER(e) => return NEResult::ER(e),
                      NEResult::OK(g) => g,
@@ -187,7 +190,7 @@ impl NEShaderAsset {
 
       match pathbuf.extension() {
          Some(ex) => match ex.to_str().unwrap_or("") {
-            "glsl" | "gl" | "shader" => {
+            ex::GLSL => {
                let name = match pathbuf.file_stem() {
                   None => {
                      return NEResult::ER(NEError::File {
@@ -197,7 +200,7 @@ impl NEShaderAsset {
                   }
                   Some(n) => n.to_string_lossy().to_string(),
                };
-               let spv_path = format!("{}{}.{}", paths::ASSET_SPV, name, paths::SPV_EX);
+               let spv_path = format!("{}{}.{}", path::SHDR_ASSET, name, ex::NSHDR);
                let spv_pathbuf = PathBuf::from(&spv_path);
                if spv_pathbuf.exists() {
                   let mut spv = match file::find_on_disk(&spv_path) {
@@ -208,7 +211,37 @@ impl NEShaderAsset {
                      NEResult::ER(e) => return NEResult::ER(e),
                      NEResult::OK(s) => s,
                   };
-                  NEResult::OK(NEShaderAsset::SPIRV { binary })
+
+                  let clone_slice_4 = |bytes: &[u8]| -> [u8; 4] {
+                     let mut cloned_bytes = [0; 4];
+                     for i in 0..4 {
+                        cloned_bytes[i] = bytes[i]
+                     }
+                     cloned_bytes
+                  };
+
+                  let clone_slice = |bytes: &[u8]| -> Vec<u8> {
+                     let mut cloned_bytes = Vec::new();
+                     for byte in bytes {
+                        cloned_bytes.push(*byte)
+                     }
+                     cloned_bytes
+                  };
+
+                  let stride = 4;
+                  let stride_x_2 = stride + stride;
+                  let v_bin_len = u32::from_ne_bytes(clone_slice_4(&binary[0..stride])) as usize;
+                  let f_bin_len =
+                     u32::from_ne_bytes(clone_slice_4(&binary[stride..stride_x_2])) as usize;
+
+                  let v_offset = stride_x_2 + v_bin_len;
+                  let f_offset = v_offset + f_bin_len;
+
+                  let v_bin = clone_slice(&binary[8..v_offset]);
+                  let f_bin = clone_slice(&binary[v_offset..f_offset]);
+
+                  log_info!("loaded [{spv_path}] from disk!");
+                  NEResult::OK(NEShaderAsset::SPIRV { v_bin, f_bin })
                } else {
                   let glsl = match NEGLSL::load_from_disk(path) {
                      NEResult::ER(e) => return NEResult::ER(e),

@@ -1,7 +1,7 @@
 use crate::ansi;
 use crate::asset::{ATTRInfo, TexFormat};
 use crate::renderer::{Renderer, ShaderType};
-use crate::util::gfx;
+use crate::util::env;
 use crate::{
    log_info, ATTRType, Cull, DrawMode, NECompileErrKind, NEError, NEResult, NETexture, PolyMode,
    Size2D, TexFilter, TexWrap, Uniform, RGB,
@@ -42,8 +42,8 @@ pub(crate) fn gl_renderer_init(window: &mut PWindow) -> NEResult<GLRenderer> {
 
             let arb = &gl.extensions;
             let mut spirv_compat = false;
-            if arb.contains(gfx::SPIRV_EXTENSIONS) && arb.contains(gfx::GL_SPIRV) {
-               //spirv_compat = true
+            if arb.contains(env::SPIRV_EXTENSIONS) && arb.contains(env::GL_SPIRV) {
+               spirv_compat = true
             } else {
                return NEResult::ER(NEError::OpenGL {
                   kind: NEOpenGLErrKind::SPIRVNotFound,
@@ -230,7 +230,7 @@ impl Renderer for GLRenderer {
             );
             let log = std::str::from_utf8(&log).unwrap_or("");
             return NEResult::ER(NEError::Compile {
-               kind: NECompileErrKind::CompileFailed,
+               kind: NECompileErrKind::CreateProgramFailed,
                path: "".to_string(),
                msg: log.to_string(),
             });
@@ -242,7 +242,12 @@ impl Renderer for GLRenderer {
       unsafe { self.gl.raw.DeleteShader(id) }
    }
 
-   fn create_spv_program(&self, binary: &Vec<u8>) -> NEResult<u32> {
+   fn create_spv_program(&self, v_bin: &Vec<u8>, f_bin: &Vec<u8>) -> NEResult<u32> {
+      return NEResult::ER(NEError::Compile {
+         kind: NECompileErrKind::CreateProgramFailed,
+         path: "".to_string(),
+         msg: "lo".to_string(),
+      });
       let log_len = 256;
       let mut log = Vec::with_capacity(log_len);
       let mut success = gl::FALSE as GLint;
@@ -254,8 +259,8 @@ impl Renderer for GLRenderer {
             1,
             &shader,
             gl::SHADER_BINARY_FORMAT_SPIR_V,
-            binary.as_ptr() as *const c_void,
-            binary.len() as GLsizei,
+            v_bin.as_ptr() as *const c_void,
+            v_bin.len() as GLsizei,
          );
          gl.raw
             .SpecializeShader(shader, ptr::null(), 0, ptr::null(), ptr::null());
@@ -272,7 +277,7 @@ impl Renderer for GLRenderer {
             );
             let log = std::str::from_utf8(&log).unwrap_or("");
             return NEResult::ER(NEError::Compile {
-               kind: NECompileErrKind::CompileFailed,
+               kind: NECompileErrKind::CreateProgramFailed,
                path: "".to_string(),
                msg: log.to_string(),
             });
@@ -312,7 +317,7 @@ impl Renderer for GLRenderer {
             );
             let log = std::str::from_utf8(&log).unwrap_or("");
             return NEResult::ER(NEError::Compile {
-               kind: NECompileErrKind::CompileFailed,
+               kind: NECompileErrKind::CreateProgramFailed,
                path: "".to_string(),
                msg: log.to_string(),
             });

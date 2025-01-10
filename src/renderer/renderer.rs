@@ -1,8 +1,8 @@
 use crate::asset::{file, ATTRInfo, ReadBytes};
-use crate::util::gfx;
+use crate::util::{env, ex};
 use crate::{
-   ansi, color, log_info, paths, DataType, DrawMode, NECamera, NEError, NEMesh, NEMeshAsset,
-   NEResult, NEShader, NEShaderAsset, NETexture, RenderAPI, Size2D, Uniform, RGB,
+   ansi, color, log_info, log_warn, path, DataType, DrawMode, NECamera, NEError, NEMesh,
+   NEMeshAsset, NEResult, NEShader, NEShaderAsset, NETexture, RenderAPI, Size2D, Uniform, RGB,
 };
 use cgmath::Matrix4;
 
@@ -51,7 +51,7 @@ pub(crate) trait Renderer {
    fn create_shader(&self, src: &str, typ: ShaderType) -> NEResult<u32>;
    fn delete_shader(&self, id: u32);
 
-   fn create_spv_program(&self, binary: &Vec<u8>) -> NEResult<u32>;
+   fn create_spv_program(&self, binary: &Vec<u8>, x: &Vec<u8>) -> NEResult<u32>;
    fn create_src_program(&self, vert: &str, frag: &str) -> NEResult<u32>;
    fn delete_program(&self, id: u32);
 
@@ -177,7 +177,6 @@ impl NERenderer {
          }
       );
    }
-
    pub fn set_msaa_samples(&mut self, samples: u32) {
       self.msaa_samples = samples
    }
@@ -231,10 +230,9 @@ impl NERenderer {
    pub fn fallback_shader(&self) -> NEShader {
       self.fallback_shader.clone()
    }
-
    pub fn compile(&self, asset: NEShaderAsset) -> NEResult<NEShader> {
-      let binary = match asset {
-         NEShaderAsset::SPIRV { binary } => binary,
+      let (v_bin, f_bin) = match asset {
+         NEShaderAsset::SPIRV { v_bin, f_bin } => (v_bin, f_bin),
          NEShaderAsset::Source { name, v_src, f_src } => {
             let v_spv = match glsl_to_spv(&name, ShaderType::Vert, &v_src) {
                NEResult::ER(e) => return NEResult::ER(e),
@@ -246,21 +244,43 @@ impl NERenderer {
             };
 
             let mut binary = Vec::new();
+
+            let stride = 4;
+            let u32_to_vec_of_4_u8s = |n: u32| -> Vec<u8> {
+               let mut vec = Vec::new();
+               let bytes = n.u8ify();
+               for i in 0..stride {
+                  if bytes.len() > i {
+                     vec.push(bytes[i])
+                  } else {
+                     vec.push(0)
+                  }
+               }
+               vec
+            };
+
+            let v_spv_len = u32_to_vec_of_4_u8s(v_spv.len() as u32);
+            let f_spv_len = u32_to_vec_of_4_u8s(f_spv.len() as u32);
+
+            binary.extend_from_slice(&v_spv_len); //bytes 0 to 3 are the size of v_spv
+            binary.extend_from_slice(&f_spv_len); //bytes 4 to 7 are the size of f_spv
             binary.extend_from_slice(&v_spv);
             binary.extend_from_slice(&f_spv);
 
-            let spv_path = paths::ASSET_SPV;
-            let spv_name = format!("{name}.{}", paths::SPV_EX);
-            match file::write_bytes_to_disk(spv_path, &spv_name, &binary) {
+            let spv_name = format!("{name}.{}", ex::NSHDR);
+            let spv_path = format!("{}{}", path::SHDR_ASSET, spv_name);
+            match file::write_bytes_to_disk(path::SHDR_ASSET, &spv_name, &binary) {
                NEResult::ER(e) => return NEResult::ER(e),
                _ => {}
             }
+            log_warn!("[{spv_path}] not found!");
+            log_warn!("wrote [{spv_path}] to disk!");
             //CLEAR TMP HERE
-            binary
+            (v_spv, f_spv)
          }
       };
 
-      let prog_id = match self.core.create_spv_program(&binary) {
+      let prog_id = match self.core.create_spv_program(&v_bin, &f_bin) {
          NEResult::ER(e) => return NEResult::ER(e),
          NEResult::OK(id) => id,
       };
@@ -281,11 +301,9 @@ impl NERenderer {
          exists_on_gpu: true,
       })
    }
-
    pub fn delete_shader(&self, shader: NEShader) {
       self.core.delete_shader(shader.id)
    }
-
    pub fn mesh(&self, mut asset: NEMeshAsset) -> NEMesh {
       let (vao_id, bfo_id) = self.core.create_buffer();
       let i_id = self.core.create_index_buffer();
@@ -449,7 +467,6 @@ impl NERenderer {
          draw_mode: DrawMode::Triangles,
       }
    }
-
    pub fn render(&self, mesh: &mut NEMesh) {
       if !mesh.visible || !mesh.alive {
          return;
@@ -489,45 +506,48 @@ fn push_into_buffer<T: DataType>(buffer: &mut Vec<u8>, attr: &[T]) {
 
 pub enum NECompileErrKind {
    NoGLSLValidator,
-   CompileFailed,
+   GLSLCompileFailed,
+   CreateProgramFailed,
    CStringFailed,
 }
 
 fn glsl_to_spv(name: &str, typ: ShaderType, src: &str) -> NEResult<Vec<u8>> {
-   let temp_path = paths::ASSET_SPV_TEMP;
+   let temp_path = path::TEMP;
    let ex = match typ {
-      ShaderType::Vert => "vert".to_string(),
-      ShaderType::Frag => "frag".to_string(),
+      ShaderType::Vert => ex::VERT,
+      ShaderType::Frag => ex::FRAG,
    };
-   let name = format!("{name}.{ex}");
-   match file::write_str_to_disk(temp_path, &name, &src) {
+   let name_ex = format!("{name}.{ex}");
+   match file::write_str_to_disk(temp_path, &name_ex, &src) {
       NEResult::ER(e) => return NEResult::ER(e),
       _ => {}
    };
-   let temp_path = format!("{temp_path}{name}");
-   let spv_temp_path = format!("{temp_path}{name}.{}", paths::SPV_EX);
-   gen_spv_from_glsl_to_path(&temp_path, &spv_temp_path)
+   let temp_file = format!("{temp_path}{name_ex}");
+   let spv_file = format!("{temp_file}.{}", ex::NSHDR);
+   gen_spv_from_glsl_to_path(&temp_file, &spv_file)
 }
 
-fn gen_spv_from_glsl_to_path(glsl_path: &str, spv_path: &str) -> NEResult<Vec<u8>> {
-   match std::process::Command::new(gfx::GLSL_VALIDATOR)
-      .arg("-V")
-      .arg(glsl_path)
+fn gen_spv_from_glsl_to_path(glsl_file: &str, spv_file: &str) -> NEResult<Vec<u8>> {
+   let o = std::process::Command::new(env::GLSL_VALIDATOR_PATH)
+      .arg("-G")
+      .arg("-Os")
+      .arg("-r")
+      .arg(glsl_file)
       .arg("-o")
-      .arg(spv_path)
-      .output()
-   {
+      .arg(spv_file)
+      .output();
+   match o {
       Ok(out) => {
          if !out.status.success() {
             NEResult::ER(NEError::Compile {
-               msg: String::from_utf8_lossy(&out.stderr).to_string(),
-               kind: NECompileErrKind::CompileFailed,
-               path: glsl_path.to_string(),
+               msg: String::from_utf8_lossy(&out.stdout).to_string(),
+               kind: NECompileErrKind::GLSLCompileFailed,
+               path: glsl_file.to_string(),
             })
          } else {
-            match file::find_on_disk(spv_path) {
+            match file::find_on_disk(spv_file) {
                NEResult::ER(e) => NEResult::ER(e),
-               NEResult::OK(mut spv) => match spv.read_as_bytes(spv_path) {
+               NEResult::OK(mut spv) => match spv.read_as_bytes(spv_file) {
                   NEResult::ER(e) => NEResult::ER(e),
                   NEResult::OK(binary) => NEResult::OK(binary),
                },

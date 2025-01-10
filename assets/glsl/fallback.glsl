@@ -7,13 +7,13 @@ layout (location = 1) in vec3 vCol;
 layout (location = 2) in vec2 vUVM;
 layout (location = 3) in vec3 vNrm;
 
-uniform mat4 uCamView;
-uniform mat4 uCamProj;
-uniform mat4 uMeshTfm;
+layout (location = 0) uniform mat4 uCamView;
+layout (location = 1) uniform mat4 uCamProj;
+layout (location = 2) uniform mat4 uMeshTfm;
 
-out vec3 fCol;
-out vec3 fNrm;
-out vec2 fUVM;
+layout (location = 0) out vec3 fCol;
+layout (location = 1) out vec3 fNrm;
+layout (location = 2) out vec2 fUVM;
 
 void main() {
     fNrm = transpose(inverse(mat3(uMeshTfm))) * vNrm;
@@ -28,15 +28,15 @@ void main() {
 
 #version 450
 
-in vec3 fCol;
-in vec3 fNrm;
-in vec2 fUVM;
+layout (location = 0) in vec3 fCol;
+layout (location = 1) in vec3 fNrm;
+layout (location = 2) in vec2 fUVM;
 
-uniform sampler2D tDif1;
+layout (location = 0) out vec4 frag;
 
-out vec4 frag;
+layout (location = 0) uniform vec3 uLight = normalize(vec3(0.5, 1.0, 0.3));
 
-uniform vec3 uLight = normalize(vec3(0.5, 1.0, 0.3));
+layout (location = 1) uniform sampler2D tDif1;
 
 void main() {
 

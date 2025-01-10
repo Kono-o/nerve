@@ -36,7 +36,7 @@ impl NEMeshAsset {
 
       match pathbuf.extension() {
          Some(ex) => match ex.to_str().unwrap_or("") {
-            "obj" => {
+            ex::OBJ => {
                let obj = match NEObj::load_from_disk(path) {
                   NEResult::ER(e) => return NEResult::ER(e),
                   NEResult::OK(o) => o,
