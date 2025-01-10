@@ -1,7 +1,7 @@
 use crate::asset::{NEFileErrKind, NEGLSLErrKind, NEObjErrKind};
 use crate::engine::NEInitErrKind;
 use crate::util::consts::ansi;
-use crate::{log_fatal, log_warn, proc, NECompileErrKind};
+use crate::{log_fatal, log_warn, proc, NECompileErrKind, NEGLErrKind};
 
 #[derive(Copy, Clone)]
 pub enum NEErrorSeverity {
@@ -12,6 +12,9 @@ pub enum NEErrorSeverity {
 pub enum NEError {
    Init {
       kind: NEInitErrKind,
+   },
+   GL {
+      kind: NEGLErrKind,
    },
    File {
       kind: NEFileErrKind,
@@ -57,6 +60,15 @@ impl NEError {
                NEInitErrKind::WindowHasNoContext => "window has no context",
                NEInitErrKind::CouldNotMakeWindow => "could not make window",
                NEInitErrKind::Unknown(desc) => &format!("unknown error [{desc}]"),
+            };
+            severe = NEErrorSeverity::Fatal;
+            format!("(init) -> {kind_msg}!")
+         }
+         NEError::GL { kind } => {
+            let kind_msg = match kind {
+               NEGLErrKind::NoActiveContext => "no active context found",
+               NEGLErrKind::CouldParseVersion(s) => &format!("could not parse version {s}"),
+               NEGLErrKind::CStringFailed => "cstring failed",
             };
             severe = NEErrorSeverity::Fatal;
             format!("(init) -> {kind_msg}!")

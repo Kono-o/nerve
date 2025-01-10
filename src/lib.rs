@@ -1,4 +1,4 @@
-extern crate core;
+#![allow(warnings)]
 
 mod asset;
 mod engine;

@@ -1,6 +1,6 @@
 use crate::engine::{ButtonState, KeyBitMap, MouseBitMap};
-use crate::renderer::core::{GLRenderer, VKRenderer};
-use crate::renderer::{CamProj, NECamera, Renderer};
+use crate::renderer::core::VKRenderer;
+use crate::renderer::{glrenderer_init, CamProj, NECamera, Renderer};
 use crate::util::{NEError, NEResult};
 use crate::{
    NEEvents, NEGame, NERenderer, NEScene, NETime, NEWindow, ScreenCoord, ScreenOffset, Size2D,
@@ -13,7 +13,7 @@ use std::time::Instant;
 
 #[derive(Copy, Clone)]
 pub enum RenderAPI {
-   OpenGL(u32, u32),
+   OpenGL,
    Vulkan(u32, u32),
 }
 
@@ -26,7 +26,7 @@ impl Display for RenderAPI {
 impl RenderAPI {
    pub(crate) fn api_str(&self) -> String {
       match self {
-         RenderAPI::OpenGL(v0, v1) => format!("OpenGL {v0}.{v1}"),
+         RenderAPI::OpenGL => "OpenGL".to_string(),
          RenderAPI::Vulkan(v0, v1) => format!("Vulkan {v0}.{v1}"),
       }
    }
@@ -52,7 +52,7 @@ pub struct NEGameBuilder {
 impl Default for NEGameBuilder {
    fn default() -> Self {
       Self {
-         render_api: RenderAPI::OpenGL(4, 5),
+         render_api: RenderAPI::OpenGL,
          decorated: true,
          title: "<Nerve-Game>".to_string(),
          mode: WinMode::Windowed(1280, 720),
@@ -152,8 +152,8 @@ fn init_nerve(
    Size2D,
 )> {
    match api {
-      RenderAPI::OpenGL(v0, v1) => {
-         glfw.window_hint(WindowHint::ContextVersion(*v0, *v1));
+      RenderAPI::OpenGL => {
+         glfw.window_hint(WindowHint::ContextVersion(3, 3));
          glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Compat));
          glfw.window_hint(WindowHint::Samples(Some(4)));
          glfw.window_hint(WindowHint::Decorated(decorated));
@@ -163,9 +163,12 @@ fn init_nerve(
                NEResult::OK((w, e, isf, s, ms)) => (w, e, isf, s, ms),
                NEResult::ER(e) => return NEResult::ER(e),
             };
-
+         let renderer = match glrenderer_init(&mut window) {
+            NEResult::OK(glr) => glr,
+            NEResult::ER(e) => return NEResult::ER(e),
+         };
          NEResult::OK((
-            Box::new(GLRenderer),
+            Box::new(renderer),
             window,
             events,
             is_full,
@@ -209,6 +212,7 @@ impl NEGameBuilder {
    pub fn build(&self) -> NEResult<NEGame> {
       let api_str = self.render_api.api_str();
       let api_str_m = api_str.clone();
+      //REMOVE WHEN VK SUPPORT IS ADDED
       match self.render_api {
          RenderAPI::Vulkan(_, _) => {
             return NEResult::ER(NEError::Init {
@@ -217,6 +221,7 @@ impl NEGameBuilder {
          }
          _ => {}
       }
+
       let glfw_error_log = move |err: Error, desc: String| {
          let api = api_str_m.clone();
          let kind = match err {
@@ -246,7 +251,6 @@ impl NEGameBuilder {
          NEResult::OK((c, w, e, isf, s, ms)) => (c, w, e, isf, s, ms),
          NEResult::ER(e) => return NEResult::ER(e),
       };
-      core.init(api_str, &mut window);
       let (swap_interval, is_vsync) = match self.fps {
          FPS::Vsync => (SwapInterval::Adaptive, true),
          FPS::Max => (SwapInterval::None, false),

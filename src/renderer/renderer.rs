@@ -24,8 +24,8 @@ pub(crate) enum ShaderType {
 }
 
 pub(crate) trait Renderer {
-   fn init(&self, name: String, window: &mut glfw::PWindow) -> NEResult<()>;
    fn info(&self) -> (String, String, String);
+   fn log_info(&self);
 
    //STATE
    fn set_clear(&self, color: RGB);
@@ -76,7 +76,6 @@ pub(crate) trait Renderer {
    fn clear(&self);
    fn draw(&self, draw_mode: &DrawMode, index_count: u32);
    fn draw_no_index(&self, draw_mode: &DrawMode, vert_count: u32);
-   fn create_program_src(&self, vert: &str, frag: &str) -> u32;
 }
 
 pub struct NERenderer {
@@ -152,6 +151,7 @@ impl NERenderer {
 //PUBLIC
 impl NERenderer {
    pub fn log_info(&self) {
+      self.core.log_info();
       log_info!("api: {} (glsl: {})", self.api.api_str(), self.glsl_ver);
       log_info!("gpu: {}", self.gpu);
       log_info!(

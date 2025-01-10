@@ -5,140 +5,175 @@ use crate::{
    TexFilter, TexWrap, Uniform, RGB,
 };
 use cgmath::{Matrix, Matrix4};
-use gl::types::{GLchar, GLenum, GLint, GLsizei, GLsizeiptr};
 use glfw::{Context, PWindow};
-use std::ffi::{c_void, CStr, CString};
+use gll as gl;
+use gll::types::*;
+use gll::{ContextInitError, HasContext};
+use std::ffi::{c_void, CString};
 use std::ptr;
 
-#[derive(Copy, Clone)]
-pub(crate) struct GLRenderer;
+pub enum NEGLErrKind {
+   NoActiveContext,
+   CouldParseVersion(String),
+   CStringFailed,
+}
+pub(crate) struct GLRenderer {
+   gl: gl::Context,
+}
+const TEX: u32 = gl::TEXTURE_2D;
 
-const TEX: GLenum = gl::TEXTURE_2D;
+pub(crate) fn glrenderer_init(window: &mut PWindow) -> NEResult<GLRenderer> {
+   window.make_current();
+   unsafe {
+      match gl::Context::load(|symbol| window.get_proc_address(symbol)) {
+         Ok(gl) => NEResult::OK(GLRenderer { gl }),
+         Err(e) => {
+            let kind = match e {
+               ContextInitError::NoActiveContext => NEGLErrKind::NoActiveContext,
+               ContextInitError::CouldParseVersion(s) => NEGLErrKind::CouldParseVersion(s),
+               ContextInitError::CStringFailed => NEGLErrKind::CStringFailed,
+            };
+            NEResult::ER(NEError::GL { kind })
+         }
+      }
+   }
+}
 
 impl Renderer for GLRenderer {
-   fn init(&self, _name: String, window: &mut PWindow) -> NEResult<()> {
-      window.make_current();
-      gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
-      NEResult::OK(())
-   }
    fn info(&self) -> (String, String, String) {
+      let gl = &self.gl;
       unsafe {
          (
-            CStr::from_ptr(gl::GetString(gl::RENDERER) as *const i8) //GPU
-               .to_str()
-               .unwrap_or("UNKNOWN-GPU")
-               .to_string(),
-            CStr::from_ptr(gl::GetString(gl::VERSION) as *const i8) //API VERSION
-               .to_str()
-               .unwrap_or("UNKNOWN-VERSION")
-               .to_string(),
-            CStr::from_ptr(gl::GetString(gl::SHADING_LANGUAGE_VERSION) as *const i8) //GLSL VERSION
-               .to_str()
-               .unwrap_or("UNKNOWN-VERSION")
-               .to_string(),
+            gl.get_parameter_string(gl::RENDERER),                 //GPU
+            gl.get_parameter_string(gl::VERSION),                  //API VER
+            gl.get_parameter_string(gl::SHADING_LANGUAGE_VERSION), //GLSL VER
          )
+      }
+   }
+
+   fn log_info(&self) {
+      let v = &self.gl.version;
+      let arb = &self.gl.extensions;
+      println!("{}", v.vendor_info);
+      println!("OpenGL {}.{}", v.major, v.minor);
+      if arb.contains("GL_ARB_spirv_extensions") {
+         println!("spirv extensions found")
+      }
+      if arb.contains("GL_ARB_gl_spirv") {
+         println!("gl spirv found")
       }
    }
 
    //STATE
    fn set_clear(&self, color: RGB) {
       unsafe {
-         gl::ClearColor(color.0, color.1, color.2, 1.0);
+         self.gl.raw.ClearColor(color.0, color.1, color.2, 1.0);
       }
    }
    fn resize(&self, size: Size2D) {
       unsafe {
-         gl::Viewport(0, 0, size.w as GLsizei, size.h as GLsizei);
+         self.gl.raw.Viewport(0, 0, size.w as i32, size.h as i32);
       }
    }
    fn poly_mode(&self, mode: PolyMode) {
+      let gl = &self.gl;
       unsafe {
          match mode {
-            PolyMode::WireFrame => gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE),
-            PolyMode::Filled => gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL),
+            PolyMode::WireFrame => gl.raw.PolygonMode(gl::FRONT_AND_BACK, gl::LINE),
+            PolyMode::Filled => gl.raw.PolygonMode(gl::FRONT_AND_BACK, gl::FILL),
             PolyMode::Points => {
-               gl::PointSize(10.0);
-               gl::PolygonMode(gl::FRONT_AND_BACK, gl::POINT)
+               gl.raw.PointSize(10.0);
+               gl.raw.PolygonMode(gl::FRONT_AND_BACK, gl::POINT)
             }
          }
       }
    }
    fn enable_msaa(&self, enable: bool) {
+      let gl = &self.gl;
       unsafe {
          match enable {
-            true => gl::Enable(gl::MULTISAMPLE),
-            false => gl::Disable(gl::MULTISAMPLE),
+            true => gl.raw.Enable(gl::MULTISAMPLE),
+            false => gl.raw.Disable(gl::MULTISAMPLE),
          }
       }
    }
    fn enable_depth(&self, enable: bool) {
+      let gl = &self.gl;
       unsafe {
          match enable {
-            true => gl::Enable(gl::DEPTH_TEST),
-            false => gl::Disable(gl::DEPTH_TEST),
+            true => gl.raw.Enable(gl::DEPTH_TEST),
+            false => gl.raw.Disable(gl::DEPTH_TEST),
          }
       }
    }
    fn enable_cull(&self, enable: bool) {
+      let gl = &self.gl;
       unsafe {
-         if enable {
-            gl::Enable(gl::CULL_FACE);
-            gl::CullFace(gl::BACK);
-         } else {
-            gl::Disable(gl::CULL_FACE);
+         match enable {
+            true => {
+               gl.raw.Enable(gl::CULL_FACE);
+               gl.raw.CullFace(gl::BACK);
+            }
+            false => gl.raw.Disable(gl::CULL_FACE),
          }
       }
    }
    fn set_cull_face(&self, face: Cull) {
+      let gl = &self.gl;
       unsafe {
          match face {
-            Cull::Clock => gl::FrontFace(gl::CW),
-            Cull::AntiClock => gl::FrontFace(gl::CCW),
+            Cull::Clock => gl.raw.FrontFace(gl::CW),
+            Cull::AntiClock => gl.raw.FrontFace(gl::CCW),
          }
       }
    }
    fn set_wire_width(&self, width: f32) {
-      unsafe { gl::LineWidth(width) }
+      unsafe { self.gl.raw.LineWidth(width) }
    }
 
    fn bind_program(&self, prog_id: u32) {
-      unsafe { gl::UseProgram(prog_id) }
+      unsafe { self.gl.raw.UseProgram(prog_id) }
    }
    fn unbind_program(&self) {
-      unsafe { gl::UseProgram(0) }
+      unsafe { self.gl.raw.UseProgram(0) }
    }
 
    fn bind_texture_at(&self, tex_id: u32, slot: u32) {
+      let gl = &self.gl;
       unsafe {
-         gl::ActiveTexture(gl::TEXTURE0 + slot);
-         gl::BindTexture(TEX, tex_id);
+         gl.raw.ActiveTexture(gl::TEXTURE0 + slot);
+         gl.raw.BindTexture(TEX, tex_id);
       }
    }
    fn unbind_texture(&self) {
-      unsafe { gl::BindTexture(TEX, 0) }
+      unsafe {
+         self.gl.raw.BindTexture(TEX, 0);
+      }
    }
 
    fn bind_buffer(&self, v_id: u32, b_id: u32) {
+      let gl = &self.gl;
       unsafe {
-         gl::BindVertexArray(v_id);
-         gl::BindBuffer(gl::ARRAY_BUFFER, b_id);
+         gl.raw.BindVertexArray(v_id);
+         gl.raw.BindBuffer(gl::ARRAY_BUFFER, b_id);
       }
    }
    fn unbind_buffer(&self) {
+      let gl = &self.gl;
       unsafe {
-         gl::BindVertexArray(0);
-         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+         gl.raw.BindVertexArray(0);
+         gl.raw.BindBuffer(gl::ARRAY_BUFFER, 0);
       }
    }
 
    fn bind_index_buffer(&self, id: u32) {
       unsafe {
-         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, id);
+         self.gl.raw.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, id);
       }
    }
    fn unbind_index_buffer(&self) {
       unsafe {
-         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
+         self.gl.raw.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
       }
    }
 
@@ -157,14 +192,15 @@ impl Renderer for GLRenderer {
             })
          }
       };
+      let gl = &self.gl;
       unsafe {
-         let shader = gl::CreateShader(match_shader_type_gl(&typ));
-         gl::ShaderSource(shader, 1, &src.as_ptr(), ptr::null());
-         gl::CompileShader(shader);
+         let shader = gl.raw.CreateShader(match_shader_type_gl(&typ));
+         gl.raw.ShaderSource(shader, 1, &src.as_ptr(), ptr::null());
+         gl.raw.CompileShader(shader);
          log.set_len(log_len - 1);
-         gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
+         gl.raw.GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
          if success != gl::TRUE as GLint {
-            gl::GetShaderInfoLog(
+            gl.raw.GetShaderInfoLog(
                shader,
                log_len as GLsizei,
                ptr::null_mut(),
@@ -181,7 +217,7 @@ impl Renderer for GLRenderer {
       }
    }
    fn delete_shader(&self, id: u32) {
-      unsafe { gl::DeleteShader(id) }
+      unsafe { self.gl.raw.DeleteShader(id) }
    }
 
    /**fn create_spv_program(&self, binary: Vec<u8>) -> NEResult<u32> {
@@ -232,8 +268,9 @@ impl Renderer for GLRenderer {
       let log_len = 256;
       let mut log = Vec::with_capacity(log_len);
       let mut success = gl::FALSE as GLint;
+      let gl = &self.gl;
       unsafe {
-         let program = gl::CreateProgram();
+         let program = gl.raw.CreateProgram();
          let vert_shader = match self.create_shader(vert, ShaderType::Vert) {
             NEResult::ER(e) => return NEResult::ER(e),
             NEResult::OK(vs) => vs,
@@ -243,16 +280,16 @@ impl Renderer for GLRenderer {
             NEResult::OK(fs) => fs,
          };
 
-         gl::AttachShader(program, vert_shader);
-         gl::AttachShader(program, frag_shader);
-         gl::LinkProgram(program);
+         gl.raw.AttachShader(program, vert_shader);
+         gl.raw.AttachShader(program, frag_shader);
+         gl.raw.LinkProgram(program);
 
-         gl::GetProgramiv(program, gl::LINK_STATUS, &mut success);
+         gl.raw.GetProgramiv(program, gl::LINK_STATUS, &mut success);
          if success != gl::TRUE as GLint {
-            gl::GetProgramInfoLog(
+            gl.raw.GetProgramInfoLog(
                program,
                log_len as GLsizei,
-               std::ptr::null_mut(),
+               ptr::null_mut(),
                log.as_mut_ptr() as *mut GLchar,
             );
             let log = std::str::from_utf8(&log).unwrap_or("");
@@ -268,27 +305,30 @@ impl Renderer for GLRenderer {
       }
    }
    fn delete_program(&self, id: u32) {
-      unsafe { gl::DeleteProgram(id) }
+      unsafe { self.gl.raw.DeleteProgram(id) }
    }
 
    fn create_texture(&self, tex: &NETexture) -> u32 {
       let mut id = 0;
+      let gl = &self.gl;
       unsafe {
-         gl::GenTextures(1, &mut id);
+         gl.raw.GenTextures(1, &mut id);
          self.bind_texture_at(id, 0);
 
          let wrap = match_tex_wrap_gl(&tex.wrap);
          let (min_filter, max_filter) = match_tex_filter_gl(&tex.filter);
 
-         gl::TexParameteri(TEX, gl::TEXTURE_WRAP_S, wrap);
-         gl::TexParameteri(TEX, gl::TEXTURE_WRAP_T, wrap);
-         gl::TexParameteri(TEX, gl::TEXTURE_MIN_FILTER, min_filter);
-         gl::TexParameteri(TEX, gl::TEXTURE_MAG_FILTER, max_filter);
+         gl.raw.TexParameteri(TEX, gl::TEXTURE_WRAP_S, wrap);
+         gl.raw.TexParameteri(TEX, gl::TEXTURE_WRAP_T, wrap);
+         gl.raw
+            .TexParameteri(TEX, gl::TEXTURE_MIN_FILTER, min_filter);
+         gl.raw
+            .TexParameteri(TEX, gl::TEXTURE_MAG_FILTER, max_filter);
 
          let (base, size) = match_tex_format_gl(&tex.typ);
          let (width, height) = (tex.size.w as GLsizei, tex.size.h as GLsizei);
 
-         gl::TexImage2D(
+         gl.raw.TexImage2D(
             TEX,
             0,
             size,
@@ -299,20 +339,20 @@ impl Renderer for GLRenderer {
             gl::UNSIGNED_BYTE,
             &tex.bytes[0] as *const u8 as *const c_void,
          );
-         gl::GenerateMipmap(TEX);
+         gl.raw.GenerateMipmap(TEX);
       }
       id as u32
    }
    fn delete_texture(&self, id: u32) {
       unsafe {
-         gl::DeleteTextures(1, &id);
+         self.gl.raw.DeleteTextures(1, &id);
       }
    }
 
    fn get_uni_location(&self, id: u32, name: &str) -> u32 {
       unsafe {
          let c_name = CString::new(name).unwrap();
-         let location = gl::GetUniformLocation(id, c_name.as_ptr());
+         let location = self.gl.raw.GetUniformLocation(id, c_name.as_ptr());
          if location == -1 {
             panic!("uniform '{name}' does not exist!");
          } else {
@@ -330,28 +370,33 @@ impl Renderer for GLRenderer {
    fn set_uni_i32(&self, id: u32, name: &str, int: i32) {
       unsafe {
          let loc = self.get_uni_location(id, name) as GLint;
-         gl::Uniform1i(loc, int)
+         self.gl.raw.Uniform1i(loc, int)
       }
    }
    fn set_uni_m4f32(&self, id: u32, name: &str, matrix: Matrix4<f32>) {
       unsafe {
          let loc = self.get_uni_location(id, name) as GLint;
-         gl::UniformMatrix4fv(loc, 1, gl::FALSE, matrix.as_ptr())
+         self
+            .gl
+            .raw
+            .UniformMatrix4fv(loc, 1, gl::FALSE, matrix.as_ptr())
       }
    }
 
    //BUFFERS
    fn create_buffer(&self) -> (u32, u32) {
       let (mut v_id, mut b_id): (u32, u32) = (0, 0);
+      let gl = &self.gl;
       unsafe {
-         gl::GenVertexArrays(1, &mut v_id);
-         gl::GenBuffers(1, &mut b_id);
+         gl.raw.GenVertexArrays(1, &mut v_id);
+         gl.raw.GenBuffers(1, &mut b_id);
       }
       (v_id, b_id)
    }
    fn set_attr_layout(&self, attr: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize) {
+      let gl = &self.gl;
       unsafe {
-         gl::VertexAttribPointer(
+         gl.raw.VertexAttribPointer(
             attr_id,
             attr.elem_count as GLint,
             match_attr_type_gl(&attr.typ),
@@ -362,13 +407,13 @@ impl Renderer for GLRenderer {
                _ => local_offset as *const c_void,
             },
          );
-         gl::EnableVertexAttribArray(attr_id);
+         gl.raw.EnableVertexAttribArray(attr_id);
       }
    }
    fn fill_buffer(&self, v_id: u32, b_id: u32, buffer: &Vec<u8>) {
       unsafe {
          self.bind_buffer(v_id, b_id);
-         gl::BufferData(
+         self.gl.raw.BufferData(
             gl::ARRAY_BUFFER,
             (buffer.len() * 4) as GLsizeiptr,
             &buffer[0] as *const u8 as *const c_void,
@@ -380,7 +425,7 @@ impl Renderer for GLRenderer {
    fn fill_index_buffer(&self, id: u32, buffer: &Vec<u32>) {
       unsafe {
          self.bind_index_buffer(id);
-         gl::BufferData(
+         self.gl.raw.BufferData(
             gl::ELEMENT_ARRAY_BUFFER,
             (buffer.len() * size_of::<GLint>()) as GLsizeiptr,
             &buffer[0] as *const u32 as *const c_void,
@@ -390,35 +435,39 @@ impl Renderer for GLRenderer {
    }
 
    fn delete_buffer(&self, v_id: u32, b_id: u32) {
+      let gl = &self.gl;
       unsafe {
-         gl::DeleteVertexArrays(1, &v_id);
-         gl::DeleteBuffers(1, &b_id);
+         gl.raw.DeleteVertexArrays(1, &v_id);
+         gl.raw.DeleteBuffers(1, &b_id);
       }
    }
 
    fn create_index_buffer(&self) -> u32 {
       let mut id: u32 = 0;
       unsafe {
-         gl::GenBuffers(1, &mut id);
+         self.gl.raw.GenBuffers(1, &mut id);
       }
       id
    }
    fn delete_index_buffer(&self, id: u32) {
       unsafe {
-         gl::DeleteBuffers(1, &id);
+         self.gl.raw.DeleteBuffers(1, &id);
       }
    }
 
    //DRAW
    fn clear(&self) {
       unsafe {
-         gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+         self
+            .gl
+            .raw
+            .Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
       }
    }
    fn draw(&self, draw_mode: &DrawMode, index_count: u32) {
       let draw_mode = match_draw_mode_gl(draw_mode);
       unsafe {
-         gl::DrawElements(
+         self.gl.raw.DrawElements(
             draw_mode,
             index_count as GLsizei,
             gl::UNSIGNED_INT,
@@ -429,12 +478,8 @@ impl Renderer for GLRenderer {
    fn draw_no_index(&self, draw_mode: &DrawMode, vert_count: u32) {
       let draw_mode = match_draw_mode_gl(draw_mode);
       unsafe {
-         gl::DrawArrays(draw_mode, 0, vert_count as GLsizei);
+         self.gl.raw.DrawArrays(draw_mode, 0, vert_count as GLsizei);
       }
-   }
-
-   fn create_program_src(&self, vert: &str, frag: &str) -> u32 {
-      todo!()
    }
 }
 

@@ -1,26 +1,17 @@
 use crate::asset::ATTRInfo;
-use crate::engine::NEInitErrKind;
 use crate::renderer::{Renderer, ShaderType};
-use crate::{Cull, DrawMode, NEError, NEResult, NETexture, PolyMode, Size2D, Uniform, RGB};
+use crate::{Cull, DrawMode, NEResult, NETexture, PolyMode, Size2D, Uniform, RGB};
 use cgmath::Matrix4;
-use glfw::PWindow;
 
 #[derive(Copy, Clone)]
 pub(crate) struct VKRenderer;
 
 impl Renderer for VKRenderer {
-   fn init(&self, name: String, window: &mut PWindow) -> NEResult<()> {
-      if window.glfw.vulkan_supported() {
-         /**body**/
-         NEResult::OK(())
-      } else {
-         NEResult::ER(NEError::Init {
-            kind: NEInitErrKind::APIUnavailable(name),
-         })
-      }
+   fn info(&self) -> (String, String, String) {
+      todo!()
    }
 
-   fn info(&self) -> (String, String, String) {
+   fn log_info(&self) {
       todo!()
    }
 
@@ -169,10 +160,6 @@ impl Renderer for VKRenderer {
    }
 
    fn draw_no_index(&self, draw_mode: &DrawMode, vert_count: u32) {
-      todo!()
-   }
-
-   fn create_program_src(&self, vert: &str, frag: &str) -> u32 {
       todo!()
    }
 }
