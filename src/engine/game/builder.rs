@@ -1,6 +1,6 @@
 use crate::engine::{ButtonState, KeyBitMap, MouseBitMap};
 use crate::renderer::core::VKRenderer;
-use crate::renderer::{glrenderer_init, CamProj, NECamera, Renderer};
+use crate::renderer::{gl_renderer_init, CamProj, NECamera, Renderer};
 use crate::util::{NEError, NEResult};
 use crate::{
    NEEvents, NEGame, NERenderer, NEScene, NETime, NEWindow, ScreenCoord, ScreenOffset, Size2D,
@@ -153,7 +153,7 @@ fn init_nerve(
 )> {
    match api {
       RenderAPI::OpenGL => {
-         glfw.window_hint(WindowHint::ContextVersion(3, 3));
+         glfw.window_hint(WindowHint::ContextVersion(4, 6)); //FIX
          glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Compat));
          glfw.window_hint(WindowHint::Samples(Some(4)));
          glfw.window_hint(WindowHint::Decorated(decorated));
@@ -163,9 +163,9 @@ fn init_nerve(
                NEResult::OK((w, e, isf, s, ms)) => (w, e, isf, s, ms),
                NEResult::ER(e) => return NEResult::ER(e),
             };
-         let renderer = match glrenderer_init(&mut window) {
-            NEResult::OK(glr) => glr,
+         let renderer = match gl_renderer_init(&mut window) {
             NEResult::ER(e) => return NEResult::ER(e),
+            NEResult::OK(glr) => glr,
          };
          NEResult::OK((
             Box::new(renderer),

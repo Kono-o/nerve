@@ -1,4 +1,5 @@
 use crate::asset::{file, ATTRInfo, ReadBytes};
+use crate::util::gfx;
 use crate::{
    ansi, color, log_info, paths, DataType, DrawMode, NECamera, NEError, NEMesh, NEMeshAsset,
    NEResult, NEShader, NEShaderAsset, NETexture, RenderAPI, Size2D, Uniform, RGB,
@@ -24,7 +25,6 @@ pub(crate) enum ShaderType {
 }
 
 pub(crate) trait Renderer {
-   fn info(&self) -> (String, String, String);
    fn log_info(&self);
 
    //STATE
@@ -51,7 +51,7 @@ pub(crate) trait Renderer {
    fn create_shader(&self, src: &str, typ: ShaderType) -> NEResult<u32>;
    fn delete_shader(&self, id: u32);
 
-   //fn create_spv_program(&self, binary: Vec<u8>) -> NEResult<u32>;
+   fn create_spv_program(&self, binary: &Vec<u8>) -> NEResult<u32>;
    fn create_src_program(&self, vert: &str, frag: &str) -> NEResult<u32>;
    fn delete_program(&self, id: u32);
 
@@ -86,11 +86,7 @@ pub struct NERenderer {
 
    pub fallback_shader: NEShader,
 
-   pub gpu: String,
    pub api: RenderAPI,
-   pub api_ver: String,
-   pub glsl_ver: String,
-
    pub poly_mode: PolyMode,
    pub cull_face: Cull,
    pub bg_color: RGB,
@@ -106,7 +102,6 @@ impl NERenderer {
       cam_view: Matrix4<f32>,
       cam_proj: Matrix4<f32>,
    ) -> Self {
-      let (gpu, api_ver, glsl_ver) = core.info();
       let bg_color = color::OBSIDIAN;
       core.enable_depth(true);
 
@@ -115,10 +110,7 @@ impl NERenderer {
          cam_view,
          cam_proj,
          fallback_shader: NEShader::temporary(),
-         gpu,
          api,
-         api_ver,
-         glsl_ver,
          poly_mode: PolyMode::Filled,
          cull_face: Cull::AntiClock,
          bg_color,
@@ -150,12 +142,13 @@ impl NERenderer {
 }
 //PUBLIC
 impl NERenderer {
-   pub fn log_info(&self) {
+   pub fn log_backend_info(&self) {
       self.core.log_info();
-      log_info!("api: {} (glsl: {})", self.api.api_str(), self.glsl_ver);
-      log_info!("gpu: {}", self.gpu);
+   }
+   pub fn log_info(&self) {
+      log_info!("RENDERER");
       log_info!(
-         "mode: {}",
+         "> mode: {}",
          match self.poly_mode {
             PolyMode::Points => "POINTS",
             PolyMode::WireFrame => "WIREFRAME",
@@ -163,12 +156,12 @@ impl NERenderer {
          }
       );
       log_info!(
-         "cull: {}",
+         "> cull: {}",
          if self.culling {
             let cull_face = if matches!(self.cull_face, Cull::Clock) {
                "clockwise"
             } else {
-               "anti-clockwise"
+               "anti-clock"
             };
             format!("ON [{}]", cull_face)
          } else {
@@ -176,7 +169,7 @@ impl NERenderer {
          }
       );
       log_info!(
-         "msaa: {}",
+         "> msaa: {}\n",
          if self.msaa {
             format!("ON [{} samples]", self.msaa_samples)
          } else {
@@ -240,43 +233,36 @@ impl NERenderer {
    }
 
    pub fn compile(&self, asset: NEShaderAsset) -> NEResult<NEShader> {
-      let mut ve_src = String::new();
-      let mut fe_src = String::new();
-
-      let _binary = match asset {
+      let binary = match asset {
          NEShaderAsset::SPIRV { binary } => binary,
          NEShaderAsset::Source { name, v_src, f_src } => {
-            //let v_spv = match glsl_to_spv(&name, ShaderType::Vert, &v_src) {
-            //   NEResult::ER(e) => return NEResult::ER(e),
-            //   NEResult::OK(s) => s,
-            //};
-            //let f_spv = match glsl_to_spv(&name, ShaderType::Frag, &f_src) {
-            //   NEResult::ER(e) => return NEResult::ER(e),
-            //   NEResult::OK(s) => s,
-            //};
-
-            ve_src = v_src.clone();
-            fe_src = f_src.clone();
+            let v_spv = match glsl_to_spv(&name, ShaderType::Vert, &v_src) {
+               NEResult::ER(e) => return NEResult::ER(e),
+               NEResult::OK(s) => s,
+            };
+            let f_spv = match glsl_to_spv(&name, ShaderType::Frag, &f_src) {
+               NEResult::ER(e) => return NEResult::ER(e),
+               NEResult::OK(s) => s,
+            };
 
             let mut binary = Vec::new();
-            //binary.extend_from_slice(&v_spv);
-            //binary.extend_from_slice(&f_spv);
+            binary.extend_from_slice(&v_spv);
+            binary.extend_from_slice(&f_spv);
 
             let spv_path = paths::ASSET_SPV;
             let spv_name = format!("{name}.{}", paths::SPV_EX);
-            //match file::write_bytes_to_disk(spv_path, &spv_name, &binary) {
-            //   NEResult::ER(e) => return NEResult::ER(e),
-            //   _ => {}
-            //}
-
-            //CLEAR TMP
+            match file::write_bytes_to_disk(spv_path, &spv_name, &binary) {
+               NEResult::ER(e) => return NEResult::ER(e),
+               _ => {}
+            }
+            //CLEAR TMP HERE
             binary
          }
       };
 
-      let prog_id = match self.core.create_src_program(&ve_src, &fe_src) {
-         NEResult::OK(id) => id,
+      let prog_id = match self.core.create_spv_program(&binary) {
          NEResult::ER(e) => return NEResult::ER(e),
+         NEResult::OK(id) => id,
       };
       self.core.bind_program(prog_id);
 
@@ -524,7 +510,7 @@ fn glsl_to_spv(name: &str, typ: ShaderType, src: &str) -> NEResult<Vec<u8>> {
 }
 
 fn gen_spv_from_glsl_to_path(glsl_path: &str, spv_path: &str) -> NEResult<Vec<u8>> {
-   match std::process::Command::new("glslangValidator")
+   match std::process::Command::new(gfx::GLSL_VALIDATOR)
       .arg("-V")
       .arg(glsl_path)
       .arg("-o")

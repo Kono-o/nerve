@@ -1,4 +1,5 @@
 pub mod ansi;
 pub mod color;
-pub mod exit;
-pub mod paths;
+pub(crate) mod exit;
+pub(crate) mod gfx;
+pub(crate) mod paths;

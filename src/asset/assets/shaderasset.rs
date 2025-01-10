@@ -131,9 +131,9 @@ impl NEShaderAsset {
       NEShaderAsset::from_path("nerve/assets/glsl/fallback.glsl")
    }
 
-   pub fn from_src(v_src: &str, f_src: &str) -> NEShaderAsset {
+   pub fn from_src(name: &str, v_src: &str, f_src: &str) -> NEShaderAsset {
       let glsl = NEGLSL {
-         name: "".to_string(), //ALSO FIX
+         name: name.to_string(),
          v_src: v_src.to_string(),
          f_src: f_src.to_string(),
       };
@@ -225,7 +225,7 @@ impl NEShaderAsset {
 
    pub(crate) fn from_glsl(glsl: NEGLSL) -> NEShaderAsset {
       NEShaderAsset::Source {
-         name: "".to_string(), //FIX PLZ
+         name: glsl.name,
          v_src: glsl.v_src,
          f_src: glsl.f_src,
       }

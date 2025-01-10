@@ -7,10 +7,6 @@ use cgmath::Matrix4;
 pub(crate) struct VKRenderer;
 
 impl Renderer for VKRenderer {
-   fn info(&self) -> (String, String, String) {
-      todo!()
-   }
-
    fn log_info(&self) {
       todo!()
    }
@@ -87,9 +83,9 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   //fn create_spv_program(&self, binary: Vec<u8>) -> NEResult<u32> {
-   //   todo!()
-   //}
+   fn create_spv_program(&self, binary: &Vec<u8>) -> NEResult<u32> {
+      todo!()
+   }
 
    fn create_src_program(&self, vert: &str, frag: &str) -> NEResult<u32> {
       todo!()

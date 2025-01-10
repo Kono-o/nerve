@@ -1,8 +1,10 @@
+use crate::ansi;
 use crate::asset::{ATTRInfo, TexFormat};
 use crate::renderer::{Renderer, ShaderType};
+use crate::util::gfx;
 use crate::{
-   ATTRType, Cull, DrawMode, NECompileErrKind, NEError, NEResult, NETexture, PolyMode, Size2D,
-   TexFilter, TexWrap, Uniform, RGB,
+   log_info, ATTRType, Cull, DrawMode, NECompileErrKind, NEError, NEResult, NETexture, PolyMode,
+   Size2D, TexFilter, TexWrap, Uniform, RGB,
 };
 use cgmath::{Matrix, Matrix4};
 use glfw::{Context, PWindow};
@@ -12,56 +14,76 @@ use gll::{ContextInitError, HasContext};
 use std::ffi::{c_void, CString};
 use std::ptr;
 
-pub enum NEGLErrKind {
+pub enum NEOpenGLErrKind {
    NoActiveContext,
    CouldParseVersion(String),
    CStringFailed,
+   SPIRVNotFound,
+}
+
+pub struct GLInfo {
+   glsl_ver: String,
+   device: String,
+   spirv_compat: bool,
 }
 pub(crate) struct GLRenderer {
    gl: gl::Context,
+   info: GLInfo,
 }
 const TEX: u32 = gl::TEXTURE_2D;
 
-pub(crate) fn glrenderer_init(window: &mut PWindow) -> NEResult<GLRenderer> {
+pub(crate) fn gl_renderer_init(window: &mut PWindow) -> NEResult<GLRenderer> {
    window.make_current();
    unsafe {
       match gl::Context::load(|symbol| window.get_proc_address(symbol)) {
-         Ok(gl) => NEResult::OK(GLRenderer { gl }),
+         Ok(gl) => {
+            let device = gl.get_parameter_string(gl::RENDERER);
+            let glsl_ver = gl.get_parameter_string(gl::SHADING_LANGUAGE_VERSION);
+
+            let arb = &gl.extensions;
+            let mut spirv_compat = false;
+            if arb.contains(gfx::SPIRV_EXTENSIONS) && arb.contains(gfx::GL_SPIRV) {
+               //spirv_compat = true
+            } else {
+               return NEResult::ER(NEError::OpenGL {
+                  kind: NEOpenGLErrKind::SPIRVNotFound,
+               });
+            }
+
+            NEResult::OK(GLRenderer {
+               gl,
+               info: GLInfo {
+                  glsl_ver,
+                  device,
+                  spirv_compat,
+               },
+            })
+         }
          Err(e) => {
             let kind = match e {
-               ContextInitError::NoActiveContext => NEGLErrKind::NoActiveContext,
-               ContextInitError::CouldParseVersion(s) => NEGLErrKind::CouldParseVersion(s),
-               ContextInitError::CStringFailed => NEGLErrKind::CStringFailed,
+               ContextInitError::NoActiveContext => NEOpenGLErrKind::NoActiveContext,
+               ContextInitError::CouldParseVersion(s) => NEOpenGLErrKind::CouldParseVersion(s),
+               ContextInitError::CStringFailed => NEOpenGLErrKind::CStringFailed,
             };
-            NEResult::ER(NEError::GL { kind })
+            NEResult::ER(NEError::OpenGL { kind })
          }
       }
    }
 }
 
 impl Renderer for GLRenderer {
-   fn info(&self) -> (String, String, String) {
-      let gl = &self.gl;
-      unsafe {
-         (
-            gl.get_parameter_string(gl::RENDERER),                 //GPU
-            gl.get_parameter_string(gl::VERSION),                  //API VER
-            gl.get_parameter_string(gl::SHADING_LANGUAGE_VERSION), //GLSL VER
-         )
-      }
-   }
-
    fn log_info(&self) {
-      let v = &self.gl.version;
-      let arb = &self.gl.extensions;
-      println!("{}", v.vendor_info);
-      println!("OpenGL {}.{}", v.major, v.minor);
-      if arb.contains("GL_ARB_spirv_extensions") {
-         println!("spirv extensions found")
-      }
-      if arb.contains("GL_ARB_gl_spirv") {
-         println!("gl spirv found")
-      }
+      let (v0, v1) = (self.gl.version.major, self.gl.version.minor);
+      let spv = match self.info.spirv_compat {
+         true => "[with spirv]",
+         false => "",
+      };
+      let glsl = &self.info.glsl_ver;
+      let device = &self.info.device;
+      log_info!("BACKEND");
+      log_info!("> api: OpenGL {v0}.{v1}0 {spv}");
+      log_info!("> glsl: {glsl}");
+      log_info!("> gpu: {device}\n");
    }
 
    //STATE
@@ -220,33 +242,29 @@ impl Renderer for GLRenderer {
       unsafe { self.gl.raw.DeleteShader(id) }
    }
 
-   /**fn create_spv_program(&self, binary: Vec<u8>) -> NEResult<u32> {
+   fn create_spv_program(&self, binary: &Vec<u8>) -> NEResult<u32> {
       let log_len = 256;
       let mut log = Vec::with_capacity(log_len);
       let mut success = gl::FALSE as GLint;
+      let gl = &self.gl;
       unsafe {
-         let program = gl::CreateProgram();
-         let shader = gl::CreateShader(gl::VERTEX_SHADER); //DUMMY
-         gl::ShaderBinary(
+         let program = gl.raw.CreateProgram();
+         let shader = gl.raw.CreateShader(gl::VERTEX_SHADER); //DUMMY
+         gl.raw.ShaderBinary(
             1,
             &shader,
             gl::SHADER_BINARY_FORMAT_SPIR_V,
-            binary.as_ptr() as _,
-            binary.len() as _,
+            binary.as_ptr() as *const c_void,
+            binary.len() as GLsizei,
          );
-         gl::SpecializeShader(
-            shader,
-            std::ptr::null(),
-            0,
-            std::ptr::null(),
-            std::ptr::null(),
-         );
-         gl::AttachShader(program, shader);
-         gl::LinkProgram(program);
+         gl.raw
+            .SpecializeShader(shader, ptr::null(), 0, ptr::null(), ptr::null());
+         gl.raw.AttachShader(program, shader);
+         gl.raw.LinkProgram(program);
 
-         gl::GetProgramiv(program, gl::LINK_STATUS, &mut success);
+         gl.raw.GetProgramiv(program, gl::LINK_STATUS, &mut success);
          if success != gl::TRUE as GLint {
-            gl::GetProgramInfoLog(
+            gl.raw.GetProgramInfoLog(
                program,
                log_len as GLsizei,
                std::ptr::null_mut(),
@@ -262,7 +280,7 @@ impl Renderer for GLRenderer {
 
          NEResult::OK(program as u32)
       }
-   }**/
+   }
 
    fn create_src_program(&self, vert: &str, frag: &str) -> NEResult<u32> {
       let log_len = 256;

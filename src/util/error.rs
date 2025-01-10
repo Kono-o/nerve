@@ -1,7 +1,8 @@
 use crate::asset::{NEFileErrKind, NEGLSLErrKind, NEObjErrKind};
 use crate::engine::NEInitErrKind;
 use crate::util::consts::ansi;
-use crate::{log_fatal, log_warn, proc, NECompileErrKind, NEGLErrKind};
+use crate::util::gfx;
+use crate::{log_fatal, log_warn, proc, NECompileErrKind, NEOpenGLErrKind};
 
 #[derive(Copy, Clone)]
 pub enum NEErrorSeverity {
@@ -13,8 +14,8 @@ pub enum NEError {
    Init {
       kind: NEInitErrKind,
    },
-   GL {
-      kind: NEGLErrKind,
+   OpenGL {
+      kind: NEOpenGLErrKind,
    },
    File {
       kind: NEFileErrKind,
@@ -64,14 +65,19 @@ impl NEError {
             severe = NEErrorSeverity::Fatal;
             format!("(init) -> {kind_msg}!")
          }
-         NEError::GL { kind } => {
+         NEError::OpenGL { kind } => {
             let kind_msg = match kind {
-               NEGLErrKind::NoActiveContext => "no active context found",
-               NEGLErrKind::CouldParseVersion(s) => &format!("could not parse version {s}"),
-               NEGLErrKind::CStringFailed => "cstring failed",
+               NEOpenGLErrKind::NoActiveContext => "no active context found",
+               NEOpenGLErrKind::CouldParseVersion(s) => &format!("could not parse version {s}"),
+               NEOpenGLErrKind::CStringFailed => "cstring failed",
+               NEOpenGLErrKind::SPIRVNotFound => &format!(
+                  "could not find [{}] or [{}]",
+                  gfx::SPIRV_EXTENSIONS,
+                  gfx::GL_SPIRV
+               ),
             };
             severe = NEErrorSeverity::Fatal;
-            format!("(init) -> {kind_msg}!")
+            format!("(opengl) -> {kind_msg}!")
          }
          NEError::File { kind, path } => {
             let kind_msg = match kind {
@@ -108,11 +114,13 @@ impl NEError {
          }
          NEError::Compile { kind, path, msg } => {
             let kind_msg = match kind {
-               NECompileErrKind::NoGLSLValidator => {
-                  "[glsl-lang-validator] does not exist, install Vulkan SDK from https://vulkan.lunarg.com/sdk/home"
-               }
-               NECompileErrKind::CompileFailed => {"compilation failed"}
-               NECompileErrKind::CStringFailed => {"could not parse src into c-str"}
+               NECompileErrKind::NoGLSLValidator => &format!(
+                  "[{}] does not exist, install Vulkan SDK from {}",
+                  gfx::GLSL_VALIDATOR,
+                  gfx::VULKAN_SDK_URL
+               ),
+               NECompileErrKind::CompileFailed => "compilation failed",
+               NECompileErrKind::CStringFailed => "could not parse src into c-str",
             };
             severe = NEErrorSeverity::Fatal;
             if path.len() == 0 {
