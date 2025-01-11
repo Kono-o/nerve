@@ -1,4 +1,4 @@
-use crate::util::NEError;
+use crate::utility::NEError;
 
 pub enum NEResult<N> {
    OK(N),

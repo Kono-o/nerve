@@ -1,4 +1,4 @@
-use crate::util::{NEError, NEResult};
+use crate::utility::{NEError, NEResult};
 use crate::NEOption;
 use std::fs;
 use std::io::{ErrorKind, Read, Write};

@@ -1,6 +1,6 @@
 use crate::asset::{ATTRInfo, TexFormat};
 use crate::renderer::{Renderer, ShaderType};
-use crate::util::gpu;
+use crate::utility::gpu;
 use crate::{ansi, NEShaderAsset, NETexture, TexFilter, TexWrap, RGB};
 use crate::{
    log_info, ATTRType, Cull, DrawMode, NECompileErrKind, NEError, NEResult, PolyMode, Size2D,

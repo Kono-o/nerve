@@ -3,9 +3,9 @@
 mod asset;
 mod engine;
 mod renderer;
-mod util;
+mod utility;
 
 pub use asset::*;
 pub use engine::*;
 pub use renderer::*;
-pub use util::*;
+pub use utility::*;

@@ -2,7 +2,7 @@ use crate::engine::game::cycle::NECycle;
 use crate::engine::{ButtonState, KeyBitMap, MouseBitMap};
 use crate::renderer::core::VKRenderer;
 use crate::renderer::{gl_renderer_init, CamProj, NECamera, Renderer};
-use crate::util::{NEError, NEResult};
+use crate::utility::{NEError, NEResult};
 use crate::{
    NEEvents, NEGame, NERenderer, NEScene, NETime, NEWindow, ScreenCoord, ScreenOffset, Size2D,
 };

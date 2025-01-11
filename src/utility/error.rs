@@ -1,8 +1,8 @@
 use crate::asset::file::NEFileErrKind;
 use crate::asset::NEAssetErrKind;
 use crate::engine::NEInitErrKind;
-use crate::util::consts::ansi;
-use crate::util::gpu;
+use crate::utility::consts::ansi;
+use crate::utility::gpu;
 use crate::{env, log_fatal, log_warn, proc, NECompileErrKind, NEOpenGLErrKind};
 
 #[derive(Copy, Clone)]
