@@ -28,6 +28,6 @@ impl<N> NEResult<N> {
 }
 
 pub enum NEOption<N> {
-   Yes(N),
-   Nope,
+   Exists(N),
+   Empty,
 }

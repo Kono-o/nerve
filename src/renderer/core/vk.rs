@@ -1,6 +1,8 @@
 use crate::asset::ATTRInfo;
 use crate::renderer::{Renderer, ShaderType};
-use crate::{Cull, DrawMode, NEResult, NETexture, PolyMode, Size2D, Uniform, RGB};
+use crate::{
+   Cull, DrawMode, NEResult, NEShaderAsset, NETexture, PolyMode, Size2D, Uniform, RGB,
+};
 use cgmath::Matrix4;
 
 #[derive(Copy, Clone)]
@@ -75,8 +77,12 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
+   fn create_spv_shader(&self, spv: &Vec<u8>, typ: ShaderType) -> NEResult<u32> {
+      todo!()
+   }
+
    //SHADERS
-   fn create_shader(&self, src: &str, typ: ShaderType) -> NEResult<u32> {
+   fn create_src_shader(&self, src: &str, typ: ShaderType) -> NEResult<u32> {
       todo!()
    }
 
@@ -84,7 +90,7 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn create_spv_program(&self, binary: &Vec<u8>, x: &Vec<u8>) -> NEResult<u32> {
+   fn create_spv_program(&self, nshdr: &NEShaderAsset) -> NEResult<u32> {
       todo!()
    }
 

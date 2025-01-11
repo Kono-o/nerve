@@ -34,9 +34,9 @@ layout (location = 2) in vec2 fUVM;
 
 layout (location = 0) out vec4 frag;
 
-layout (location = 0) uniform vec3 uLight = normalize(vec3(0.5, 1.0, 0.3));
+layout (location = 3) uniform vec3 uLight = normalize(vec3(0.5, 1.0, 0.3));
 
-layout (location = 1) uniform sampler2D tDif1;
+uniform sampler2D tDif1;
 
 void main() {
 

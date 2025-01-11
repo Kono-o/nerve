@@ -157,6 +157,8 @@ fn init_nerve(
          glfw.window_hint(WindowHint::OpenGlProfile(OpenGlProfileHint::Compat));
          glfw.window_hint(WindowHint::Samples(Some(4)));
          glfw.window_hint(WindowHint::Decorated(decorated));
+         glfw.window_hint(WindowHint::Visible(false));
+         glfw.window_hint(WindowHint::CenterCursor(true));
 
          let (mut window, events, is_full, size, monitor_size) =
             match window_from(glfw, mode, title) {
@@ -178,6 +180,9 @@ fn init_nerve(
       }
       RenderAPI::Vulkan(_v0, _v1) => {
          glfw.window_hint(WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
+         glfw.window_hint(WindowHint::Decorated(decorated));
+         glfw.window_hint(WindowHint::Visible(false));
+         glfw.window_hint(WindowHint::CenterCursor(true));
 
          let (window, events, is_full, size, monitor_size) = match window_from(glfw, mode, title) {
             NEResult::OK((w, e, isf, s, ms)) => (w, e, isf, s, ms),

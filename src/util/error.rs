@@ -1,4 +1,4 @@
-use crate::asset::{NEFileErrKind, NEGLSLErrKind, NEObjErrKind};
+use crate::asset::{NEAssetErrKind, NEFileErrKind, NEObjErrKind};
 use crate::engine::NEInitErrKind;
 use crate::util::consts::ansi;
 use crate::util::env;
@@ -25,8 +25,8 @@ pub enum NEError {
       kind: NEObjErrKind,
       path: String,
    },
-   GLSL {
-      kind: NEGLSLErrKind,
+   Asset {
+      kind: NEAssetErrKind,
       path: String,
    },
    Compile {
@@ -41,6 +41,41 @@ pub enum NEError {
 }
 
 impl NEError {
+   pub(crate) fn vert_missing(path: &str) -> NEError {
+      NEError::Asset {
+         kind: NEAssetErrKind::VertEmpty,
+         path: path.to_string(),
+      }
+   }
+
+   pub(crate) fn frag_missing(path: &str) -> NEError {
+      NEError::Asset {
+         kind: NEAssetErrKind::FragEmpty,
+         path: path.to_string(),
+      }
+   }
+
+   pub(crate) fn file_missing(path: &str) -> NEError {
+      NEError::File {
+         kind: NEFileErrKind::Missing,
+         path: path.to_string(),
+      }
+   }
+
+   pub(crate) fn file_invalid(path: &str) -> NEError {
+      NEError::File {
+         kind: NEFileErrKind::NotValid,
+         path: path.to_string(),
+      }
+   }
+
+   pub(crate) fn file_unsupported(path: &str) -> NEError {
+      NEError::File {
+         kind: NEFileErrKind::Unsupported,
+         path: path.to_string(),
+      }
+   }
+
    pub fn custom(severity: NEErrorSeverity, msg: &str) -> NEError {
       NEError::Custom {
          severity,
@@ -81,13 +116,11 @@ impl NEError {
          }
          NEError::File { kind, path } => {
             let kind_msg = match kind {
-               NEFileErrKind::NoFile => "file does not exist",
-               NEFileErrKind::NoPath => "path does not exist",
+               NEFileErrKind::Missing => "file does not exist",
+               NEFileErrKind::NotValid => "invalid file",
 
-               NEFileErrKind::NotValidPath => "invalid path",
-               NEFileErrKind::NotValidName => "invalid name",
-
-               NEFileErrKind::CouldNotCreate => "could not create file",
+               NEFileErrKind::CouldNotMake => "could not create file",
+               NEFileErrKind::CouldNotRead => "could not read file",
                NEFileErrKind::CouldNotWrite => "could not write to file",
 
                NEFileErrKind::NoPerms => "no permissions",
@@ -105,9 +138,10 @@ impl NEError {
             severe = NEErrorSeverity::Fatal;
             format!("(obj) -> {kind_msg}! [{path}]")
          }
-         NEError::GLSL { kind, path } => {
+         NEError::Asset { kind, path } => {
             let kind_msg = match kind {
-               NEGLSLErrKind::IsEmpty => "has no src",
+               NEAssetErrKind::VertEmpty => "has no vertex src",
+               NEAssetErrKind::FragEmpty => "has no fragment src",
             };
             severe = NEErrorSeverity::Fatal;
             format!("(src) -> {kind_msg}! [{path}]")
@@ -121,11 +155,12 @@ impl NEError {
                ),
                NECompileErrKind::GLSLCompileFailed => "compilation failed",
                NECompileErrKind::CreateProgramFailed => "program creation failed",
+               NECompileErrKind::CreateShaderFailed => "shader creation failed",
                NECompileErrKind::CStringFailed => "could not parse src into c-str",
             };
             severe = NEErrorSeverity::Fatal;
-            if path.len() == 0 {
-               format!("(spirv) -> {kind_msg}! {msg}")
+            if msg.len() == 0 {
+               format!("(spirv) -> {kind_msg}! [{path}]")
             } else {
                format!("(spirv) -> {kind_msg}! {msg} [{path}]")
             }

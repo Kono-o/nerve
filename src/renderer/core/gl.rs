@@ -1,10 +1,10 @@
-use crate::ansi;
 use crate::asset::{ATTRInfo, TexFormat};
 use crate::renderer::{Renderer, ShaderType};
 use crate::util::env;
+use crate::{ansi, NEShaderAsset, NETexture, TexFilter, TexWrap, RGB};
 use crate::{
-   log_info, ATTRType, Cull, DrawMode, NECompileErrKind, NEError, NEResult, NETexture, PolyMode,
-   Size2D, TexFilter, TexWrap, Uniform, RGB,
+   log_info, ATTRType, Cull, DrawMode, NECompileErrKind, NEError, NEResult, PolyMode, Size2D,
+   Uniform,
 };
 use cgmath::{Matrix, Matrix4};
 use glfw::{Context, PWindow};
@@ -199,132 +199,111 @@ impl Renderer for GLRenderer {
       }
    }
 
+   fn create_spv_shader(&self, spv: &Vec<u8>, typ: ShaderType) -> NEResult<u32> {
+      let gl = &self.gl;
+      unsafe {
+         let shader = gl.raw.CreateShader(gl_match_shader_type(&typ));
+         gl.raw.ShaderBinary(
+            1,
+            &shader,
+            gl::SHADER_BINARY_FORMAT_SPIR_V,
+            &spv[0] as *const u8 as *const c_void,
+            spv.len() as GLsizei,
+         );
+         let n = ptr::null();
+         let entry = CString::new("main").unwrap(); //unwrap is ok here coz "main" is literal
+         gl.raw.SpecializeShader(shader, entry.as_ptr(), 0, n, n);
+
+         match gl_shader_compile_failure(shader, gl) {
+            NEResult::OK(_) => NEResult::OK(shader as u32),
+            NEResult::ER(e) => NEResult::ER(e),
+         }
+      }
+   }
+
    //SHADERS
-   fn create_shader(&self, src: &str, typ: ShaderType) -> NEResult<u32> {
-      let log_len = 512;
-      let mut log = Vec::with_capacity(log_len);
-      let mut success = gl::FALSE as GLint;
+   fn create_src_shader(&self, src: &str, typ: ShaderType) -> NEResult<u32> {
       let src = match CString::new(src.as_bytes()) {
          Ok(s) => s,
          Err(_) => {
             return NEResult::ER(NEError::Compile {
                kind: NECompileErrKind::CStringFailed,
                path: "".to_string(),
-               msg: "".to_string(),
+               msg: "src".to_string(),
             })
          }
       };
+      println!("making sh");
       let gl = &self.gl;
       unsafe {
-         let shader = gl.raw.CreateShader(match_shader_type_gl(&typ));
+         let shader = gl.raw.CreateShader(gl_match_shader_type(&typ));
          gl.raw.ShaderSource(shader, 1, &src.as_ptr(), ptr::null());
          gl.raw.CompileShader(shader);
-         log.set_len(log_len - 1);
-         gl.raw.GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
-         if success != gl::TRUE as GLint {
-            gl.raw.GetShaderInfoLog(
-               shader,
-               log_len as GLsizei,
-               ptr::null_mut(),
-               log.as_mut_ptr() as *mut GLchar,
-            );
-            let log = std::str::from_utf8(&log).unwrap_or("");
-            return NEResult::ER(NEError::Compile {
-               kind: NECompileErrKind::CreateProgramFailed,
-               path: "".to_string(),
-               msg: log.to_string(),
-            });
+
+         match gl_shader_compile_failure(shader, gl) {
+            NEResult::OK(_) => NEResult::OK(shader as u32),
+            NEResult::ER(e) => NEResult::ER(e),
          }
-         NEResult::OK(shader as u32)
       }
    }
+
    fn delete_shader(&self, id: u32) {
       unsafe { self.gl.raw.DeleteShader(id) }
    }
 
-   fn create_spv_program(&self, v_bin: &Vec<u8>, f_bin: &Vec<u8>) -> NEResult<u32> {
-      return NEResult::ER(NEError::Compile {
-         kind: NECompileErrKind::CreateProgramFailed,
-         path: "".to_string(),
-         msg: "lo".to_string(),
-      });
-      let log_len = 256;
-      let mut log = Vec::with_capacity(log_len);
-      let mut success = gl::FALSE as GLint;
+   fn create_spv_program(&self, nshdr: &NEShaderAsset) -> NEResult<u32> {
       let gl = &self.gl;
       unsafe {
          let program = gl.raw.CreateProgram();
-         let shader = gl.raw.CreateShader(gl::VERTEX_SHADER); //DUMMY
-         gl.raw.ShaderBinary(
-            1,
-            &shader,
-            gl::SHADER_BINARY_FORMAT_SPIR_V,
-            v_bin.as_ptr() as *const c_void,
-            v_bin.len() as GLsizei,
-         );
-         gl.raw
-            .SpecializeShader(shader, ptr::null(), 0, ptr::null(), ptr::null());
-         gl.raw.AttachShader(program, shader);
-         gl.raw.LinkProgram(program);
-
-         gl.raw.GetProgramiv(program, gl::LINK_STATUS, &mut success);
-         if success != gl::TRUE as GLint {
-            gl.raw.GetProgramInfoLog(
-               program,
-               log_len as GLsizei,
-               std::ptr::null_mut(),
-               log.as_mut_ptr() as *mut GLchar,
-            );
-            let log = std::str::from_utf8(&log).unwrap_or("");
-            return NEResult::ER(NEError::Compile {
-               kind: NECompileErrKind::CreateProgramFailed,
-               path: "".to_string(),
-               msg: log.to_string(),
-            });
-         }
-
-         NEResult::OK(program as u32)
-      }
-   }
-
-   fn create_src_program(&self, vert: &str, frag: &str) -> NEResult<u32> {
-      let log_len = 256;
-      let mut log = Vec::with_capacity(log_len);
-      let mut success = gl::FALSE as GLint;
-      let gl = &self.gl;
-      unsafe {
-         let program = gl.raw.CreateProgram();
-         let vert_shader = match self.create_shader(vert, ShaderType::Vert) {
+         let v_shader = match self.create_spv_shader(&nshdr.v_spv, ShaderType::Vert) {
             NEResult::ER(e) => return NEResult::ER(e),
             NEResult::OK(vs) => vs,
          };
-         let frag_shader = match self.create_shader(frag, ShaderType::Frag) {
+         let f_shader = match self.create_spv_shader(&nshdr.f_spv, ShaderType::Frag) {
             NEResult::ER(e) => return NEResult::ER(e),
             NEResult::OK(fs) => fs,
          };
 
-         gl.raw.AttachShader(program, vert_shader);
-         gl.raw.AttachShader(program, frag_shader);
+         gl.raw.AttachShader(program, v_shader);
+         gl.raw.AttachShader(program, f_shader);
          gl.raw.LinkProgram(program);
 
-         gl.raw.GetProgramiv(program, gl::LINK_STATUS, &mut success);
-         if success != gl::TRUE as GLint {
-            gl.raw.GetProgramInfoLog(
-               program,
-               log_len as GLsizei,
-               ptr::null_mut(),
-               log.as_mut_ptr() as *mut GLchar,
-            );
-            let log = std::str::from_utf8(&log).unwrap_or("");
-            return NEResult::ER(NEError::Compile {
-               kind: NECompileErrKind::CreateProgramFailed,
-               path: "".to_string(),
-               msg: log.to_string(),
-            });
+         match gl_program_link_failure(program, gl) {
+            NEResult::ER(e) => NEResult::ER(e),
+            NEResult::OK(_) => {
+               self.delete_shader(v_shader);
+               self.delete_shader(f_shader);
+               NEResult::OK(program as u32)
+            }
          }
-         self.delete_shader(vert_shader);
-         self.delete_shader(frag_shader);
-         NEResult::OK(program as u32)
+      }
+   }
+
+   fn create_src_program(&self, vert: &str, frag: &str) -> NEResult<u32> {
+      let gl = &self.gl;
+      unsafe {
+         let program = gl.raw.CreateProgram();
+         let v_shader = match self.create_src_shader(vert, ShaderType::Vert) {
+            NEResult::ER(e) => return NEResult::ER(e),
+            NEResult::OK(vs) => vs,
+         };
+         let f_shader = match self.create_src_shader(frag, ShaderType::Frag) {
+            NEResult::ER(e) => return NEResult::ER(e),
+            NEResult::OK(fs) => fs,
+         };
+
+         gl.raw.AttachShader(program, v_shader);
+         gl.raw.AttachShader(program, f_shader);
+         gl.raw.LinkProgram(program);
+
+         match gl_program_link_failure(program, gl) {
+            NEResult::ER(e) => NEResult::ER(e),
+            NEResult::OK(_) => {
+               self.delete_shader(v_shader);
+               self.delete_shader(f_shader);
+               NEResult::OK(program as u32)
+            }
+         }
       }
    }
    fn delete_program(&self, id: u32) {
@@ -338,8 +317,8 @@ impl Renderer for GLRenderer {
          gl.raw.GenTextures(1, &mut id);
          self.bind_texture_at(id, 0);
 
-         let wrap = match_tex_wrap_gl(&tex.wrap);
-         let (min_filter, max_filter) = match_tex_filter_gl(&tex.filter);
+         let wrap = gl_match_tex_wrap(&tex.wrap);
+         let (min_filter, max_filter) = gl_match_tex_filter(&tex.filter);
 
          gl.raw.TexParameteri(TEX, gl::TEXTURE_WRAP_S, wrap);
          gl.raw.TexParameteri(TEX, gl::TEXTURE_WRAP_T, wrap);
@@ -348,7 +327,7 @@ impl Renderer for GLRenderer {
          gl.raw
             .TexParameteri(TEX, gl::TEXTURE_MAG_FILTER, max_filter);
 
-         let (base, size) = match_tex_format_gl(&tex.typ);
+         let (base, size) = gl_match_tex_format(&tex.typ);
          let (width, height) = (tex.size.w as GLsizei, tex.size.h as GLsizei);
 
          gl.raw.TexImage2D(
@@ -422,7 +401,7 @@ impl Renderer for GLRenderer {
          gl.raw.VertexAttribPointer(
             attr_id,
             attr.elem_count as GLint,
-            match_attr_type_gl(&attr.typ),
+            gl_match_attr_type(&attr.typ),
             gl::FALSE,
             stride as GLsizei,
             match local_offset {
@@ -488,7 +467,7 @@ impl Renderer for GLRenderer {
       }
    }
    fn draw(&self, draw_mode: &DrawMode, index_count: u32) {
-      let draw_mode = match_draw_mode_gl(draw_mode);
+      let draw_mode = gl_match_draw_mode(draw_mode);
       unsafe {
          self.gl.raw.DrawElements(
             draw_mode,
@@ -499,14 +478,14 @@ impl Renderer for GLRenderer {
       }
    }
    fn draw_no_index(&self, draw_mode: &DrawMode, vert_count: u32) {
-      let draw_mode = match_draw_mode_gl(draw_mode);
+      let draw_mode = gl_match_draw_mode(draw_mode);
       unsafe {
          self.gl.raw.DrawArrays(draw_mode, 0, vert_count as GLsizei);
       }
    }
 }
 
-fn match_draw_mode_gl(dm: &DrawMode) -> GLenum {
+fn gl_match_draw_mode(dm: &DrawMode) -> GLenum {
    match dm {
       DrawMode::Points => gl::POINTS,
       DrawMode::Lines => gl::LINES,
@@ -514,13 +493,13 @@ fn match_draw_mode_gl(dm: &DrawMode) -> GLenum {
       DrawMode::Strip => gl::TRIANGLE_STRIP,
    }
 }
-fn match_shader_type_gl(t: &ShaderType) -> GLenum {
+fn gl_match_shader_type(t: &ShaderType) -> GLenum {
    match t {
       ShaderType::Vert => gl::VERTEX_SHADER,
       ShaderType::Frag => gl::FRAGMENT_SHADER,
    }
 }
-fn match_tex_format_gl(tf: &TexFormat) -> (GLenum, GLint) {
+fn gl_match_tex_format(tf: &TexFormat) -> (GLenum, GLint) {
    let base = match tf {
       TexFormat::R(_) => gl::RED,
       TexFormat::RG(_) => gl::RG,
@@ -543,14 +522,14 @@ fn match_tex_format_gl(tf: &TexFormat) -> (GLenum, GLint) {
    };
    (base, sized as GLint)
 }
-fn match_tex_filter_gl(tf: &TexFilter) -> (GLint, GLint) {
+fn gl_match_tex_filter(tf: &TexFilter) -> (GLint, GLint) {
    let (min, max) = match tf {
       TexFilter::Closest => (gl::NEAREST_MIPMAP_NEAREST, gl::NEAREST),
       TexFilter::Linear => (gl::LINEAR_MIPMAP_LINEAR, gl::LINEAR),
    };
    (min as GLint, max as GLint)
 }
-fn match_tex_wrap_gl(tf: &TexWrap) -> GLint {
+fn gl_match_tex_wrap(tf: &TexWrap) -> GLint {
    let wrap = match tf {
       TexWrap::Repeat => gl::REPEAT,
       TexWrap::Extend => gl::CLAMP_TO_EDGE,
@@ -558,7 +537,7 @@ fn match_tex_wrap_gl(tf: &TexWrap) -> GLint {
    };
    wrap as GLint
 }
-fn match_attr_type_gl(attr_type: &ATTRType) -> GLenum {
+fn gl_match_attr_type(attr_type: &ATTRType) -> GLenum {
    match attr_type {
       ATTRType::I8 => gl::BYTE,
       ATTRType::U8 => gl::UNSIGNED_BYTE,
@@ -568,5 +547,67 @@ fn match_attr_type_gl(attr_type: &ATTRType) -> GLenum {
       ATTRType::U32 => gl::UNSIGNED_INT,
       ATTRType::F32 => gl::FLOAT,
       ATTRType::F64 => gl::DOUBLE,
+   }
+}
+
+unsafe fn gl_shader_compile_failure(shader: GLuint, gl: &gl::Context) -> NEResult<()> {
+   let mut success = gl::FALSE as GLint;
+   gl.raw.GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
+   if success != gl::TRUE as GLint {
+      let mut log_len = 0;
+      gl.raw
+         .GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut log_len);
+      println!("shad {}", log_len);
+      let mut log = Vec::new();
+      log.resize(log_len as usize - 1, 0);
+
+      gl.raw.GetShaderInfoLog(
+         shader,
+         log_len as GLsizei,
+         ptr::null_mut(),
+         log.as_mut_ptr() as *mut GLchar,
+      );
+      println!("{:?}", log);
+      let msg = std::str::from_utf8(&log)
+         .unwrap_or("unreachable-log")
+         .to_string();
+      NEResult::ER(NEError::Compile {
+         kind: NECompileErrKind::CreateShaderFailed,
+         path: "".to_string(),
+         msg,
+      })
+   } else {
+      NEResult::OK(())
+   }
+}
+
+unsafe fn gl_program_link_failure(program: GLuint, gl: &gl::Context) -> NEResult<()> {
+   let mut success = gl::FALSE as GLint;
+   gl.raw.GetProgramiv(program, gl::LINK_STATUS, &mut success);
+   if success != gl::TRUE as GLint {
+      let mut log_len = 0;
+      gl.raw
+         .GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut log_len);
+      println!("prog {}", log_len);
+      let mut log = Vec::new();
+      log.resize(log_len as usize - 1, 0);
+
+      gl.raw.GetProgramInfoLog(
+         program,
+         log_len as GLsizei,
+         ptr::null_mut(),
+         log.as_mut_ptr() as *mut GLchar,
+      );
+      println!("{:?}", log);
+      let msg = std::str::from_utf8(&log)
+         .unwrap_or("unreachable-log")
+         .to_string();
+      NEResult::ER(NEError::Compile {
+         kind: NECompileErrKind::CreateProgramFailed,
+         path: "".to_string(),
+         msg,
+      })
+   } else {
+      NEResult::OK(())
    }
 }

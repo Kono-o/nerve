@@ -25,7 +25,7 @@ impl NEMeshAsset {
       let pathbuf = PathBuf::from(path);
 
       let not_valid = NEResult::ER(NEError::File {
-         kind: NEFileErrKind::NotValidPath,
+         kind: NEFileErrKind::NotValid,
          path: path.to_string(),
       });
 

@@ -2,7 +2,7 @@ use crate::asset::io::file;
 use crate::util::{NEError, NEResult};
 use crate::{ColATTR, Indices, NrmATTR, PosATTR, UVMATTR};
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
+use std::io::BufRead;
 
 trait ParseWords {
    fn parse_2_to_f32(&self) -> [f32; 2];
@@ -63,14 +63,13 @@ impl NEObj {
       let mut nrm_data = Vec::new();
       let mut verts = HashMap::new();
 
-      let obj_file = match file::find_on_disk(path) {
+      let obj_src = match file::read_as_string(path) {
          NEResult::OK(of) => of,
          NEResult::ER(e) => return NEResult::ER(e),
       };
-      let obj_src = BufReader::new(obj_file);
 
-      for line_res in obj_src.lines() {
-         let line = line_res.unwrap_or(" ".to_string());
+      for line in obj_src.lines() {
+         let line = line.trim();
          let words = line.split(' ').collect::<Vec<&str>>();
          if words.is_empty() {
             continue;

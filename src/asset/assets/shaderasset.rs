@@ -1,266 +1,246 @@
-use crate::ansi;
-use crate::asset::{file, NEFileErrKind, ReadBytes, NEGLSL};
-use crate::util::ex;
-use crate::{log_info, path, NEError, NEResult, Size2D};
-use png::{BitDepth, ColorType};
-use std::fs::File;
-use std::path::PathBuf;
+use crate::asset::file;
+use crate::renderer::ShaderType;
+use crate::util::{env, ex};
+use crate::{path, DataType, NECompileErrKind, NEError, NEOption, NEResult};
 
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum TexFormat {
-   R(u8), //(bit depth)
-   RG(u8),
-   RGB(u8),
-   RGBA(u8),
-   Palette(u8),
+pub struct NEShaderAsset {
+   pub(crate) path: String,
+   pub(crate) v_spv: Vec<u8>,
+   pub(crate) f_spv: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum TexFilter {
-   Closest,
-   Linear,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum TexWrap {
-   Repeat,
-   Extend,
-   Clip,
-}
-
-impl TexFormat {
-   pub(crate) fn bit_depth(&self) -> u8 {
-      *match self {
-         TexFormat::R(b) => b,
-         TexFormat::RG(b) => b,
-         TexFormat::RGB(b) => b,
-         TexFormat::RGBA(b) => b,
-         TexFormat::Palette(b) => b,
-      }
-   }
-   pub(crate) fn elem_count(&self) -> u8 {
-      match self {
-         TexFormat::R(_) => 1,
-         TexFormat::RG(_) => 2,
-         TexFormat::RGB(_) => 3,
-         TexFormat::RGBA(_) => 4,
-         TexFormat::Palette(_) => 3,
-      }
-   }
-}
-
-pub struct NETexture {
-   pub(crate) exists: bool,
-   pub(crate) bytes: Vec<u8>,
-   pub(crate) bit_depth: u8,
-   pub(crate) pixel_size: u8,
-
-   pub(crate) typ: TexFormat,
-   pub(crate) filter: TexFilter,
-   pub(crate) wrap: TexWrap,
-   pub(crate) size: Size2D,
-}
-
-impl NETexture {
-   pub fn empty() -> NETexture {
-      NETexture {
-         bytes: Vec::new(),
-         exists: false,
-         typ: TexFormat::RGB(8),
-         filter: TexFilter::Closest,
-         wrap: TexWrap::Repeat,
-         size: Size2D::empty(),
-         bit_depth: 0,
-         pixel_size: 0,
-      }
-   }
-
-   pub fn from(tex_path: &str, filter: TexFilter, wrap: TexWrap) -> NETexture {
-      let mut tex = match File::open(tex_path) {
-         Ok(file) => file,
-         Err(error) => panic!("{tex_path}: {error}"),
-      };
-      let decoder = png::Decoder::new(tex);
-      let mut reader = decoder.read_info().unwrap();
-      let mut bytes = vec![0; reader.output_buffer_size()];
-      let info = reader.next_frame(&mut bytes).unwrap();
-
-      let bit_depth = match info.bit_depth {
-         BitDepth::One => 1,
-         BitDepth::Two => 2,
-         BitDepth::Four => 4,
-         BitDepth::Eight => 8,
-         BitDepth::Sixteen => 16,
-      };
-
-      let tex_fmt = match info.color_type {
-         ColorType::Grayscale => TexFormat::R(bit_depth),
-         ColorType::GrayscaleAlpha => TexFormat::RG(bit_depth),
-         ColorType::Rgb => TexFormat::RGB(bit_depth),
-         ColorType::Indexed => TexFormat::Palette(bit_depth),
-         ColorType::Rgba => TexFormat::RGBA(bit_depth),
-      };
-
-      let mut pixel_size = tex_fmt.elem_count() * bit_depth;
-
-      let size = Size2D::from(info.width, info.height);
-      NETexture {
-         bytes,
-         exists: true,
-         size,
-         bit_depth,
-         typ: tex_fmt,
-         pixel_size,
-         filter,
-         wrap,
-      }
-   }
-}
-
-pub enum NEShaderAsset {
-   SPIRV {
-      v_bin: Vec<u8>,
-      f_bin: Vec<u8>,
-   },
-   Source {
-      name: String,
-      v_src: String,
-      f_src: String,
-   },
+pub(crate) enum NEAssetErrKind {
+   VertEmpty,
+   FragEmpty,
 }
 
 impl NEShaderAsset {
-   pub fn fallback() -> NEResult<NEShaderAsset> {
+   pub(crate) fn fallback() -> NEResult<NEShaderAsset> {
       NEShaderAsset::from_path("nerve/assets/glsl/fallback.glsl")
    }
 
    pub fn from_src(name: &str, v_src: &str, f_src: &str) -> NEShaderAsset {
-      let glsl = NEGLSL {
-         name: name.to_string(),
-         v_src: v_src.to_string(),
-         f_src: f_src.to_string(),
-      };
-      NEShaderAsset::from_glsl(glsl)
-   }
-
-   pub fn from_paths(v_path: &str, f_path: &str) -> NEResult<NEShaderAsset> {
-      let v_pathbuf = PathBuf::from(v_path);
-      let f_pathbuf = PathBuf::from(f_path);
-
-      let both_paths = format!("{} or {}", v_path.to_string(), f_path.to_string());
-      let not_valid = NEResult::ER(NEError::File {
-         kind: NEFileErrKind::NotValidPath,
-         path: both_paths.clone(),
-      });
-
-      let unsupported = NEResult::ER(NEError::File {
-         kind: NEFileErrKind::Unsupported,
-         path: both_paths,
-      });
-
-      match (v_pathbuf.extension(), f_pathbuf.extension()) {
-         (Some(v_ex), Some(f_ex)) => {
-            match (v_ex.to_str().unwrap_or(""), f_ex.to_str().unwrap_or("")) {
-               (ex::VERT, ex::FRAG) => {
-                  let glsl = match NEGLSL::load_both_from_disk(v_path, f_path) {
-                     NEResult::ER(e) => return NEResult::ER(e),
-                     NEResult::OK(g) => g,
-                  };
-                  NEResult::OK(NEShaderAsset::from_glsl(glsl))
-               }
-               _ => unsupported,
-            }
-         }
-         _ => not_valid,
-      }
+      todo!()
    }
 
    pub fn from_path(path: &str) -> NEResult<NEShaderAsset> {
-      let pathbuf = PathBuf::from(path);
+      let file_name = match file::name(path) {
+         NEOption::Empty => return NEResult::ER(NEError::file_invalid(path)),
+         NEOption::Exists(n) => n,
+      };
+      let _ = match file::ex(path) {
+         NEOption::Empty => return NEResult::ER(NEError::file_invalid(path)),
+         NEOption::Exists(n) => match n.eq_ignore_ascii_case(ex::GLSL) {
+            false => return NEResult::ER(NEError::file_unsupported(path)),
+            true => n,
+         },
+      };
+      let nshdr_path = format!("{}{}.{}", path::SHDR_ASSET, file_name, ex::NSHDR);
 
-      let not_valid = NEResult::ER(NEError::File {
-         kind: NEFileErrKind::NotValidPath,
-         path: path.to_string(),
-      });
+      let (file_exists, nshdr_exists) = (file::exists(path), file::exists(&nshdr_path));
+      if !file_exists && !nshdr_exists {
+         let both_paths = format!("{} or {}", path, nshdr_path);
+         return NEResult::ER(NEError::file_missing(&both_paths));
+      }
+      if file_exists {
+         //write/overwrite nshdr
+         let src = match file::read_as_string(path) {
+            NEResult::ER(e) => return NEResult::ER(e),
+            NEResult::OK(s) => s,
+         };
+         let glsl = parse_glsl(&src);
+         match glsl {
+            GLSL::NotFound {
+               v_missing,
+               f_missing,
+            } => {
+               return NEResult::ER(match (v_missing, f_missing) {
+                  (true, _) => NEError::vert_missing(path),
+                  (_, _) => NEError::frag_missing(path),
+               })
+            }
 
-      let unsupported = NEResult::ER(NEError::File {
-         kind: NEFileErrKind::Unsupported,
-         path: path.to_string(),
-      });
-
-      match pathbuf.extension() {
-         Some(ex) => match ex.to_str().unwrap_or("") {
-            ex::GLSL => {
-               let name = match pathbuf.file_stem() {
-                  None => {
-                     return NEResult::ER(NEError::File {
-                        kind: NEFileErrKind::NotValidName,
-                        path: path.to_string(),
-                     })
-                  }
-                  Some(n) => n.to_string_lossy().to_string(),
+            GLSL::Parsed { v_src, f_src } => {
+               let v_spv = match glsl_to_spv(&file_name, ShaderType::Vert, &v_src) {
+                  NEResult::ER(e) => return NEResult::ER(e),
+                  NEResult::OK(s) => s,
                };
-               let spv_path = format!("{}{}.{}", path::SHDR_ASSET, name, ex::NSHDR);
-               let spv_pathbuf = PathBuf::from(&spv_path);
-               if spv_pathbuf.exists() {
-                  let mut spv = match file::find_on_disk(&spv_path) {
-                     NEResult::ER(e) => return NEResult::ER(e),
-                     NEResult::OK(s) => s,
-                  };
-                  let binary = match spv.read_as_bytes(&spv_path) {
-                     NEResult::ER(e) => return NEResult::ER(e),
-                     NEResult::OK(s) => s,
-                  };
+               let f_spv = match glsl_to_spv(&file_name, ShaderType::Frag, &f_src) {
+                  NEResult::ER(e) => return NEResult::ER(e),
+                  NEResult::OK(s) => s,
+               };
 
-                  let clone_slice_4 = |bytes: &[u8]| -> [u8; 4] {
-                     let mut cloned_bytes = [0; 4];
-                     for i in 0..4 {
-                        cloned_bytes[i] = bytes[i]
-                     }
-                     cloned_bytes
-                  };
+               let mut nshdr = Vec::new();
 
-                  let clone_slice = |bytes: &[u8]| -> Vec<u8> {
-                     let mut cloned_bytes = Vec::new();
-                     for byte in bytes {
-                        cloned_bytes.push(*byte)
-                     }
-                     cloned_bytes
-                  };
+               let stride = 4;
+               let v_spv_len = u32_to_vec_of_4_u8s(v_spv.len() as u32);
+               let f_spv_len = u32_to_vec_of_4_u8s(f_spv.len() as u32);
 
-                  let stride = 4;
-                  let stride_x_2 = stride + stride;
-                  let v_bin_len = u32::from_ne_bytes(clone_slice_4(&binary[0..stride])) as usize;
-                  let f_bin_len =
-                     u32::from_ne_bytes(clone_slice_4(&binary[stride..stride_x_2])) as usize;
+               nshdr.extend_from_slice(&v_spv_len); //bytes 0 to 3 are the size of v_spv
+               nshdr.extend_from_slice(&f_spv_len); //bytes 4 to 7 are the size of f_spv
+               nshdr.extend_from_slice(&v_spv);
+               nshdr.extend_from_slice(&f_spv);
 
-                  let v_offset = stride_x_2 + v_bin_len;
-                  let f_offset = v_offset + f_bin_len;
-
-                  let v_bin = clone_slice(&binary[8..v_offset]);
-                  let f_bin = clone_slice(&binary[v_offset..f_offset]);
-
-                  log_info!("loaded [{spv_path}] from disk!");
-                  NEResult::OK(NEShaderAsset::SPIRV { v_bin, f_bin })
-               } else {
-                  let glsl = match NEGLSL::load_from_disk(path) {
-                     NEResult::ER(e) => return NEResult::ER(e),
-                     NEResult::OK(g) => g,
-                  };
-                  NEResult::OK(NEShaderAsset::from_glsl(glsl))
+               let nshdr_name = format!("{file_name}.{}", ex::NSHDR);
+               match file::write_bytes_to_disk(path::SHDR_ASSET, &nshdr_name, &nshdr) {
+                  NEResult::ER(e) => return NEResult::ER(e),
+                  _ => NEResult::OK(NEShaderAsset {
+                     path: nshdr_path.clone(),
+                     v_spv,
+                     f_spv,
+                  }),
                }
             }
-            _ => unsupported,
-         },
-         None => not_valid,
+         }
+      } else {
+         //load new/pre-existing nshdr
+         let nshdr = match file::read_as_bytes(&nshdr_path) {
+            NEResult::ER(e) => return NEResult::ER(e),
+            NEResult::OK(f) => f,
+         };
+         let stride = 4;
+         let stride_x_2 = stride + stride;
+         let v_bin_len = u32::from_ne_bytes(clone_slice_4(&nshdr[0..stride])) as usize;
+         let f_bin_len = u32::from_ne_bytes(clone_slice_4(&nshdr[stride..stride_x_2])) as usize;
+
+         let v_offset = stride_x_2 + v_bin_len;
+         let f_offset = v_offset + f_bin_len;
+
+         let v_spv = clone_slice(&nshdr[8..v_offset]);
+         let f_spv = clone_slice(&nshdr[v_offset..f_offset]);
+
+         NEResult::OK(NEShaderAsset {
+            path: nshdr_path,
+            v_spv,
+            f_spv,
+         })
       }
    }
+}
 
-   pub(crate) fn from_glsl(glsl: NEGLSL) -> NEShaderAsset {
-      NEShaderAsset::Source {
-         name: glsl.name,
-         v_src: glsl.v_src,
-         f_src: glsl.f_src,
+fn clone_slice_4(bytes: &[u8]) -> [u8; 4] {
+   let mut cloned_bytes = [0; 4];
+   for i in 0..4 {
+      cloned_bytes[i] = bytes[i]
+   }
+   cloned_bytes
+}
+
+fn clone_slice(bytes: &[u8]) -> Vec<u8> {
+   let mut cloned_bytes = Vec::new();
+   for byte in bytes {
+      cloned_bytes.push(*byte)
+   }
+   cloned_bytes
+}
+
+fn u32_to_vec_of_4_u8s(n: u32) -> Vec<u8> {
+   let mut vec = Vec::new();
+   let bytes = n.u8ify();
+   for i in 0..4 {
+      if bytes.len() > i {
+         vec.push(bytes[i])
+      } else {
+         vec.push(0)
       }
+   }
+   vec
+}
+
+fn glsl_to_spv(name: &str, typ: ShaderType, src: &str) -> NEResult<Vec<u8>> {
+   let temp_path = path::TEMP;
+   let ex = match typ {
+      ShaderType::Vert => ex::VERT,
+      ShaderType::Frag => ex::FRAG,
+   };
+   let name_ex = format!("{name}.{ex}");
+   match file::write_str_to_disk(temp_path, &name_ex, &src) {
+      NEResult::ER(e) => return NEResult::ER(e),
+      _ => {}
+   };
+   let temp_file = format!("{temp_path}{name_ex}");
+   let spv_file = format!("{temp_file}.{}", ex::NSHDR);
+   gen_spv_from_glsl_to_path(&temp_file, &spv_file)
+}
+
+fn gen_spv_from_glsl_to_path(glsl_file: &str, spv_file: &str) -> NEResult<Vec<u8>> {
+   let o = std::process::Command::new(env::GLSL_VALIDATOR_PATH)
+      .arg("-G")
+      //.arg("-Os")
+      //.arg("-r")
+      .arg(glsl_file)
+      .arg("-o")
+      .arg(spv_file)
+      .output();
+   match o {
+      Ok(out) => {
+         if !out.status.success() {
+            NEResult::ER(NEError::Compile {
+               msg: String::from_utf8_lossy(&out.stdout).to_string(),
+               kind: NECompileErrKind::GLSLCompileFailed,
+               path: glsl_file.to_string(),
+            })
+         } else {
+            match file::read_as_bytes(spv_file) {
+               NEResult::OK(spv) => NEResult::OK(spv),
+               NEResult::ER(e) => NEResult::ER(e),
+            }
+         }
+      }
+      Err(_) => NEResult::ER(NEError::Compile {
+         kind: NECompileErrKind::NoGLSLValidator,
+         path: "".to_string(),
+         msg: "".to_string(),
+      }),
+   }
+}
+
+pub enum GLSL {
+   Parsed { v_src: String, f_src: String },
+   NotFound { v_missing: bool, f_missing: bool },
+}
+
+fn parse_glsl(src: &str) -> GLSL {
+   let mut v_src = String::new();
+   let mut f_src = String::new();
+
+   let glsl_lines = src.lines();
+
+   let (mut v_found, mut f_found) = (false, false);
+   let mut cur_src = &mut v_src;
+
+   for line in glsl_lines {
+      let line = line.trim();
+      match line {
+         "//v" | "//V" | "//vert" | "//VERT" | "//vertex" | "//VERTEX" | "// v" | "// V"
+         | "// vert" | "// VERT" | "// vertex" | "// VERTEX" => {
+            cur_src = &mut v_src;
+            v_found = true;
+         }
+         "//f" | "//F" | "//frag" | "//FRAG" | "//fragment" | "//FRAGMENT" | "// f" | "// F"
+         | "// frag" | "// FRAG" | "// fragment" | "// FRAGMENT" => {
+            cur_src = &mut f_src;
+            f_found = true;
+         }
+         _ => {
+            cur_src.push_str(line);
+            cur_src.push_str("\n")
+         }
+      }
+   }
+   let (mut v_missing, mut f_missing) = (false, false);
+   if v_src.is_empty() || !v_found {
+      v_missing = true
+   }
+   if f_src.is_empty() || !f_found {
+      f_missing = true
+   }
+
+   match v_missing || f_missing {
+      true => GLSL::NotFound {
+         v_missing,
+         f_missing,
+      },
+      false => GLSL::Parsed { v_src, f_src },
    }
 }
