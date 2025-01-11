@@ -1,6 +1,6 @@
 use crate::asset::ATTRInfo;
 use crate::{
-   ansi, color, log_event, log_info, DataType, DrawMode, NECamera, NEError, NEMesh, NEMeshAsset,
+   ansi, color, log_info, DataType, DrawMode, NECamera, NEError, NEMesh, NEMeshAsset,
    NEResult, NEShader, NEShaderAsset, NETexture, RenderAPI, Size2D, Uniform, RGB,
 };
 use cgmath::Matrix4;
@@ -231,7 +231,6 @@ impl NERenderer {
       self.fallback_shader.clone()
    }
    pub fn compile(&self, nshdr: NEShaderAsset) -> NEResult<NEShader> {
-      log_event!("compiling [{}]", nshdr.path);
       let id = match self.core.create_spv_program(&nshdr) {
          NEResult::ER(mut e) => {
             return match e {

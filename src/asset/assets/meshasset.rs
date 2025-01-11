@@ -15,7 +15,7 @@ enum OBJ {
       nrm_attr: NrmATTR,
       indices: Indices,
    },
-   NonTriangle,
+   NonTriangle(String),
 }
 
 impl OBJ {
@@ -44,8 +44,8 @@ impl OBJ {
             "vt" => uvm_data.push(words.parse_2_to_f32()),
             "vn" => nrm_data.push(words.parse_3_to_f32()),
             "f" => {
-               if words.len() > 4 {
-                  return OBJ::NonTriangle;
+               if words.len() != 4 {
+                  return OBJ::NonTriangle(line.to_string());
                }
                for word in &words[1..] {
                   let tokens = word.split('/').collect::<Vec<&str>>();
@@ -61,7 +61,10 @@ impl OBJ {
       let uvm_exists = attr_count > 1;
       let nrm_exists = attr_count > 2;
 
-      for vert in verts {
+      let def_uvm = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0]];
+      let def_col = [1.0, 1.0, 1.0];
+      let def_nrm = [1.0, 1.0, 1.0];
+      for (i, vert) in verts.iter().enumerate() {
          let pos_index = match pos_exists {
             true => Some(vert[0]),
             _ => None,
@@ -80,21 +83,22 @@ impl OBJ {
             let idx = unique_verts[&key] as u32;
             indices.shove(idx);
          } else {
+            let v_local = i % 3;
             let new = pos_attr.data.len();
             unique_verts.insert(key, new);
             pos_attr.shove(match pos_index {
-               None => [0.0; 3],
                Some(id) => pos_data[id],
+               None => [0.0; 3],
             });
             uvm_attr.shove(match uvm_index {
-               None => [0.0; 2],
                Some(id) => uvm_data[id],
+               None => def_uvm[v_local],
             });
             nrm_attr.shove(match nrm_index {
-               None => [0.0; 3],
                Some(id) => nrm_data[id],
+               None => def_nrm,
             });
-            col_attr.shove([1.0, 1.0, 1.0]); //default
+            col_attr.shove(def_col);
             indices.shove(new as u32);
          }
       }
@@ -155,7 +159,7 @@ impl NEMeshAsset {
             NEResult::OK(of) => of,
          };
          let nmesh = match OBJ::parse(&obj_src) {
-            OBJ::NonTriangle => return NEResult::ER(NEError::non_triangle_mesh(path)),
+            OBJ::NonTriangle(line) => return NEResult::ER(NEError::non_triangulated(path, line)),
             OBJ::Parsed {
                pos_attr,
                col_attr,
@@ -186,7 +190,7 @@ impl NEMeshAsset {
             NEResult::OK(f) => f,
          };
          let nmesh = match OBJ::parse(&nmesh_src) {
-            OBJ::NonTriangle => return NEResult::ER(NEError::non_triangle_mesh(path)),
+            OBJ::NonTriangle(line) => return NEResult::ER(NEError::non_triangulated(path, line)),
             OBJ::Parsed {
                pos_attr,
                col_attr,

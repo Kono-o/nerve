@@ -1,3 +1,4 @@
+use crate::engine::game::cycle::NECycle;
 use crate::engine::{ButtonState, KeyBitMap, MouseBitMap};
 use crate::renderer::core::VKRenderer;
 use crate::renderer::{gl_renderer_init, CamProj, NECamera, Renderer};
@@ -341,7 +342,7 @@ impl NEGameBuilder {
             prev_deltas_size: 128,
          },
          scene,
-         is_paused: false,
+         cycle: NECycle { is_paused: false },
       })
    }
 }

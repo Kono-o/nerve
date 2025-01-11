@@ -32,6 +32,12 @@ pub struct ScreenOffset {
 }
 
 impl ScreenOffset {
+   pub fn is_zero(&self) -> bool {
+      self.x == 0.0 && self.y == 0.0
+   }
+}
+
+impl ScreenOffset {
    pub fn empty() -> ScreenOffset {
       ScreenOffset { x: 0.0, y: 0.0 }
    }

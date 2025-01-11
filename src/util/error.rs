@@ -52,9 +52,9 @@ impl NEError {
       }
    }
 
-   pub(crate) fn non_triangle_mesh(path: &str) -> NEError {
+   pub(crate) fn non_triangulated(path: &str, line: String) -> NEError {
       NEError::Asset {
-         kind: NEAssetErrKind::NonTriangleMesh,
+         kind: NEAssetErrKind::NonTriangle(line),
          path: path.to_string(),
       }
    }
@@ -146,7 +146,7 @@ impl NEError {
             let kind_msg = match kind {
                NEAssetErrKind::VertEmpty => "has no vertex src",
                NEAssetErrKind::FragEmpty => "has no fragment src",
-               NEAssetErrKind::NonTriangleMesh => "mesh not triangulated",
+               NEAssetErrKind::NonTriangle(line) => &format!("mesh not triangulated at ({line})"),
             };
             severe = NEErrorSeverity::Fatal;
             format!("(asset) -> {kind_msg}! [{path}]")

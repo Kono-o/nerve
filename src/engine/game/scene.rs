@@ -1,11 +1,13 @@
-use crate::ansi;
-use crate::{log_info, NECamera, NEEvents, NEObject, NERenderer, NETime, NEWindow};
+use crate::engine::game::cycle::NECycle;
+use crate::{ansi, log_event};
+use crate::{NECamera, NEEvents, NEObject, NERenderer, NETime, NEWindow};
 
 pub struct NEGameRef<'a> {
    pub cam: &'a mut NECamera,
    pub renderer: &'a mut NERenderer,
    pub window: &'a mut NEWindow,
    pub events: &'a mut NEEvents,
+   pub cycle: &'a mut NECycle,
    pub time: &'a mut NETime,
 }
 
@@ -40,6 +42,7 @@ impl NEScene {
       renderer: &mut NERenderer,
       window: &mut NEWindow,
       events: &mut NEEvents,
+      cycle: &mut NECycle,
       time: &mut NETime,
    ) {
       let mut game_ref = NEGameRef {
@@ -47,9 +50,10 @@ impl NEScene {
          renderer,
          window,
          events,
+         cycle,
          time,
       };
-      log_info!("scene [{}] started!", self.name);
+      log_event!("scene [{}] run!", self.name);
       for mut object in self.objects.iter_mut() {
          object.start(&mut game_ref)
       }
@@ -61,6 +65,7 @@ impl NEScene {
       renderer: &mut NERenderer,
       window: &mut NEWindow,
       events: &mut NEEvents,
+      cycle: &mut NECycle,
       time: &mut NETime,
    ) {
       let mut game_ref = NEGameRef {
@@ -68,6 +73,7 @@ impl NEScene {
          renderer,
          window,
          events,
+         cycle,
          time,
       };
       for mut object in self.objects.iter_mut() {
@@ -81,6 +87,7 @@ impl NEScene {
       renderer: &mut NERenderer,
       window: &mut NEWindow,
       events: &mut NEEvents,
+      cycle: &mut NECycle,
       time: &mut NETime,
    ) {
       let mut game_ref = NEGameRef {
@@ -88,6 +95,7 @@ impl NEScene {
          renderer,
          window,
          events,
+         cycle,
          time,
       };
       for mut object in self.objects.iter_mut() {
@@ -101,6 +109,7 @@ impl NEScene {
       renderer: &mut NERenderer,
       window: &mut NEWindow,
       events: &mut NEEvents,
+      cycle: &mut NECycle,
       time: &mut NETime,
    ) {
       let mut game_ref = NEGameRef {
@@ -108,6 +117,7 @@ impl NEScene {
          renderer,
          window,
          events,
+         cycle,
          time,
       };
       for mut object in self.objects.iter_mut() {
@@ -121,6 +131,7 @@ impl NEScene {
       renderer: &mut NERenderer,
       window: &mut NEWindow,
       events: &mut NEEvents,
+      cycle: &mut NECycle,
       time: &mut NETime,
    ) {
       let mut game_ref = NEGameRef {
@@ -128,12 +139,13 @@ impl NEScene {
          renderer,
          window,
          events,
+         cycle,
          time,
       };
       for mut object in self.objects.iter_mut() {
          object.end(&mut game_ref)
       }
-      log_info!("scene [{}] ended!", self.name);
+      log_event!("scene [{}] end!", self.name);
       self.cam.end()
    }
 
@@ -142,6 +154,7 @@ impl NEScene {
       renderer: &mut NERenderer,
       window: &mut NEWindow,
       events: &mut NEEvents,
+      cycle: &mut NECycle,
       time: &mut NETime,
    ) {
       let mut game_ref = NEGameRef {
@@ -149,6 +162,7 @@ impl NEScene {
          renderer,
          window,
          events,
+         cycle,
          time,
       };
       for mut object in self.objects.iter_mut() {

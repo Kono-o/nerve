@@ -46,7 +46,7 @@ void main() {
     vec4 shadCol = difCol * 0.9;
 
     vec4 whiteCol = vec4(1.0, 1.0, 1.0, 1.0);
-    vec4 whiteShad = whiteCol * 0.4;
+    vec4 whiteShad = whiteCol * 0.55;
 
     //frag = mix(difCol, shadCol, light);
     frag = mix(whiteCol, whiteShad, light);

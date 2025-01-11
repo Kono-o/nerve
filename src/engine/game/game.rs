@@ -1,11 +1,12 @@
-use crate::{ansi, proc, NEScene};
-use crate::{log_info, NEEvents, NERenderer, NETime, NEWindow, Size2D};
+use crate::engine::game::cycle::NECycle;
+use crate::{ansi, log_event, proc, NEScene};
+use crate::{NEEvents, NERenderer, NETime, NEWindow, Size2D};
 
 pub struct NEGame {
    pub renderer: NERenderer,
    pub window: NEWindow,
    pub events: NEEvents,
-   pub is_paused: bool,
+   pub cycle: NECycle,
    pub scene: NEScene,
    pub time: NETime,
 }
@@ -32,7 +33,7 @@ impl NEGame {
    }
 
    pub fn start(&mut self) {
-      log_info!("game [{}] started!", self.window.title);
+      log_event!("game [{}] run!", self.window.title);
       if self.window.is_hidden {
          self.window.set_visibility(true)
       }
@@ -40,6 +41,7 @@ impl NEGame {
          &mut self.renderer,
          &mut self.window,
          &mut self.events,
+         &mut self.cycle,
          &mut self.time,
       );
    }
@@ -60,39 +62,45 @@ impl NEGame {
          &mut self.renderer,
          &mut self.window,
          &mut self.events,
+         &mut self.cycle,
          &mut self.time,
       );
    }
 
    pub fn update(&mut self) {
-      self.scene.update(
-         &mut self.renderer,
-         &mut self.window,
-         &mut self.events,
-         &mut self.time,
-      )
+      if !self.cycle.is_paused {
+         self.scene.update(
+            &mut self.renderer,
+            &mut self.window,
+            &mut self.events,
+            &mut self.cycle,
+            &mut self.time,
+         )
+      }
    }
 
    pub fn post_update(&mut self) {
-      self.renderer.post_update();
-      self.window.post_update();
-      self.events.post_update();
-      self.time.post_update();
       self.scene.post_update(
          &mut self.renderer,
          &mut self.window,
          &mut self.events,
+         &mut self.cycle,
          &mut self.time,
       );
+      self.renderer.post_update();
+      self.window.post_update();
+      self.events.post_update();
+      self.time.post_update();
    }
    pub fn end(mut self) {
       self.scene.end(
          &mut self.renderer,
          &mut self.window,
          &mut self.events,
+         &mut self.cycle,
          &mut self.time,
       );
-      log_info!("game [{}] ended!", self.window.title);
+      log_event!("game [{}] end!", self.window.title);
       drop(self);
    }
    pub fn end_and_exit(self) {
@@ -105,20 +113,8 @@ impl NEGame {
          &mut self.renderer,
          &mut self.window,
          &mut self.events,
+         &mut self.cycle,
          &mut self.time,
       );
-   }
-
-   pub fn pause(&mut self) {
-      self.is_paused = true;
-   }
-   pub fn unpause(&mut self) {
-      self.is_paused = false;
-   }
-   pub fn toggle_pause(&mut self) {
-      match self.is_paused {
-         true => self.unpause(),
-         false => self.pause(),
-      }
    }
 }

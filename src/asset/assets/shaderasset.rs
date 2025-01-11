@@ -1,9 +1,11 @@
 use crate::*;
 
 pub(crate) enum NEAssetErrKind {
-   NonTriangleMesh,
+   //SHADER
    VertEmpty,
    FragEmpty,
+   //OBJ
+   NonTriangle(String),
 }
 
 enum GLSL {
