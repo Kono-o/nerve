@@ -8,7 +8,7 @@ pub(crate) enum NEFileErrKind {
    NoPerms,
    Missing,
    NotValid,
-   Unsupported,
+   Unsupported(String),
    CouldNotMake,
    CouldNotRead,
    CouldNotWrite,
@@ -31,7 +31,7 @@ pub(crate) fn ex(path: &str) -> NEOption<String> {
    }
 }
 
-pub(crate) fn exists(path: &str) -> bool {
+pub(crate) fn exists_on_disk(path: &str) -> bool {
    let path = PathBuf::from(&path);
    path.exists()
 }
@@ -43,11 +43,13 @@ pub(crate) fn write_str_to_disk(path: &str, name: &str, content: &str) -> NEResu
 pub(crate) fn write_bytes_to_disk(path: &str, name: &str, content: &[u8]) -> NEResult<()> {
    let pathbuf = PathBuf::from(path);
    if !pathbuf.exists() {
-      return NEResult::ER(NEError::File {
-         path: path.to_string(),
-         kind: NEFileErrKind::Missing,
-      });
+      //return NEResult::ER(NEError::file_missing(path));
+      match fs::create_dir_all(path) {
+         Err(_) => return NEResult::ER(NEError::file_couldnt_make(path)),
+         Ok(_) => {}
+      };
    }
+
    let file_path = format!("{}{}", path, name);
    let mut file = match fs::File::create(&file_path) {
       Ok(f) => f,

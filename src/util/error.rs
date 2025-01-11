@@ -1,4 +1,5 @@
-use crate::asset::{NEAssetErrKind, NEFileErrKind, NEObjErrKind};
+use crate::asset::file::NEFileErrKind;
+use crate::asset::NEAssetErrKind;
 use crate::engine::NEInitErrKind;
 use crate::util::consts::ansi;
 use crate::util::env;
@@ -19,10 +20,6 @@ pub enum NEError {
    },
    File {
       kind: NEFileErrKind,
-      path: String,
-   },
-   Obj {
-      kind: NEObjErrKind,
       path: String,
    },
    Asset {
@@ -55,6 +52,13 @@ impl NEError {
       }
    }
 
+   pub(crate) fn non_triangle_mesh(path: &str) -> NEError {
+      NEError::Asset {
+         kind: NEAssetErrKind::NonTriangleMesh,
+         path: path.to_string(),
+      }
+   }
+
    pub(crate) fn file_missing(path: &str) -> NEError {
       NEError::File {
          kind: NEFileErrKind::Missing,
@@ -69,9 +73,16 @@ impl NEError {
       }
    }
 
-   pub(crate) fn file_unsupported(path: &str) -> NEError {
+   pub(crate) fn file_unsupported(path: &str, ex: &str) -> NEError {
       NEError::File {
-         kind: NEFileErrKind::Unsupported,
+         kind: NEFileErrKind::Unsupported(ex.to_string()),
+         path: path.to_string(),
+      }
+   }
+
+   pub(crate) fn file_couldnt_make(path: &str) -> NEError {
+      NEError::File {
+         kind: NEFileErrKind::CouldNotMake,
          path: path.to_string(),
       }
    }
@@ -116,35 +127,29 @@ impl NEError {
          }
          NEError::File { kind, path } => {
             let kind_msg = match kind {
-               NEFileErrKind::Missing => "file does not exist",
-               NEFileErrKind::NotValid => "invalid file",
+               NEFileErrKind::Missing => "does not exist",
+               NEFileErrKind::NotValid => "is invalid",
 
-               NEFileErrKind::CouldNotMake => "could not create file",
-               NEFileErrKind::CouldNotRead => "could not read file",
-               NEFileErrKind::CouldNotWrite => "could not write to file",
+               NEFileErrKind::CouldNotMake => "could not be created",
+               NEFileErrKind::CouldNotRead => "could not be read",
+               NEFileErrKind::CouldNotWrite => "could not be written",
 
-               NEFileErrKind::NoPerms => "no permissions",
+               NEFileErrKind::NoPerms => "needs higher perms",
 
-               NEFileErrKind::Unsupported => "unsupported format",
+               NEFileErrKind::Unsupported(ex) => &format!(".{} is an unsupported format", ex),
                NEFileErrKind::Unknown => "unknown error",
             };
             severe = NEErrorSeverity::Fatal;
             format!("(file) -> {kind_msg}! [{path}]")
          }
-         NEError::Obj { kind, path } => {
-            let kind_msg = match kind {
-               NEObjErrKind::NonTriMesh => "not triangulated",
-            };
-            severe = NEErrorSeverity::Fatal;
-            format!("(obj) -> {kind_msg}! [{path}]")
-         }
          NEError::Asset { kind, path } => {
             let kind_msg = match kind {
                NEAssetErrKind::VertEmpty => "has no vertex src",
                NEAssetErrKind::FragEmpty => "has no fragment src",
+               NEAssetErrKind::NonTriangleMesh => "mesh not triangulated",
             };
             severe = NEErrorSeverity::Fatal;
-            format!("(src) -> {kind_msg}! [{path}]")
+            format!("(asset) -> {kind_msg}! [{path}]")
          }
          NEError::Compile { kind, path, msg } => {
             let kind_msg = match kind {

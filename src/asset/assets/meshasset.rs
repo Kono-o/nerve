@@ -1,12 +1,118 @@
-use crate::util::{NEError, NEResult};
 use crate::*;
-use std::fmt::Debug;
-use std::path::PathBuf;
+use std::collections::HashMap;
 
-macro_rules! str {
+macro_rules! stringify {
    ($t:expr) => {
       format!("{}", $t)
    };
+}
+
+enum OBJ {
+   Parsed {
+      pos_attr: PosATTR,
+      col_attr: ColATTR,
+      uvm_attr: UVMATTR,
+      nrm_attr: NrmATTR,
+      indices: Indices,
+   },
+   NonTriangle,
+}
+
+impl OBJ {
+   fn parse(src: &str) -> OBJ {
+      let mut pos_attr = PosATTR::empty();
+      let mut col_attr = ColATTR::empty();
+      let mut uvm_attr = UVMATTR::empty();
+      let mut nrm_attr = NrmATTR::empty();
+      let mut indices = Indices::empty();
+
+      let mut pos_data = Vec::new();
+      let mut uvm_data = Vec::new();
+      let mut nrm_data = Vec::new();
+      type Vert = Vec<usize>;
+      let mut verts: Vec<Vert> = Vec::new();
+      let mut unique_verts = HashMap::new();
+
+      for line in src.lines() {
+         let line = line.trim();
+         let words = line.split(' ').collect::<Vec<&str>>();
+         if words.is_empty() {
+            continue;
+         }
+         match words[0] {
+            "v" => pos_data.push(words.parse_3_to_f32()),
+            "vt" => uvm_data.push(words.parse_2_to_f32()),
+            "vn" => nrm_data.push(words.parse_3_to_f32()),
+            "f" => {
+               if words.len() > 4 {
+                  return OBJ::NonTriangle;
+               }
+               for word in &words[1..] {
+                  let tokens = word.split('/').collect::<Vec<&str>>();
+                  let vert = tokens.parse_to_usize();
+                  verts.push(vert);
+               }
+            }
+            _ => {}
+         }
+      }
+      let attr_count = verts[0].len();
+      let pos_exists = attr_count > 0;
+      let uvm_exists = attr_count > 1;
+      let nrm_exists = attr_count > 2;
+
+      for vert in verts {
+         let pos_index = match pos_exists {
+            true => Some(vert[0]),
+            _ => None,
+         };
+         let uvm_index = match uvm_exists {
+            true => Some(vert[1]),
+            _ => None,
+         };
+         let nrm_index = match nrm_exists {
+            true => Some(vert[2]),
+            _ => None,
+         };
+
+         let key = (pos_index, uvm_index, nrm_index);
+         if unique_verts.contains_key(&key) {
+            let idx = unique_verts[&key] as u32;
+            indices.shove(idx);
+         } else {
+            let new = pos_attr.data.len();
+            unique_verts.insert(key, new);
+            pos_attr.shove(match pos_index {
+               None => [0.0; 3],
+               Some(id) => pos_data[id],
+            });
+            uvm_attr.shove(match uvm_index {
+               None => [0.0; 2],
+               Some(id) => uvm_data[id],
+            });
+            nrm_attr.shove(match nrm_index {
+               None => [0.0; 3],
+               Some(id) => nrm_data[id],
+            });
+            col_attr.shove([1.0, 1.0, 1.0]); //default
+            indices.shove(new as u32);
+         }
+      }
+
+      pos_attr.calc_info();
+      col_attr.calc_info();
+      uvm_attr.calc_info();
+      nrm_attr.calc_info();
+      indices.calc_info();
+
+      OBJ::Parsed {
+         pos_attr,
+         col_attr,
+         uvm_attr,
+         nrm_attr,
+         indices,
+      }
+   }
 }
 
 pub struct NEMeshAsset {
@@ -22,48 +128,96 @@ pub struct NEMeshAsset {
 
 impl NEMeshAsset {
    pub fn from_path(path: &str) -> NEResult<NEMeshAsset> {
-      let pathbuf = PathBuf::from(path);
-
-      let not_valid = NEResult::ER(NEError::File {
-         kind: NEFileErrKind::NotValid,
-         path: path.to_string(),
-      });
-
-      let unsupported = NEResult::ER(NEError::File {
-         kind: NEFileErrKind::Unsupported,
-         path: path.to_string(),
-      });
-
-      match pathbuf.extension() {
-         Some(ex) => match ex.to_str().unwrap_or("") {
-            ex::OBJ => {
-               let obj = match NEObj::load_from_disk(path) {
-                  NEResult::ER(e) => return NEResult::ER(e),
-                  NEResult::OK(o) => o,
-               };
-               NEResult::OK(NEMeshAsset::from_obj(obj))
-            }
-            _ => unsupported,
+      let file_name = match file::name(path) {
+         NEOption::Empty => return NEResult::ER(NEError::file_invalid(path)),
+         NEOption::Exists(n) => n,
+      };
+      let _ = match file::ex(path) {
+         NEOption::Empty => return NEResult::ER(NEError::file_invalid(path)),
+         NEOption::Exists(ex) => match ex.eq_ignore_ascii_case(ex::OBJ) {
+            false => return NEResult::ER(NEError::file_unsupported(path, &ex)),
+            true => ex,
          },
-         None => not_valid,
+      };
+      let nmesh_path = format!("{}{}.{}", path::MESH_ASSET, file_name, ex::NMESH);
+
+      let file_exists = file::exists_on_disk(path);
+      let nmesh_exists = file::exists_on_disk(&nmesh_path);
+
+      if !file_exists && !nmesh_exists {
+         let both_paths = format!("{} or {}", path, nmesh_path);
+         return NEResult::ER(NEError::file_missing(&both_paths));
+      }
+      if file_exists {
+         //write/overwrite nmesh
+         let obj_src = match file::read_as_string(path) {
+            NEResult::ER(e) => return NEResult::ER(e),
+            NEResult::OK(of) => of,
+         };
+         let nmesh = match OBJ::parse(&obj_src) {
+            OBJ::NonTriangle => return NEResult::ER(NEError::non_triangle_mesh(path)),
+            OBJ::Parsed {
+               pos_attr,
+               col_attr,
+               uvm_attr,
+               nrm_attr,
+               indices,
+            } => NEMeshAsset {
+               shader: NEShader::temporary(),
+               transform: Transform::default(),
+               cus_attrs: Vec::new(),
+               pos_attr,
+               col_attr,
+               uvm_attr,
+               nrm_attr,
+               indices,
+            },
+         };
+
+         let nmesh_name = format!("{file_name}.{}", ex::NMESH);
+         match file::write_str_to_disk(path::MESH_ASSET, &nmesh_name, &obj_src) {
+            NEResult::ER(e) => NEResult::ER(e),
+            _ => NEResult::OK(nmesh),
+         }
+      } else {
+         //load new/pre-existing nmesh
+         let nmesh_src = match file::read_as_string(&nmesh_path) {
+            NEResult::ER(e) => return NEResult::ER(e),
+            NEResult::OK(f) => f,
+         };
+         let nmesh = match OBJ::parse(&nmesh_src) {
+            OBJ::NonTriangle => return NEResult::ER(NEError::non_triangle_mesh(path)),
+            OBJ::Parsed {
+               pos_attr,
+               col_attr,
+               uvm_attr,
+               nrm_attr,
+               indices,
+            } => NEMeshAsset {
+               shader: NEShader::temporary(),
+               transform: Transform::default(),
+               cus_attrs: Vec::new(),
+               pos_attr,
+               col_attr,
+               uvm_attr,
+               nrm_attr,
+               indices,
+            },
+         };
+         NEResult::OK(nmesh)
       }
    }
 
-   pub(crate) fn from_obj(obj: NEObj) -> NEMeshAsset {
-      NEMeshAsset {
-         shader: NEShader::temporary(),
-         transform: Transform::default(),
-         pos_attr: obj.pos_attr,
-         col_attr: obj.col_attr,
-         uvm_attr: obj.uvm_attr,
-         nrm_attr: obj.nrm_attr,
-         cus_attrs: Vec::new(),
-         indices: obj.indices,
-      }
-   }
    pub fn attach_custom_attr(&mut self, cus_attr: CustomATTR) {
       self.cus_attrs.push(cus_attr);
    }
+
+   pub fn has_no_attr(&self) -> bool {
+      let no_attr = self.starts_with_custom();
+      let no_cus_attr = self.cus_attrs.len() == 0;
+      no_attr && no_cus_attr
+   }
+
    pub fn starts_with_custom(&self) -> bool {
       self.pos_attr.is_empty()
          && self.col_attr.is_empty()
@@ -75,5 +229,39 @@ impl NEMeshAsset {
    }
    pub(crate) fn has_custom_attrs(&self) -> bool {
       !self.cus_attrs.is_empty()
+   }
+}
+
+trait ParseWords {
+   fn parse_2_to_f32(&self) -> [f32; 2];
+   fn parse_3_to_f32(&self) -> [f32; 3];
+   fn parse_to_usize(&self) -> Vec<usize>;
+}
+impl ParseWords for Vec<&str> {
+   fn parse_2_to_f32(&self) -> [f32; 2] {
+      const N: usize = 2;
+      let mut elem = [0.0; N];
+      for i in 1..=N {
+         elem[i - 1] = self[i].parse::<f32>().unwrap_or(0.0)
+      }
+      elem[1] *= -1.0;
+      elem
+   }
+
+   fn parse_3_to_f32(&self) -> [f32; 3] {
+      const N: usize = 3;
+      let mut elem = [0.0; N];
+      for i in 1..=N {
+         elem[i - 1] = self[i].parse::<f32>().unwrap_or(0.0)
+      }
+      elem
+   }
+
+   fn parse_to_usize(&self) -> Vec<usize> {
+      let mut elem: Vec<usize> = Vec::new();
+      for str in self {
+         elem.push(str.parse::<usize>().unwrap_or(1) - 1);
+      }
+      elem
    }
 }

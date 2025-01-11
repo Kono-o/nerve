@@ -1,7 +1,61 @@
-use crate::asset::file;
-use crate::renderer::ShaderType;
-use crate::util::{env, ex};
-use crate::{path, DataType, NECompileErrKind, NEError, NEOption, NEResult};
+use crate::*;
+
+pub(crate) enum NEAssetErrKind {
+   NonTriangleMesh,
+   VertEmpty,
+   FragEmpty,
+}
+
+enum GLSL {
+   Parsed { v_src: String, f_src: String },
+   CouldntParse { v_missing: bool, f_missing: bool },
+}
+impl GLSL {
+   fn parse(src: &str) -> GLSL {
+      let mut v_src = String::new();
+      let mut f_src = String::new();
+
+      let glsl_lines = src.lines();
+
+      let (mut v_found, mut f_found) = (false, false);
+      let mut cur_src = &mut v_src;
+
+      for line in glsl_lines {
+         let line = line.trim();
+         match line {
+            "//v" | "//V" | "//vert" | "//VERT" | "//vertex" | "//VERTEX" | "// v" | "// V"
+            | "// vert" | "// VERT" | "// vertex" | "// VERTEX" => {
+               cur_src = &mut v_src;
+               v_found = true;
+            }
+            "//f" | "//F" | "//frag" | "//FRAG" | "//fragment" | "//FRAGMENT" | "// f" | "// F"
+            | "// frag" | "// FRAG" | "// fragment" | "// FRAGMENT" => {
+               cur_src = &mut f_src;
+               f_found = true;
+            }
+            _ => {
+               cur_src.push_str(line);
+               cur_src.push_str("\n")
+            }
+         }
+      }
+      let (mut v_missing, mut f_missing) = (false, false);
+      if v_src.is_empty() || !v_found {
+         v_missing = true
+      }
+      if f_src.is_empty() || !f_found {
+         f_missing = true
+      }
+
+      match v_missing || f_missing {
+         true => GLSL::CouldntParse {
+            v_missing,
+            f_missing,
+         },
+         false => GLSL::Parsed { v_src, f_src },
+      }
+   }
+}
 
 pub struct NEShaderAsset {
    pub(crate) path: String,
@@ -9,20 +63,10 @@ pub struct NEShaderAsset {
    pub(crate) f_spv: Vec<u8>,
 }
 
-pub(crate) enum NEAssetErrKind {
-   VertEmpty,
-   FragEmpty,
-}
-
 impl NEShaderAsset {
    pub(crate) fn fallback() -> NEResult<NEShaderAsset> {
       NEShaderAsset::from_path("nerve/assets/glsl/fallback.glsl")
    }
-
-   pub fn from_src(name: &str, v_src: &str, f_src: &str) -> NEShaderAsset {
-      todo!()
-   }
-
    pub fn from_path(path: &str) -> NEResult<NEShaderAsset> {
       let file_name = match file::name(path) {
          NEOption::Empty => return NEResult::ER(NEError::file_invalid(path)),
@@ -30,14 +74,16 @@ impl NEShaderAsset {
       };
       let _ = match file::ex(path) {
          NEOption::Empty => return NEResult::ER(NEError::file_invalid(path)),
-         NEOption::Exists(n) => match n.eq_ignore_ascii_case(ex::GLSL) {
-            false => return NEResult::ER(NEError::file_unsupported(path)),
-            true => n,
+         NEOption::Exists(ex) => match ex.eq_ignore_ascii_case(ex::GLSL) {
+            false => return NEResult::ER(NEError::file_unsupported(path, &ex)),
+            true => ex,
          },
       };
       let nshdr_path = format!("{}{}.{}", path::SHDR_ASSET, file_name, ex::NSHDR);
 
-      let (file_exists, nshdr_exists) = (file::exists(path), file::exists(&nshdr_path));
+      let file_exists = file::exists_on_disk(path);
+      let nshdr_exists = file::exists_on_disk(&nshdr_path);
+
       if !file_exists && !nshdr_exists {
          let both_paths = format!("{} or {}", path, nshdr_path);
          return NEResult::ER(NEError::file_missing(&both_paths));
@@ -48,9 +94,9 @@ impl NEShaderAsset {
             NEResult::ER(e) => return NEResult::ER(e),
             NEResult::OK(s) => s,
          };
-         let glsl = parse_glsl(&src);
+         let glsl = GLSL::parse(&src);
          match glsl {
-            GLSL::NotFound {
+            GLSL::CouldntParse {
                v_missing,
                f_missing,
             } => {
@@ -83,7 +129,7 @@ impl NEShaderAsset {
 
                let nshdr_name = format!("{file_name}.{}", ex::NSHDR);
                match file::write_bytes_to_disk(path::SHDR_ASSET, &nshdr_name, &nshdr) {
-                  NEResult::ER(e) => return NEResult::ER(e),
+                  NEResult::ER(e) => NEResult::ER(e),
                   _ => NEResult::OK(NEShaderAsset {
                      path: nshdr_path.clone(),
                      v_spv,
@@ -125,7 +171,6 @@ fn clone_slice_4(bytes: &[u8]) -> [u8; 4] {
    }
    cloned_bytes
 }
-
 fn clone_slice(bytes: &[u8]) -> Vec<u8> {
    let mut cloned_bytes = Vec::new();
    for byte in bytes {
@@ -133,7 +178,6 @@ fn clone_slice(bytes: &[u8]) -> Vec<u8> {
    }
    cloned_bytes
 }
-
 fn u32_to_vec_of_4_u8s(n: u32) -> Vec<u8> {
    let mut vec = Vec::new();
    let bytes = n.u8ify();
@@ -162,7 +206,6 @@ fn glsl_to_spv(name: &str, typ: ShaderType, src: &str) -> NEResult<Vec<u8>> {
    let spv_file = format!("{temp_file}.{}", ex::NSHDR);
    gen_spv_from_glsl_to_path(&temp_file, &spv_file)
 }
-
 fn gen_spv_from_glsl_to_path(glsl_file: &str, spv_file: &str) -> NEResult<Vec<u8>> {
    let o = std::process::Command::new(env::GLSL_VALIDATOR_PATH)
       .arg("-G")
@@ -192,55 +235,5 @@ fn gen_spv_from_glsl_to_path(glsl_file: &str, spv_file: &str) -> NEResult<Vec<u8
          path: "".to_string(),
          msg: "".to_string(),
       }),
-   }
-}
-
-pub enum GLSL {
-   Parsed { v_src: String, f_src: String },
-   NotFound { v_missing: bool, f_missing: bool },
-}
-
-fn parse_glsl(src: &str) -> GLSL {
-   let mut v_src = String::new();
-   let mut f_src = String::new();
-
-   let glsl_lines = src.lines();
-
-   let (mut v_found, mut f_found) = (false, false);
-   let mut cur_src = &mut v_src;
-
-   for line in glsl_lines {
-      let line = line.trim();
-      match line {
-         "//v" | "//V" | "//vert" | "//VERT" | "//vertex" | "//VERTEX" | "// v" | "// V"
-         | "// vert" | "// VERT" | "// vertex" | "// VERTEX" => {
-            cur_src = &mut v_src;
-            v_found = true;
-         }
-         "//f" | "//F" | "//frag" | "//FRAG" | "//fragment" | "//FRAGMENT" | "// f" | "// F"
-         | "// frag" | "// FRAG" | "// fragment" | "// FRAGMENT" => {
-            cur_src = &mut f_src;
-            f_found = true;
-         }
-         _ => {
-            cur_src.push_str(line);
-            cur_src.push_str("\n")
-         }
-      }
-   }
-   let (mut v_missing, mut f_missing) = (false, false);
-   if v_src.is_empty() || !v_found {
-      v_missing = true
-   }
-   if f_src.is_empty() || !f_found {
-      f_missing = true
-   }
-
-   match v_missing || f_missing {
-      true => GLSL::NotFound {
-         v_missing,
-         f_missing,
-      },
-      false => GLSL::Parsed { v_src, f_src },
    }
 }
