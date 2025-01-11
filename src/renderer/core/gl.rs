@@ -1,6 +1,6 @@
 use crate::asset::{ATTRInfo, TexFormat};
 use crate::renderer::{Renderer, ShaderType};
-use crate::util::env;
+use crate::util::gpu;
 use crate::{ansi, NEShaderAsset, NETexture, TexFilter, TexWrap, RGB};
 use crate::{
    log_info, ATTRType, Cull, DrawMode, NECompileErrKind, NEError, NEResult, PolyMode, Size2D,
@@ -42,7 +42,7 @@ pub(crate) fn gl_renderer_init(window: &mut PWindow) -> NEResult<GLRenderer> {
 
             let arb = &gl.extensions;
             let mut spirv_compat = false;
-            if arb.contains(env::SPIRV_EXTENSIONS) && arb.contains(env::GL_SPIRV) {
+            if arb.contains(gpu::SPIRV_EXTENSIONS) && arb.contains(gpu::GL_SPIRV) {
                spirv_compat = true
             } else {
                return NEResult::ER(NEError::OpenGL {
@@ -82,7 +82,7 @@ impl Renderer for GLRenderer {
       let device = &self.info.device;
       log_info!("BACKEND");
       log_info!("> api: OpenGL {v0}.{v1}0 {spv}");
-      log_info!("> glsl: {glsl}");
+      log_info!("> shaders: {glsl}");
       log_info!("> gpu: {device}\n");
    }
 

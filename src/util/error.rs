@@ -2,8 +2,8 @@ use crate::asset::file::NEFileErrKind;
 use crate::asset::NEAssetErrKind;
 use crate::engine::NEInitErrKind;
 use crate::util::consts::ansi;
-use crate::util::env;
-use crate::{log_fatal, log_warn, proc, NECompileErrKind, NEOpenGLErrKind};
+use crate::util::gpu;
+use crate::{env, log_fatal, log_warn, proc, NECompileErrKind, NEOpenGLErrKind};
 
 #[derive(Copy, Clone)]
 pub enum NEErrorSeverity {
@@ -87,6 +87,14 @@ impl NEError {
       }
    }
 
+   pub(crate) fn no_glsl_validator(path: &str) -> NEError {
+      NEError::Compile {
+         kind: NECompileErrKind::NoGLSLValidator,
+         path: path.to_string(),
+         msg: "".to_string(),
+      }
+   }
+
    pub fn custom(severity: NEErrorSeverity, msg: &str) -> NEError {
       NEError::Custom {
          severity,
@@ -118,8 +126,8 @@ impl NEError {
                NEOpenGLErrKind::CStringFailed => "cstring failed",
                NEOpenGLErrKind::SPIRVNotFound => &format!(
                   "could not find [{}] or [{}]",
-                  env::SPIRV_EXTENSIONS,
-                  env::GL_SPIRV
+                  gpu::SPIRV_EXTENSIONS,
+                  gpu::GL_SPIRV
                ),
             };
             severe = NEErrorSeverity::Fatal;
@@ -156,7 +164,7 @@ impl NEError {
                NECompileErrKind::NoGLSLValidator => &format!(
                   "[{}] does not exist, install Vulkan SDK from {}",
                   env::GLSL_VALIDATOR,
-                  env::VULKAN_SDK_URL
+                  gpu::VULKAN_SDK_URL
                ),
                NECompileErrKind::GLSLCompileFailed => "compilation failed",
                NECompileErrKind::CreateProgramFailed => "program creation failed",

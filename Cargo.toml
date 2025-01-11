@@ -9,3 +9,5 @@ gll = { git = "https://github.com/Kono-o/gll.git", branch = "main" }
 
 cgmath = "0.18.0"
 png = "0.17.15"
+
+lazy_static = "1.5.0"

@@ -132,34 +132,39 @@ pub struct NEMeshAsset {
 
 impl NEMeshAsset {
    pub fn from_path(path: &str) -> NEResult<NEMeshAsset> {
-      let file_name = match file::name(path) {
-         NEOption::Empty => return NEResult::ER(NEError::file_invalid(path)),
+      NEMeshAsset::from_path_raw(&env::concat_with_asset(path))
+   }
+   fn from_path_raw(raw_path: &str) -> NEResult<NEMeshAsset> {
+      let file_name = match file::name(raw_path) {
+         NEOption::Empty => return NEResult::ER(NEError::file_invalid(raw_path)),
          NEOption::Exists(n) => n,
       };
-      let _ = match file::ex(path) {
-         NEOption::Empty => return NEResult::ER(NEError::file_invalid(path)),
+      let _ = match file::ex(raw_path) {
+         NEOption::Empty => return NEResult::ER(NEError::file_invalid(raw_path)),
          NEOption::Exists(ex) => match ex.eq_ignore_ascii_case(ex::OBJ) {
-            false => return NEResult::ER(NEError::file_unsupported(path, &ex)),
+            false => return NEResult::ER(NEError::file_unsupported(raw_path, &ex)),
             true => ex,
          },
       };
       let nmesh_path = format!("{}{}.{}", path::MESH_ASSET, file_name, ex::NMESH);
 
-      let file_exists = file::exists_on_disk(path);
+      let file_exists = file::exists_on_disk(raw_path);
       let nmesh_exists = file::exists_on_disk(&nmesh_path);
 
       if !file_exists && !nmesh_exists {
-         let both_paths = format!("{} or {}", path, nmesh_path);
+         let both_paths = format!("{} or {}", raw_path, nmesh_path);
          return NEResult::ER(NEError::file_missing(&both_paths));
       }
       if file_exists {
          //write/overwrite nmesh
-         let obj_src = match file::read_as_string(path) {
+         let obj_src = match file::read_as_string(raw_path) {
             NEResult::ER(e) => return NEResult::ER(e),
             NEResult::OK(of) => of,
          };
          let nmesh = match OBJ::parse(&obj_src) {
-            OBJ::NonTriangle(line) => return NEResult::ER(NEError::non_triangulated(path, line)),
+            OBJ::NonTriangle(line) => {
+               return NEResult::ER(NEError::non_triangulated(raw_path, line))
+            }
             OBJ::Parsed {
                pos_attr,
                col_attr,
@@ -190,7 +195,9 @@ impl NEMeshAsset {
             NEResult::OK(f) => f,
          };
          let nmesh = match OBJ::parse(&nmesh_src) {
-            OBJ::NonTriangle(line) => return NEResult::ER(NEError::non_triangulated(path, line)),
+            OBJ::NonTriangle(line) => {
+               return NEResult::ER(NEError::non_triangulated(raw_path, line))
+            }
             OBJ::Parsed {
                pos_attr,
                col_attr,

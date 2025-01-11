@@ -67,32 +67,35 @@ pub struct NEShaderAsset {
 
 impl NEShaderAsset {
    pub(crate) fn fallback() -> NEResult<NEShaderAsset> {
-      NEShaderAsset::from_path("nerve/assets/glsl/fallback.glsl")
+      NEShaderAsset::from_path_raw("nerve/assets/shaders/fallback.glsl")
    }
    pub fn from_path(path: &str) -> NEResult<NEShaderAsset> {
-      let file_name = match file::name(path) {
-         NEOption::Empty => return NEResult::ER(NEError::file_invalid(path)),
+      NEShaderAsset::from_path_raw(&env::concat_with_asset(path))
+   }
+   fn from_path_raw(raw_path: &str) -> NEResult<NEShaderAsset> {
+      let file_name = match file::name(raw_path) {
+         NEOption::Empty => return NEResult::ER(NEError::file_invalid(raw_path)),
          NEOption::Exists(n) => n,
       };
-      let _ = match file::ex(path) {
-         NEOption::Empty => return NEResult::ER(NEError::file_invalid(path)),
+      let _ = match file::ex(raw_path) {
+         NEOption::Empty => return NEResult::ER(NEError::file_invalid(raw_path)),
          NEOption::Exists(ex) => match ex.eq_ignore_ascii_case(ex::GLSL) {
-            false => return NEResult::ER(NEError::file_unsupported(path, &ex)),
+            false => return NEResult::ER(NEError::file_unsupported(raw_path, &ex)),
             true => ex,
          },
       };
       let nshdr_path = format!("{}{}.{}", path::SHDR_ASSET, file_name, ex::NSHDR);
 
-      let file_exists = file::exists_on_disk(path);
+      let file_exists = file::exists_on_disk(raw_path);
       let nshdr_exists = file::exists_on_disk(&nshdr_path);
 
       if !file_exists && !nshdr_exists {
-         let both_paths = format!("{} or {}", path, nshdr_path);
+         let both_paths = format!("{} or {}", raw_path, nshdr_path);
          return NEResult::ER(NEError::file_missing(&both_paths));
       }
       if file_exists {
          //write/overwrite nshdr
-         let src = match file::read_as_string(path) {
+         let src = match file::read_as_string(raw_path) {
             NEResult::ER(e) => return NEResult::ER(e),
             NEResult::OK(s) => s,
          };
@@ -103,8 +106,8 @@ impl NEShaderAsset {
                f_missing,
             } => {
                return NEResult::ER(match (v_missing, f_missing) {
-                  (true, _) => NEError::vert_missing(path),
-                  (_, _) => NEError::frag_missing(path),
+                  (true, _) => NEError::vert_missing(raw_path),
+                  (_, _) => NEError::frag_missing(raw_path),
                })
             }
 
@@ -209,7 +212,12 @@ fn glsl_to_spv(name: &str, typ: ShaderType, src: &str) -> NEResult<Vec<u8>> {
    gen_spv_from_glsl_to_path(&temp_file, &spv_file)
 }
 fn gen_spv_from_glsl_to_path(glsl_file: &str, spv_file: &str) -> NEResult<Vec<u8>> {
-   let o = std::process::Command::new(env::GLSL_VALIDATOR_PATH)
+   let glv_path = env::glsl_validator_path();
+   let no_glv = NEError::no_glsl_validator(&glv_path);
+   if !file::exists_on_disk(&glv_path) {
+      return NEResult::ER(no_glv);
+   }
+   let output = std::process::Command::new(&glv_path)
       .arg("-G")
       //.arg("-Os")
       //.arg("-r")
@@ -217,7 +225,7 @@ fn gen_spv_from_glsl_to_path(glsl_file: &str, spv_file: &str) -> NEResult<Vec<u8
       .arg("-o")
       .arg(spv_file)
       .output();
-   match o {
+   match output {
       Ok(out) => {
          if !out.status.success() {
             NEResult::ER(NEError::Compile {
@@ -232,10 +240,6 @@ fn gen_spv_from_glsl_to_path(glsl_file: &str, spv_file: &str) -> NEResult<Vec<u8
             }
          }
       }
-      Err(_) => NEResult::ER(NEError::Compile {
-         kind: NECompileErrKind::NoGLSLValidator,
-         path: "".to_string(),
-         msg: "".to_string(),
-      }),
+      Err(_) => NEResult::ER(no_glv),
    }
 }
