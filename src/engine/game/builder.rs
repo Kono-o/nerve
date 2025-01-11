@@ -2,7 +2,7 @@ use crate::engine::game::cycle::NECycle;
 use crate::engine::{ButtonState, KeyBitMap, MouseBitMap};
 use crate::renderer::core::VKRenderer;
 use crate::renderer::{gl_renderer_init, CamProj, NECamera, Renderer};
-use crate::utility::{NEError, NEResult};
+use crate::util::{NEError, NEResult};
 use crate::{
    NEEvents, NEGame, NERenderer, NEScene, NETime, NEWindow, ScreenCoord, ScreenOffset, Size2D,
 };
@@ -55,7 +55,7 @@ impl Default for NEGameBuilder {
       Self {
          render_api: RenderAPI::OpenGL,
          decorated: true,
-         title: "<Nerve-Game>".to_string(),
+         title: "nerve-game".to_string(),
          mode: WinMode::Windowed(1280, 720),
          fps: FPS::Vsync,
       }

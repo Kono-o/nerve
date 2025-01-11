@@ -1,8 +1,8 @@
 use crate::asset::file::NEFileErrKind;
 use crate::asset::NEAssetErrKind;
 use crate::engine::NEInitErrKind;
-use crate::utility::consts::ansi;
-use crate::utility::gpu;
+use crate::util::consts::ansi;
+use crate::util::misc;
 use crate::{env, log_fatal, log_warn, proc, NECompileErrKind, NEOpenGLErrKind};
 
 #[derive(Copy, Clone)]
@@ -126,8 +126,8 @@ impl NEError {
                NEOpenGLErrKind::CStringFailed => "cstring failed",
                NEOpenGLErrKind::SPIRVNotFound => &format!(
                   "could not find [{}] or [{}]",
-                  gpu::SPIRV_EXTENSIONS,
-                  gpu::GL_SPIRV
+                  misc::SPIRV_EXTENSIONS,
+                  misc::GL_SPV_EXTENSION
                ),
             };
             severe = NEErrorSeverity::Fatal;
@@ -164,7 +164,7 @@ impl NEError {
                NECompileErrKind::NoGLSLValidator => &format!(
                   "[{}] does not exist, install Vulkan SDK from {}",
                   env::GLSL_VALIDATOR,
-                  gpu::VULKAN_SDK_URL
+                  misc::VULKAN_SDK_URL
                ),
                NECompileErrKind::GLSLCompileFailed => "compilation failed",
                NECompileErrKind::CreateProgramFailed => "program creation failed",

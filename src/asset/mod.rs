@@ -1,5 +1,4 @@
 mod assets;
-mod io;
+pub(crate) mod file;
 
 pub use assets::*;
-pub use io::*;

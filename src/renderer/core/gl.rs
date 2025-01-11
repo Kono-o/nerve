@@ -1,6 +1,6 @@
 use crate::asset::{ATTRInfo, TexFormat};
 use crate::renderer::{Renderer, ShaderType};
-use crate::utility::gpu;
+use crate::util::misc;
 use crate::{ansi, NEShaderAsset, NETexture, TexFilter, TexWrap, RGB};
 use crate::{
    log_info, ATTRType, Cull, DrawMode, NECompileErrKind, NEError, NEResult, PolyMode, Size2D,
@@ -42,7 +42,7 @@ pub(crate) fn gl_renderer_init(window: &mut PWindow) -> NEResult<GLRenderer> {
 
             let arb = &gl.extensions;
             let mut spirv_compat = false;
-            if arb.contains(gpu::SPIRV_EXTENSIONS) && arb.contains(gpu::GL_SPIRV) {
+            if arb.contains(misc::SPIRV_EXTENSIONS) && arb.contains(misc::GL_SPV_EXTENSION) {
                spirv_compat = true
             } else {
                return NEResult::ER(NEError::OpenGL {
