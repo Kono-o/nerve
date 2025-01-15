@@ -47,7 +47,7 @@ impl NEGame {
    }
 
    fn should_poll(&self) -> bool {
-      if self.time.frame % 30 == 0 {
+      if self.time.frame % 1 == 0 {
          return true;
       }
       false
@@ -80,6 +80,10 @@ impl NEGame {
    }
 
    pub fn post_update(&mut self) {
+      self.renderer.post_update();
+      self.window.post_update();
+      self.events.post_update();
+      self.time.post_update();
       self.scene.post_update(
          &mut self.renderer,
          &mut self.window,
@@ -87,10 +91,6 @@ impl NEGame {
          &mut self.cycle,
          &mut self.time,
       );
-      self.renderer.post_update();
-      self.window.post_update();
-      self.events.post_update();
-      self.time.post_update();
    }
    pub fn end(mut self) {
       self.scene.end(

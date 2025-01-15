@@ -2,10 +2,7 @@ use crate::asset::{ATTRInfo, TexFormat};
 use crate::renderer::{Renderer, ShaderType};
 use crate::util::misc;
 use crate::{ansi, NEShaderAsset, NETexture, TexFilter, TexWrap, RGB};
-use crate::{
-   log_info, ATTRType, Cull, DrawMode, NECompileErrKind, NEError, NEResult, PolyMode, Size2D,
-   Uniform,
-};
+use crate::{log_info, ATTRType, Cull, DrawMode, NEError, NEResult, PolyMode, Size2D, Uniform};
 use cgmath::{Matrix, Matrix4};
 use glfw::{Context, PWindow};
 use gll as gl;
@@ -17,7 +14,6 @@ use std::ptr;
 pub enum NEOpenGLErrKind {
    NoActiveContext,
    CouldParseVersion(String),
-   CStringFailed,
    SPIRVNotFound,
 }
 
@@ -59,14 +55,12 @@ pub(crate) fn gl_renderer_init(window: &mut PWindow) -> NEResult<GLRenderer> {
                },
             })
          }
-         Err(e) => {
-            let kind = match e {
-               ContextInitError::NoActiveContext => NEOpenGLErrKind::NoActiveContext,
+         Err(e) => NEResult::ER(NEError::OpenGL {
+            kind: match e {
                ContextInitError::CouldParseVersion(s) => NEOpenGLErrKind::CouldParseVersion(s),
-               ContextInitError::CStringFailed => NEOpenGLErrKind::CStringFailed,
-            };
-            NEResult::ER(NEError::OpenGL { kind })
-         }
+               _ => NEOpenGLErrKind::NoActiveContext,
+            },
+         }),
       }
    }
 }
@@ -224,16 +218,9 @@ impl Renderer for GLRenderer {
    //SHADERS
    fn create_src_shader(&self, src: &str, typ: ShaderType) -> NEResult<u32> {
       let src = match CString::new(src.as_bytes()) {
+         Err(_) => return NEResult::ER(NEError::cstring_failed("src")),
          Ok(s) => s,
-         Err(_) => {
-            return NEResult::ER(NEError::Compile {
-               kind: NECompileErrKind::CStringFailed,
-               path: "".to_string(),
-               msg: "src".to_string(),
-            })
-         }
       };
-      println!("making sh");
       let gl = &self.gl;
       unsafe {
          let shader = gl.raw.CreateShader(gl_match_shader_type(&typ));
@@ -466,7 +453,7 @@ impl Renderer for GLRenderer {
             .Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
       }
    }
-   fn draw(&self, draw_mode: &DrawMode, index_count: u32) {
+   fn draw_indexed(&self, draw_mode: &DrawMode, index_count: u32) {
       let draw_mode = gl_match_draw_mode(draw_mode);
       unsafe {
          self.gl.raw.DrawElements(
@@ -477,7 +464,7 @@ impl Renderer for GLRenderer {
          );
       }
    }
-   fn draw_no_index(&self, draw_mode: &DrawMode, vert_count: u32) {
+   fn draw_array(&self, draw_mode: &DrawMode, vert_count: u32) {
       let draw_mode = gl_match_draw_mode(draw_mode);
       unsafe {
          self.gl.raw.DrawArrays(draw_mode, 0, vert_count as GLsizei);
@@ -568,14 +555,10 @@ unsafe fn gl_shader_compile_failure(shader: GLuint, gl: &gl::Context) -> NEResul
          log.as_mut_ptr() as *mut GLchar,
       );
       println!("{:?}", log);
-      let msg = std::str::from_utf8(&log)
+      let log = std::str::from_utf8(&log)
          .unwrap_or("unreachable-log")
          .to_string();
-      NEResult::ER(NEError::Compile {
-         kind: NECompileErrKind::CreateShaderFailed,
-         path: "".to_string(),
-         msg,
-      })
+      NEResult::ER(NEError::create_shader_failed(log))
    } else {
       NEResult::OK(())
    }
@@ -599,14 +582,10 @@ unsafe fn gl_program_link_failure(program: GLuint, gl: &gl::Context) -> NEResult
          log.as_mut_ptr() as *mut GLchar,
       );
       println!("{:?}", log);
-      let msg = std::str::from_utf8(&log)
+      let log = std::str::from_utf8(&log)
          .unwrap_or("unreachable-log")
          .to_string();
-      NEResult::ER(NEError::Compile {
-         kind: NECompileErrKind::CreateProgramFailed,
-         path: "".to_string(),
-         msg,
-      })
+      NEResult::ER(NEError::create_program_failed(log))
    } else {
       NEResult::OK(())
    }

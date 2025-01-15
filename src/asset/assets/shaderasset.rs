@@ -228,9 +228,9 @@ fn gen_spv_from_glsl_to_path(glsl_file: &str, spv_file: &str) -> NEResult<Vec<u8
    match output {
       Ok(out) => {
          if !out.status.success() {
-            NEResult::ER(NEError::Compile {
+            NEResult::ER(NEError::Renderer {
                msg: String::from_utf8_lossy(&out.stdout).to_string(),
-               kind: NECompileErrKind::GLSLCompileFailed,
+               kind: NERendererErrKing::GLSLCompileFailed,
                path: glsl_file.to_string(),
             })
          } else {

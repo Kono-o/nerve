@@ -3,12 +3,16 @@ use crate::asset::NEAssetErrKind;
 use crate::engine::NEInitErrKind;
 use crate::util::consts::ansi;
 use crate::util::misc;
-use crate::{env, log_fatal, log_warn, proc, NECompileErrKind, NEOpenGLErrKind};
+use crate::{env, log_fatal, log_warn, proc, NEOpenGLErrKind, NERendererErrKing};
 
 #[derive(Copy, Clone)]
 pub enum NEErrorSeverity {
    Warn,
    Fatal,
+}
+
+pub enum NEUtilErrKind {
+   CStringFailed,
 }
 
 pub enum NEError {
@@ -26,9 +30,13 @@ pub enum NEError {
       kind: NEAssetErrKind,
       path: String,
    },
-   Compile {
-      kind: NECompileErrKind,
+   Renderer {
+      kind: NERendererErrKing,
       path: String,
+      msg: String,
+   },
+   Util {
+      kind: NEUtilErrKind,
       msg: String,
    },
    Custom {
@@ -38,27 +46,7 @@ pub enum NEError {
 }
 
 impl NEError {
-   pub(crate) fn vert_missing(path: &str) -> NEError {
-      NEError::Asset {
-         kind: NEAssetErrKind::VertEmpty,
-         path: path.to_string(),
-      }
-   }
-
-   pub(crate) fn frag_missing(path: &str) -> NEError {
-      NEError::Asset {
-         kind: NEAssetErrKind::FragEmpty,
-         path: path.to_string(),
-      }
-   }
-
-   pub(crate) fn non_triangulated(path: &str, line: String) -> NEError {
-      NEError::Asset {
-         kind: NEAssetErrKind::NonTriangle(line),
-         path: path.to_string(),
-      }
-   }
-
+   //FILE
    pub(crate) fn file_missing(path: &str) -> NEError {
       NEError::File {
          kind: NEFileErrKind::Missing,
@@ -87,14 +75,62 @@ impl NEError {
       }
    }
 
+   //ASSET
+   pub(crate) fn vert_missing(path: &str) -> NEError {
+      NEError::Asset {
+         kind: NEAssetErrKind::VertEmpty,
+         path: path.to_string(),
+      }
+   }
+
+   pub(crate) fn frag_missing(path: &str) -> NEError {
+      NEError::Asset {
+         kind: NEAssetErrKind::FragEmpty,
+         path: path.to_string(),
+      }
+   }
+
+   pub(crate) fn non_triangulated(path: &str, line: String) -> NEError {
+      NEError::Asset {
+         kind: NEAssetErrKind::NonTriangle(line),
+         path: path.to_string(),
+      }
+   }
+
+   //RENDERER
    pub(crate) fn no_glsl_validator(path: &str) -> NEError {
-      NEError::Compile {
-         kind: NECompileErrKind::NoGLSLValidator,
+      NEError::Renderer {
+         kind: NERendererErrKing::NoGLSLValidator,
          path: path.to_string(),
          msg: "".to_string(),
       }
    }
 
+   pub(crate) fn create_shader_failed(log: String) -> NEError {
+      NEError::Renderer {
+         kind: NERendererErrKing::CreateShaderFailed,
+         path: "".to_string(),
+         msg: log,
+      }
+   }
+
+   pub(crate) fn create_program_failed(log: String) -> NEError {
+      NEError::Renderer {
+         kind: NERendererErrKing::CreateProgramFailed,
+         path: "".to_string(),
+         msg: log,
+      }
+   }
+
+   //UTIL
+   pub(crate) fn cstring_failed(msg: &str) -> NEError {
+      NEError::Util {
+         kind: NEUtilErrKind::CStringFailed,
+         msg: msg.to_string(),
+      }
+   }
+
+   //CUSTOM
    pub fn custom(severity: NEErrorSeverity, msg: &str) -> NEError {
       NEError::Custom {
          severity,
@@ -123,7 +159,6 @@ impl NEError {
             let kind_msg = match kind {
                NEOpenGLErrKind::NoActiveContext => "no active context found",
                NEOpenGLErrKind::CouldParseVersion(s) => &format!("could not parse version {s}"),
-               NEOpenGLErrKind::CStringFailed => "cstring failed",
                NEOpenGLErrKind::SPIRVNotFound => &format!(
                   "could not find [{}] or [{}]",
                   misc::SPIRV_EXTENSIONS,
@@ -159,17 +194,16 @@ impl NEError {
             severe = NEErrorSeverity::Fatal;
             format!("(asset) -> {kind_msg}! [{path}]")
          }
-         NEError::Compile { kind, path, msg } => {
+         NEError::Renderer { kind, path, msg } => {
             let kind_msg = match kind {
-               NECompileErrKind::NoGLSLValidator => &format!(
+               NERendererErrKing::NoGLSLValidator => &format!(
                   "[{}] does not exist, install Vulkan SDK from {}",
                   env::GLSL_VALIDATOR,
                   misc::VULKAN_SDK_URL
                ),
-               NECompileErrKind::GLSLCompileFailed => "compilation failed",
-               NECompileErrKind::CreateProgramFailed => "program creation failed",
-               NECompileErrKind::CreateShaderFailed => "shader creation failed",
-               NECompileErrKind::CStringFailed => "could not parse src into c-str",
+               NERendererErrKing::GLSLCompileFailed => "compilation failed",
+               NERendererErrKing::CreateProgramFailed => "program creation failed",
+               NERendererErrKing::CreateShaderFailed => "shader creation failed",
             };
             severe = NEErrorSeverity::Fatal;
             if msg.len() == 0 {
@@ -178,9 +212,16 @@ impl NEError {
                format!("(spirv) -> {kind_msg}! {msg} [{path}]")
             }
          }
+         NEError::Util { kind, msg } => {
+            let kind_msg = match kind {
+               NEUtilErrKind::CStringFailed => &format!("c string creation failed from {msg}"),
+            };
+            severe = NEErrorSeverity::Fatal;
+            format!("(util) -> {kind_msg}!")
+         }
          NEError::Custom { severity, msg } => {
             severe = *severity;
-            format!("(custom) -> {msg}")
+            format!("(custom) -> {msg}!")
          }
       };
       (severe, format!("NERVE ERROR: {msg}"))

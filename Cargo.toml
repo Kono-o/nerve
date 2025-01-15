@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 glfw = { version = "0.59.0", features = ["vulkan"] }
-gll = { git = "https://github.com/Kono-o/gll.git", branch = "main" }
+gll = { path = "../gll" }
 
 cgmath = "0.18.0"
 png = "0.17.15"

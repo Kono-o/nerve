@@ -1,8 +1,6 @@
 use crate::asset::ATTRInfo;
 use crate::renderer::{Renderer, ShaderType};
-use crate::{
-   Cull, DrawMode, NEResult, NEShaderAsset, NETexture, PolyMode, Size2D, Uniform, RGB,
-};
+use crate::{Cull, DrawMode, NEResult, NEShaderAsset, NETexture, PolyMode, Size2D, Uniform, RGB};
 use cgmath::Matrix4;
 
 #[derive(Copy, Clone)]
@@ -158,11 +156,11 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn draw(&self, draw_mode: &DrawMode, index_count: u32) {
+   fn draw_indexed(&self, draw_mode: &DrawMode, index_count: u32) {
       todo!()
    }
 
-   fn draw_no_index(&self, draw_mode: &DrawMode, vert_count: u32) {
+   fn draw_array(&self, draw_mode: &DrawMode, vert_count: u32) {
       todo!()
    }
 }

@@ -120,7 +120,6 @@ impl OBJ {
 }
 
 pub struct NEMeshAsset {
-   pub(crate) shader: NEShader,
    pub(crate) transform: Transform,
    pub(crate) pos_attr: PosATTR,
    pub(crate) col_attr: ColATTR,
@@ -172,7 +171,6 @@ impl NEMeshAsset {
                nrm_attr,
                indices,
             } => NEMeshAsset {
-               shader: NEShader::temporary(),
                transform: Transform::default(),
                cus_attrs: Vec::new(),
                pos_attr,
@@ -205,7 +203,6 @@ impl NEMeshAsset {
                nrm_attr,
                indices,
             } => NEMeshAsset {
-               shader: NEShader::temporary(),
                transform: Transform::default(),
                cus_attrs: Vec::new(),
                pos_attr,
@@ -235,9 +232,7 @@ impl NEMeshAsset {
          && self.uvm_attr.is_empty()
          && self.nrm_attr.is_empty()
    }
-   pub fn set_shader(&mut self, shader: NEShader) {
-      self.shader = shader;
-   }
+
    pub(crate) fn has_custom_attrs(&self) -> bool {
       !self.cus_attrs.is_empty()
    }

@@ -1,7 +1,7 @@
 use crate::asset::ATTRInfo;
 use crate::{
-   ansi, color, log_info, DataType, DrawMode, NECamera, NEError, NEMesh, NEMeshAsset,
-   NEResult, NEShader, NEShaderAsset, NETexture, RenderAPI, Size2D, Uniform, RGB,
+   ansi, color, log_info, DataType, DrawMode, NECamera, NEError, NEMesh, NEMeshAsset, NEResult,
+   NEShader, NEShaderAsset, NETexture, RenderAPI, Size2D, Uniform, RGB,
 };
 use cgmath::Matrix4;
 
@@ -74,8 +74,15 @@ pub(crate) trait Renderer {
 
    //DRAW
    fn clear(&self);
-   fn draw(&self, draw_mode: &DrawMode, index_count: u32);
-   fn draw_no_index(&self, draw_mode: &DrawMode, vert_count: u32);
+   fn draw_indexed(&self, draw_mode: &DrawMode, index_count: u32);
+   fn draw_array(&self, draw_mode: &DrawMode, vert_count: u32);
+}
+
+pub enum NERendererErrKing {
+   NoGLSLValidator,
+   GLSLCompileFailed,
+   CreateShaderFailed,
+   CreateProgramFailed,
 }
 
 pub struct NERenderer {
@@ -232,9 +239,10 @@ impl NERenderer {
    }
    pub fn compile(&self, nshdr: NEShaderAsset) -> NEResult<NEShader> {
       let id = match self.core.create_spv_program(&nshdr) {
+         NEResult::OK(id) => id,
          NEResult::ER(mut e) => {
             return match e {
-               NEError::Compile { kind, msg, .. } => NEResult::ER(NEError::Compile {
+               NEError::Renderer { kind, msg, .. } => NEResult::ER(NEError::Renderer {
                   kind,
                   path: nshdr.path,
                   msg,
@@ -242,7 +250,6 @@ impl NERenderer {
                _ => NEResult::ER(e),
             }
          }
-         NEResult::OK(id) => id,
       };
 
       self.core.bind_program(id);
@@ -324,16 +331,16 @@ impl NERenderer {
       for i in 0..end {
          vert_count += 1;
          if pos_exists {
-            push_into_buffer(&mut buffer, &pos_data[i]);
+            buffer.push_attr(&pos_data[i]);
          }
          if col_exists {
-            push_into_buffer(&mut buffer, &col_data[i]);
+            buffer.push_attr(&col_data[i]);
          }
          if uvm_exists {
-            push_into_buffer(&mut buffer, &uvm_data[i]);
+            buffer.push_attr(&uvm_data[i]);
          }
          if nrm_exists {
-            push_into_buffer(&mut buffer, &nrm_data[i]);
+            buffer.push_attr(&nrm_data[i]);
          }
          if cus_exists {
             for (j, _attr) in asset.cus_attrs.iter().enumerate() {
@@ -341,7 +348,7 @@ impl NERenderer {
                let cus_data = cus_datas[j];
                let start = i * cus_byte_count;
                let end = ((i + 1) * (cus_byte_count)) - 1;
-               push_into_buffer(&mut buffer, &cus_data[start..=end]);
+               buffer.push_attr(&cus_data[start..=end]);
             }
          }
       }
@@ -416,7 +423,7 @@ impl NERenderer {
       NEMesh {
          alive: true,
          visible: true,
-         shader: asset.shader.clone(),
+         shader: self.fallback_shader(),
          has_indices: ind_info.exists,
          vert_count,
          ind_count,
@@ -434,8 +441,8 @@ impl NERenderer {
       }
       mesh.update();
       let s = match mesh.shader.exists_on_gpu {
-         true => mesh.shader.id,
          false => self.fallback_shader.id,
+         true => mesh.shader.id,
       };
       self.core.bind_program(s);
       self.core.set_uni_m4f32(s, "uCamView", self.cam_view);
@@ -447,28 +454,27 @@ impl NERenderer {
       }
 
       self.core.bind_buffer(mesh.buf_id.0, mesh.buf_id.1);
-      if mesh.has_indices {
-         self.core.bind_index_buffer(mesh.index_buf_id);
-         self.core.draw(&mesh.draw_mode, mesh.ind_count);
-      } else {
-         self.core.draw_no_index(&mesh.draw_mode, mesh.vert_count)
+      match mesh.has_indices {
+         false => self.core.draw_array(&mesh.draw_mode, mesh.vert_count),
+         true => {
+            self.core.bind_index_buffer(mesh.index_buf_id);
+            self.core.draw_indexed(&mesh.draw_mode, mesh.ind_count);
+         }
       }
    }
 }
 
-fn push_into_buffer<T: DataType>(buffer: &mut Vec<u8>, attr: &[T]) {
-   for elem in attr.iter() {
-      let bytes = elem.u8ify();
-      for byte in bytes.iter() {
-         buffer.push(*byte);
-      }
-   }
+trait Buffer {
+   fn push_attr<T: DataType>(&mut self, attr: &[T]);
 }
 
-pub enum NECompileErrKind {
-   NoGLSLValidator,
-   GLSLCompileFailed,
-   CreateProgramFailed,
-   CStringFailed,
-   CreateShaderFailed,
+impl Buffer for Vec<u8> {
+   fn push_attr<T: DataType>(&mut self, attr: &[T]) {
+      for elem in attr.iter() {
+         let bytes = elem.u8ify();
+         for byte in bytes.iter() {
+            self.push(*byte);
+         }
+      }
+   }
 }
