@@ -405,7 +405,7 @@ impl Renderer for GLRenderer {
          self.bind_buffer(v_id, b_id);
          self.gl.raw.BufferData(
             gl::ARRAY_BUFFER,
-            (buffer.len() * 4) as GLsizeiptr,
+            buffer.len() as GLsizeiptr,
             &buffer[0] as *const u8 as *const c_void,
             gl::DYNAMIC_DRAW,
          );

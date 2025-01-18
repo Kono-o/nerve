@@ -2,7 +2,7 @@ use crate::asset::ATTRInfo;
 use crate::renderer::handles::{DrawMode, NEMesh, NEShader, Uniform};
 use crate::{
    ansi, color, log_info, DataType, NECamera, NEError, NEMeshAsset, NEResult, NEShaderAsset,
-   NETexAsset, NETexture, RenderAPI, Size2D, RGB,
+   NETexAsset, NETexture, RenderAPI, Size2D, TexFilter, TexWrap, RGB,
 };
 use cgmath::Matrix4;
 
@@ -130,7 +130,9 @@ impl NERenderer {
          culling: true,
       };
       let fallback_shader_asset = NEShaderAsset::fallback().unpack();
-      let fallback_tex_asset = NETexAsset::fallback().unpack();
+      let mut fallback_tex_asset = NETexAsset::fallback().unpack();
+      fallback_tex_asset.set_filter(TexFilter::Closest);
+      fallback_tex_asset.set_wrap(TexWrap::Repeat);
 
       renderer.fallback_texture = renderer.add_texture(fallback_tex_asset);
       renderer.fallback_shader = renderer.add_shader(fallback_shader_asset).unpack();

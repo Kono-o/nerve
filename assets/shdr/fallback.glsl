@@ -36,18 +36,14 @@ layout (location = 0) out vec4 frag;
 
 layout (location = 3) uniform vec3 uLight = normalize(vec3(0.5, 1.0, 0.3));
 
-uniform sampler2D tDif1;
+uniform sampler2D Tex0;
 
 void main() {
 
     float light = 1.0 - dot(normalize(fNrm), normalize(uLight));
-    vec4 texCol = texture(tDif1, fUVM * 40);
+    vec4 texCol = texture(Tex0, fUVM * 50);
     vec4 difCol = texCol * vec4(fCol, 1.0);
     vec4 shadCol = difCol * 0.9;
 
-    vec4 whiteCol = vec4(1.0, 1.0, 1.0, 1.0);
-    vec4 whiteShad = whiteCol * 0.55;
-
-    //frag = mix(difCol, shadCol, light);
-    frag = mix(whiteCol, whiteShad, light);
+    frag = mix(difCol, shadCol, light);
 }
