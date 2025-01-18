@@ -1,12 +1,6 @@
 use crate::*;
 use std::collections::HashMap;
 
-macro_rules! stringify {
-   ($t:expr) => {
-      format!("{}", $t)
-   };
-}
-
 enum OBJ {
    Parsed {
       pos_attr: PosATTR,
@@ -17,7 +11,6 @@ enum OBJ {
    },
    NonTriangle(String),
 }
-
 impl OBJ {
    fn parse(src: &str) -> OBJ {
       let mut pos_attr = PosATTR::empty();
@@ -125,8 +118,8 @@ pub struct NEMeshAsset {
    pub(crate) col_attr: ColATTR,
    pub(crate) uvm_attr: UVMATTR,
    pub(crate) nrm_attr: NrmATTR,
-   pub(crate) cus_attrs: Vec<CustomATTR>,
    pub(crate) indices: Indices,
+   pub(crate) cus_attrs: Vec<CustomATTR>,
 }
 
 impl NEMeshAsset {
@@ -135,13 +128,13 @@ impl NEMeshAsset {
    }
    fn from_path_raw(raw_path: &str) -> NEResult<NEMeshAsset> {
       let file_name = match file::name(raw_path) {
-         NEOption::Empty => return NEResult::ER(NEError::file_invalid(raw_path)),
+         NEOption::Empty => return NEError::file_invalid(raw_path).pack(),
          NEOption::Exists(n) => n,
       };
       let _ = match file::ex(raw_path) {
-         NEOption::Empty => return NEResult::ER(NEError::file_invalid(raw_path)),
+         NEOption::Empty => return NEError::file_invalid(raw_path).pack(),
          NEOption::Exists(ex) => match ex.eq_ignore_ascii_case(ex::OBJ) {
-            false => return NEResult::ER(NEError::file_unsupported(raw_path, &ex)),
+            false => return NEError::file_unsupported(raw_path, &ex).pack(),
             true => ex,
          },
       };
@@ -152,18 +145,16 @@ impl NEMeshAsset {
 
       if !file_exists && !nmesh_exists {
          let both_paths = format!("{} or {}", raw_path, nmesh_path);
-         return NEResult::ER(NEError::file_missing(&both_paths));
+         return NEError::file_missing(&both_paths).pack();
       }
       if file_exists {
          //write/overwrite nmesh
          let obj_src = match file::read_as_string(raw_path) {
-            NEResult::ER(e) => return NEResult::ER(e),
+            NEResult::ER(e) => return e.pack(),
             NEResult::OK(of) => of,
          };
          let nmesh = match OBJ::parse(&obj_src) {
-            OBJ::NonTriangle(line) => {
-               return NEResult::ER(NEError::non_triangulated(raw_path, line))
-            }
+            OBJ::NonTriangle(line) => return NEError::non_triangulated(raw_path, line).pack(),
             OBJ::Parsed {
                pos_attr,
                col_attr,
@@ -183,19 +174,17 @@ impl NEMeshAsset {
 
          let nmesh_name = format!("{file_name}.{}", ex::NMESH);
          match file::write_str_to_disk(path::MESH_ASSET, &nmesh_name, &obj_src) {
-            NEResult::ER(e) => NEResult::ER(e),
+            NEResult::ER(e) => e.pack(),
             _ => NEResult::OK(nmesh),
          }
       } else {
          //load new/pre-existing nmesh
          let nmesh_src = match file::read_as_string(&nmesh_path) {
-            NEResult::ER(e) => return NEResult::ER(e),
+            NEResult::ER(e) => return e.pack(),
             NEResult::OK(f) => f,
          };
          let nmesh = match OBJ::parse(&nmesh_src) {
-            OBJ::NonTriangle(line) => {
-               return NEResult::ER(NEError::non_triangulated(raw_path, line))
-            }
+            OBJ::NonTriangle(line) => return NEError::non_triangulated(raw_path, line).pack(),
             OBJ::Parsed {
                pos_attr,
                col_attr,

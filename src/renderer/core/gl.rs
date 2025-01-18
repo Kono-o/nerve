@@ -1,8 +1,9 @@
-use crate::asset::{ATTRInfo, TexFormat};
-use crate::renderer::{Renderer, ShaderType};
+use crate::asset::ATTRInfo;
+use crate::renderer::handles::{DrawMode, Uniform};
+use crate::renderer::{Renderer, ShaderType, TexFormat};
 use crate::util::misc;
-use crate::{ansi, NEShaderAsset, NETexture, TexFilter, TexWrap, RGB};
-use crate::{log_info, ATTRType, Cull, DrawMode, NEError, NEResult, PolyMode, Size2D, Uniform};
+use crate::{ansi, NEShaderAsset, NETexAsset, TexFilter, TexWrap, RGB};
+use crate::{log_info, ATTRType, Cull, NEError, NEResult, PolyMode, Size2D};
 use cgmath::{Matrix, Matrix4};
 use glfw::{Context, PWindow};
 use gll as gl;
@@ -76,7 +77,7 @@ impl Renderer for GLRenderer {
       let device = &self.info.device;
       log_info!("BACKEND");
       log_info!("> api: OpenGL {v0}.{v1}0 {spv}");
-      log_info!("> shaders: {glsl}");
+      log_info!("> shdr: {glsl}");
       log_info!("> gpu: {device}\n");
    }
 
@@ -196,40 +197,41 @@ impl Renderer for GLRenderer {
    fn create_spv_shader(&self, spv: &Vec<u8>, typ: ShaderType) -> NEResult<u32> {
       let gl = &self.gl;
       unsafe {
-         let shader = gl.raw.CreateShader(gl_match_shader_type(&typ));
+         let shader_id = gl.raw.CreateShader(gl_match_shader_type(&typ));
          gl.raw.ShaderBinary(
             1,
-            &shader,
+            &shader_id,
             gl::SHADER_BINARY_FORMAT_SPIR_V,
             &spv[0] as *const u8 as *const c_void,
             spv.len() as GLsizei,
          );
          let n = ptr::null();
          let entry = CString::new("main").unwrap(); //unwrap is ok here coz "main" is literal
-         gl.raw.SpecializeShader(shader, entry.as_ptr(), 0, n, n);
+         gl.raw.SpecializeShader(shader_id, entry.as_ptr(), 0, n, n);
 
-         match gl_shader_compile_failure(shader, gl) {
-            NEResult::OK(_) => NEResult::OK(shader as u32),
-            NEResult::ER(e) => NEResult::ER(e),
+         match gl_shader_compile_failure(shader_id, gl) {
+            NEResult::OK(_) => NEResult::OK(shader_id as u32),
+            NEResult::ER(e) => e.pack(),
          }
       }
    }
 
    //SHADERS
    fn create_src_shader(&self, src: &str, typ: ShaderType) -> NEResult<u32> {
-      let src = match CString::new(src.as_bytes()) {
-         Err(_) => return NEResult::ER(NEError::cstring_failed("src")),
+      let src = match CString::new(src) {
+         Err(e) => return NEError::cstr_null_byte_found(src, e.nul_position()).pack(),
          Ok(s) => s,
       };
       let gl = &self.gl;
       unsafe {
-         let shader = gl.raw.CreateShader(gl_match_shader_type(&typ));
-         gl.raw.ShaderSource(shader, 1, &src.as_ptr(), ptr::null());
-         gl.raw.CompileShader(shader);
+         let shader_id = gl.raw.CreateShader(gl_match_shader_type(&typ));
+         gl.raw
+            .ShaderSource(shader_id, 1, &src.as_ptr(), ptr::null());
+         gl.raw.CompileShader(shader_id);
 
-         match gl_shader_compile_failure(shader, gl) {
-            NEResult::OK(_) => NEResult::OK(shader as u32),
-            NEResult::ER(e) => NEResult::ER(e),
+         match gl_shader_compile_failure(shader_id, gl) {
+            NEResult::OK(_) => NEResult::OK(shader_id as u32),
+            NEResult::ER(e) => e.pack(),
          }
       }
    }
@@ -241,26 +243,26 @@ impl Renderer for GLRenderer {
    fn create_spv_program(&self, nshdr: &NEShaderAsset) -> NEResult<u32> {
       let gl = &self.gl;
       unsafe {
-         let program = gl.raw.CreateProgram();
-         let v_shader = match self.create_spv_shader(&nshdr.v_spv, ShaderType::Vert) {
-            NEResult::ER(e) => return NEResult::ER(e),
+         let program_id = gl.raw.CreateProgram();
+         let v_shader_id = match self.create_spv_shader(&nshdr.v_spv, ShaderType::Vert) {
+            NEResult::ER(e) => return e.pack(),
             NEResult::OK(vs) => vs,
          };
-         let f_shader = match self.create_spv_shader(&nshdr.f_spv, ShaderType::Frag) {
-            NEResult::ER(e) => return NEResult::ER(e),
+         let f_shader_id = match self.create_spv_shader(&nshdr.f_spv, ShaderType::Frag) {
+            NEResult::ER(e) => return e.pack(),
             NEResult::OK(fs) => fs,
          };
 
-         gl.raw.AttachShader(program, v_shader);
-         gl.raw.AttachShader(program, f_shader);
-         gl.raw.LinkProgram(program);
+         gl.raw.AttachShader(program_id, v_shader_id);
+         gl.raw.AttachShader(program_id, f_shader_id);
+         gl.raw.LinkProgram(program_id);
 
-         match gl_program_link_failure(program, gl) {
-            NEResult::ER(e) => NEResult::ER(e),
+         match gl_program_link_failure(program_id, gl) {
+            NEResult::ER(e) => e.pack(),
             NEResult::OK(_) => {
-               self.delete_shader(v_shader);
-               self.delete_shader(f_shader);
-               NEResult::OK(program as u32)
+               self.delete_shader(v_shader_id);
+               self.delete_shader(f_shader_id);
+               NEResult::OK(program_id as u32)
             }
          }
       }
@@ -269,26 +271,26 @@ impl Renderer for GLRenderer {
    fn create_src_program(&self, vert: &str, frag: &str) -> NEResult<u32> {
       let gl = &self.gl;
       unsafe {
-         let program = gl.raw.CreateProgram();
-         let v_shader = match self.create_src_shader(vert, ShaderType::Vert) {
-            NEResult::ER(e) => return NEResult::ER(e),
+         let program_id = gl.raw.CreateProgram();
+         let v_shader_id = match self.create_src_shader(vert, ShaderType::Vert) {
+            NEResult::ER(e) => return e.pack(),
             NEResult::OK(vs) => vs,
          };
-         let f_shader = match self.create_src_shader(frag, ShaderType::Frag) {
-            NEResult::ER(e) => return NEResult::ER(e),
+         let f_shader_id = match self.create_src_shader(frag, ShaderType::Frag) {
+            NEResult::ER(e) => return e.pack(),
             NEResult::OK(fs) => fs,
          };
 
-         gl.raw.AttachShader(program, v_shader);
-         gl.raw.AttachShader(program, f_shader);
-         gl.raw.LinkProgram(program);
+         gl.raw.AttachShader(program_id, v_shader_id);
+         gl.raw.AttachShader(program_id, f_shader_id);
+         gl.raw.LinkProgram(program_id);
 
-         match gl_program_link_failure(program, gl) {
-            NEResult::ER(e) => NEResult::ER(e),
+         match gl_program_link_failure(program_id, gl) {
+            NEResult::ER(e) => e.pack(),
             NEResult::OK(_) => {
-               self.delete_shader(v_shader);
-               self.delete_shader(f_shader);
-               NEResult::OK(program as u32)
+               self.delete_shader(v_shader_id);
+               self.delete_shader(f_shader_id);
+               NEResult::OK(program_id as u32)
             }
          }
       }
@@ -297,7 +299,7 @@ impl Renderer for GLRenderer {
       unsafe { self.gl.raw.DeleteProgram(id) }
    }
 
-   fn create_texture(&self, tex: &NETexture) -> u32 {
+   fn create_texture(&self, tex: &NETexAsset) -> NEResult<u32> {
       let mut id = 0;
       let gl = &self.gl;
       unsafe {
@@ -314,7 +316,7 @@ impl Renderer for GLRenderer {
          gl.raw
             .TexParameteri(TEX, gl::TEXTURE_MAG_FILTER, max_filter);
 
-         let (base, size) = gl_match_tex_format(&tex.typ);
+         let (base, size) = gl_match_tex_format(&tex.fmt);
          let (width, height) = (tex.size.w as GLsizei, tex.size.h as GLsizei);
 
          gl.raw.TexImage2D(
@@ -330,7 +332,7 @@ impl Renderer for GLRenderer {
          );
          gl.raw.GenerateMipmap(TEX);
       }
-      id as u32
+      NEResult::OK(id as u32)
    }
    fn delete_texture(&self, id: u32) {
       unsafe {
@@ -487,14 +489,13 @@ fn gl_match_shader_type(t: &ShaderType) -> GLenum {
    }
 }
 fn gl_match_tex_format(tf: &TexFormat) -> (GLenum, GLint) {
-   let base = match tf {
-      TexFormat::R(_) => gl::RED,
-      TexFormat::RG(_) => gl::RG,
-      TexFormat::RGB(_) => gl::RGB,
-      TexFormat::Palette(_) => gl::RGB,
-      TexFormat::RGBA(_) => gl::RGBA,
+   let (base, bd) = match tf {
+      TexFormat::R(bd) => (gl::RED, bd),
+      TexFormat::RG(bd) => (gl::RG, bd),
+      TexFormat::RGB(bd) => (gl::RGB, bd),
+      TexFormat::RGBA(bd) => (gl::RGBA, bd),
    };
-   let sized = match (base, tf.bit_depth()) {
+   let sized = match (base, bd) {
       (gl::RED, 16) => gl::R16,
       (gl::RG, 16) => gl::RG16,
       (gl::RGB, 16) => gl::RGB16,

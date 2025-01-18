@@ -1,9 +1,9 @@
 mod attrib;
-mod meshasset;
-mod shaderasset;
-mod textureasset;
+mod nmesh;
+mod nshdr;
+mod ntxtr;
 
 pub use attrib::*;
-pub use meshasset::*;
-pub use shaderasset::*;
-pub use textureasset::*;
+pub use nmesh::*;
+pub use nshdr::*;
+pub use ntxtr::*;

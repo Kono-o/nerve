@@ -46,16 +46,10 @@ impl NEGame {
       );
    }
 
-   fn should_poll(&self) -> bool {
-      if self.time.frame % 1 == 0 {
-         return true;
-      }
-      false
-   }
    pub fn pre_update(&mut self) {
       self.renderer.pre_update(&self.scene.cam);
       self.window.pre_update();
-      self.events.pre_update(self.should_poll());
+      self.events.pre_update();
       self.time.pre_update();
       self.handle_events();
       self.scene.pre_update(

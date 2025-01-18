@@ -1,13 +1,11 @@
 mod camera;
 pub(crate) mod core;
-mod mesh;
+mod handles;
 mod renderer;
-mod shader;
 mod util;
 
 pub use camera::*;
 pub use core::*;
-pub use mesh::*;
+pub use handles::*;
 pub use renderer::*;
-pub use shader::*;
 pub use util::*;

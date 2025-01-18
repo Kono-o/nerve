@@ -6,11 +6,14 @@ use crate::util::{NEError, NEResult};
 use crate::{
    NEEvents, NEGame, NERenderer, NEScene, NETime, NEWindow, ScreenCoord, ScreenOffset, Size2D,
 };
-use glfw::{
-   Error, Glfw, GlfwReceiver, OpenGlProfileHint, PWindow, SwapInterval, WindowEvent, WindowHint,
-};
+use glfw::{Error, Glfw, GlfwReceiver, OpenGlProfileHint, PWindow, SwapInterval, WindowHint};
 use std::fmt::{Display, Formatter};
 use std::time::Instant;
+
+use winit::application::ApplicationHandler;
+use winit::event::WindowEvent;
+use winit::event_loop::ActiveEventLoop;
+use winit::window::{Window, WindowId};
 
 #[derive(Copy, Clone)]
 pub enum RenderAPI {
@@ -68,7 +71,7 @@ fn window_from(
    title: &str,
 ) -> NEResult<(
    PWindow,
-   GlfwReceiver<(f64, WindowEvent)>,
+   GlfwReceiver<(f64, glfw::WindowEvent)>,
    bool,
    Size2D,
    Size2D,
@@ -77,57 +80,56 @@ fn window_from(
    let mut size = Size2D { w: 0, h: 0 };
    let mut monitor_size = Size2D { w: 0, h: 0 };
 
-   let window_and_events: NEResult<(PWindow, GlfwReceiver<(f64, WindowEvent)>)> = glfw
-      .with_primary_monitor(|glfw, monitor| {
-         return match monitor {
-            None => NEResult::ER(NEError::Init {
-               kind: NEInitErrKind::NoMonitor,
-            }),
+   let window_and_events = glfw.with_primary_monitor(|glfw, monitor| {
+      return match monitor {
+         None => NEResult::ER(NEError::Init {
+            kind: NEInitErrKind::NoMonitor,
+         }),
 
-            Some(monitor) => {
-               let vid_mode = match monitor.get_video_mode() {
-                  None => {
-                     return NEResult::ER(NEError::Init {
-                        kind: NEInitErrKind::NoVidMode,
-                     })
-                  }
-                  Some(vm) => vm,
-               };
-               monitor_size = Size2D::from(vid_mode.width, vid_mode.height);
-
-               let mode = match mode {
-                  WinMode::Windowed(mut w, mut h) => {
-                     const DIV: u32 = 10;
-                     let min_h = vid_mode.height / DIV;
-                     let min_w = vid_mode.width / DIV;
-
-                     if w < min_w {
-                        w = min_w;
-                     };
-                     if h < min_h {
-                        h = min_h;
-                     }
-
-                     size.w = w;
-                     size.h = h;
-                     glfw::WindowMode::Windowed
-                  }
-                  WinMode::Full => {
-                     is_fullscreen = true;
-                     size.w = vid_mode.width;
-                     size.h = vid_mode.height;
-                     glfw::WindowMode::FullScreen(monitor)
-                  }
-               };
-               match glfw.create_window(size.w, size.h, &title, mode) {
-                  None => NEResult::ER(NEError::Init {
-                     kind: NEInitErrKind::CouldNotMakeWindow,
-                  }),
-                  Some(we) => NEResult::OK(we),
+         Some(monitor) => {
+            let vid_mode = match monitor.get_video_mode() {
+               None => {
+                  return NEResult::ER(NEError::Init {
+                     kind: NEInitErrKind::NoVidMode,
+                  })
                }
+               Some(vm) => vm,
+            };
+            monitor_size = Size2D::from(vid_mode.width, vid_mode.height);
+
+            let mode = match mode {
+               WinMode::Windowed(mut w, mut h) => {
+                  const DIV: u32 = 10;
+                  let min_h = vid_mode.height / DIV;
+                  let min_w = vid_mode.width / DIV;
+
+                  if w < min_w {
+                     w = min_w;
+                  };
+                  if h < min_h {
+                     h = min_h;
+                  }
+
+                  size.w = w;
+                  size.h = h;
+                  glfw::WindowMode::Windowed
+               }
+               WinMode::Full => {
+                  is_fullscreen = true;
+                  size.w = vid_mode.width;
+                  size.h = vid_mode.height;
+                  glfw::WindowMode::FullScreen(monitor)
+               }
+            };
+            match glfw.create_window(size.w, size.h, &title, mode) {
+               None => NEResult::ER(NEError::Init {
+                  kind: NEInitErrKind::CouldNotMakeWindow,
+               }),
+               Some(we) => NEResult::OK(we),
             }
-         };
-      });
+         }
+      };
+   });
    let (mut window, events) = match window_and_events {
       NEResult::OK((w, e)) => (w, e),
       NEResult::ER(e) => return NEResult::ER(e),
@@ -147,7 +149,7 @@ fn init_nerve(
 ) -> NEResult<(
    Box<dyn Renderer>,
    PWindow,
-   GlfwReceiver<(f64, WindowEvent)>,
+   GlfwReceiver<(f64, glfw::WindowEvent)>,
    bool,
    Size2D,
    Size2D,
@@ -214,7 +216,34 @@ pub(crate) enum NEInitErrKind {
    Unknown(String),
 }
 
+struct Game {
+   pub renderer: NERenderer,
+   pub window: Option<Window>,
+   pub events: NEEvents,
+   pub cycle: NECycle,
+   pub scene: NEScene,
+   pub time: NETime,
+}
+
+impl ApplicationHandler for Game {
+   fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+      self.window = Some(
+         event_loop
+            .create_window(Window::default_attributes())
+            .unwrap(),
+      );
+   }
+
+   fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {}
+}
+
 impl NEGameBuilder {
+   //pub fn build_winit(&self) -> NEResult<Game> {
+   //   let event_loop = EventLoop::new().expect("event loop new failed");
+   //   event_loop.set_control_flow(ControlFlow::Poll);
+   //   let mut game = Game::default();
+   //}
+
    pub fn build(&self) -> NEResult<NEGame> {
       let api_str = self.render_api.api_str();
       let api_str_m = api_str.clone();
@@ -307,7 +336,6 @@ impl NEGameBuilder {
          window,
          events: NEEvents {
             events,
-            is_uncleared: false,
             key_bitmap: KeyBitMap(
                [ButtonState {
                   pressed: false,

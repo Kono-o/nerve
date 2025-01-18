@@ -1,6 +1,7 @@
 use crate::asset::ATTRInfo;
+use crate::renderer::handles::{DrawMode, Uniform};
 use crate::renderer::{Renderer, ShaderType};
-use crate::{Cull, DrawMode, NEResult, NEShaderAsset, NETexture, PolyMode, Size2D, Uniform, RGB};
+use crate::{Cull, NEResult, NEShaderAsset, NETexAsset, PolyMode, Size2D, RGB};
 use cgmath::Matrix4;
 
 #[derive(Copy, Clone)]
@@ -100,7 +101,7 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn create_texture(&self, tex: &NETexture) -> u32 {
+   fn create_texture(&self, tex: &NETexAsset) -> NEResult<u32> {
       todo!()
    }
 

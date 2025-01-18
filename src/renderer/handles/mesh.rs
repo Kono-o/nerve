@@ -2,6 +2,7 @@ use crate::{ansi, log_info};
 use crate::{NEShader, Transform};
 use cgmath::Matrix4;
 
+#[derive(Clone, Debug, Copy)]
 pub enum DrawMode {
    Points,
    Lines,
@@ -9,14 +10,14 @@ pub enum DrawMode {
    Strip,
 }
 
+#[derive(Clone, Debug)]
 pub struct NEMesh {
+   pub alive: bool,
    pub visible: bool,
    pub transform: Transform,
    pub draw_mode: DrawMode,
 
-   pub(crate) alive: bool,
    pub(crate) has_indices: bool,
-   pub(crate) is_empty: bool,
    pub(crate) vert_count: u32,
    pub(crate) ind_count: u32,
    pub(crate) buf_id: (u32, u32),
@@ -29,9 +30,30 @@ impl NEMesh {
    pub fn set_shader(&mut self, shader: NEShader) {
       self.shader = shader
    }
+   pub fn get_draw_mode(&self) -> DrawMode {
+      self.draw_mode
+   }
    pub fn set_draw_mode(&mut self, draw_mode: DrawMode) {
       self.draw_mode = draw_mode
    }
+
+   pub fn index_count(&self) -> u32 {
+      self.ind_count
+   }
+   pub fn vertex_count(&self) -> u32 {
+      self.vert_count
+   }
+   pub fn has_indices(&self) -> bool {
+      self.has_indices
+   }
+   pub fn is_empty(&self) -> bool {
+      self.vert_count == 0
+   }
+
+   pub fn is_renderable(&self) -> bool {
+      self.visible || self.alive || !self.is_empty()
+   }
+
    pub fn set_visibility(&mut self, enable: bool) {
       self.visible = enable;
    }

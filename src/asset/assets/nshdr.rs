@@ -6,6 +6,8 @@ pub(crate) enum NEAssetErrKind {
    FragEmpty,
    //OBJ
    NonTriangle(String),
+   //PNG
+   PNGInvalid(String),
 }
 
 enum GLSL {
@@ -67,20 +69,20 @@ pub struct NEShaderAsset {
 
 impl NEShaderAsset {
    pub(crate) fn fallback() -> NEResult<NEShaderAsset> {
-      NEShaderAsset::from_path_raw("nerve/assets/shaders/fallback.glsl")
+      NEShaderAsset::from_path_raw("nerve/assets/shdr/fallback.glsl")
    }
    pub fn from_path(path: &str) -> NEResult<NEShaderAsset> {
       NEShaderAsset::from_path_raw(&env::concat_with_asset(path))
    }
    fn from_path_raw(raw_path: &str) -> NEResult<NEShaderAsset> {
       let file_name = match file::name(raw_path) {
-         NEOption::Empty => return NEResult::ER(NEError::file_invalid(raw_path)),
+         NEOption::Empty => return NEError::file_invalid(raw_path).pack(),
          NEOption::Exists(n) => n,
       };
       let _ = match file::ex(raw_path) {
-         NEOption::Empty => return NEResult::ER(NEError::file_invalid(raw_path)),
+         NEOption::Empty => return NEError::file_invalid(raw_path).pack(),
          NEOption::Exists(ex) => match ex.eq_ignore_ascii_case(ex::GLSL) {
-            false => return NEResult::ER(NEError::file_unsupported(raw_path, &ex)),
+            false => return NEError::file_unsupported(raw_path, &ex).pack(),
             true => ex,
          },
       };
@@ -91,12 +93,12 @@ impl NEShaderAsset {
 
       if !file_exists && !nshdr_exists {
          let both_paths = format!("{} or {}", raw_path, nshdr_path);
-         return NEResult::ER(NEError::file_missing(&both_paths));
+         return NEError::file_missing(&both_paths).pack();
       }
       if file_exists {
          //write/overwrite nshdr
          let src = match file::read_as_string(raw_path) {
-            NEResult::ER(e) => return NEResult::ER(e),
+            NEResult::ER(e) => return e.pack(),
             NEResult::OK(s) => s,
          };
          let glsl = GLSL::parse(&src);
@@ -104,20 +106,19 @@ impl NEShaderAsset {
             GLSL::CouldntParse {
                v_missing,
                f_missing,
-            } => {
-               return NEResult::ER(match (v_missing, f_missing) {
-                  (true, _) => NEError::vert_missing(raw_path),
-                  (_, _) => NEError::frag_missing(raw_path),
-               })
+            } => match (v_missing, f_missing) {
+               (true, _) => NEError::vert_missing(raw_path),
+               (_, _) => NEError::frag_missing(raw_path),
             }
+            .pack(),
 
             GLSL::Parsed { v_src, f_src } => {
                let v_spv = match glsl_to_spv(&file_name, ShaderType::Vert, &v_src) {
-                  NEResult::ER(e) => return NEResult::ER(e),
+                  NEResult::ER(e) => return e.pack(),
                   NEResult::OK(s) => s,
                };
                let f_spv = match glsl_to_spv(&file_name, ShaderType::Frag, &f_src) {
-                  NEResult::ER(e) => return NEResult::ER(e),
+                  NEResult::ER(e) => return e.pack(),
                   NEResult::OK(s) => s,
                };
 
@@ -134,7 +135,7 @@ impl NEShaderAsset {
 
                let nshdr_name = format!("{file_name}.{}", ex::NSHDR);
                match file::write_bytes_to_disk(path::SHDR_ASSET, &nshdr_name, &nshdr) {
-                  NEResult::ER(e) => NEResult::ER(e),
+                  NEResult::ER(e) => e.pack(),
                   _ => NEResult::OK(NEShaderAsset {
                      path: nshdr_path.clone(),
                      v_spv,
@@ -146,7 +147,7 @@ impl NEShaderAsset {
       } else {
          //load new/pre-existing nshdr
          let nshdr = match file::read_as_bytes(&nshdr_path) {
-            NEResult::ER(e) => return NEResult::ER(e),
+            NEResult::ER(e) => return e.pack(),
             NEResult::OK(f) => f,
          };
          let stride = 4;

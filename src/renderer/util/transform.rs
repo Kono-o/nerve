@@ -1,7 +1,7 @@
 use cgmath::{vec3, Deg, Matrix4, Rad, SquareMatrix, Vector3};
 use std::ops::Add;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Transform {
    pub(crate) matrix: Matrix4<f32>,
    pub(crate) pos: Vector3<f32>,

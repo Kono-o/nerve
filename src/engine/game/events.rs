@@ -183,7 +183,6 @@ pub(crate) fn key_index(key: &Key) -> usize {
 
 pub struct NEEvents {
    pub(crate) events: GlfwReceiver<(f64, WindowEvent)>,
-   pub(crate) is_uncleared: bool,
    pub(crate) key_bitmap: KeyBitMap,
    pub(crate) mouse_bitmap: MouseBitMap,
    pub(crate) keys_to_reset: Vec<Key>,
@@ -193,17 +192,11 @@ pub struct NEEvents {
 }
 
 impl NEEvents {
-   pub(crate) fn pre_update(&mut self, enable: bool) {
-      if enable {
-         self.catch()
-      }
-      self.is_uncleared = true
+   pub(crate) fn pre_update(&mut self) {
+      self.catch();
    }
    pub(crate) fn post_update(&mut self) {
-      if self.is_uncleared {
-         self.clear();
-         self.is_uncleared = false
-      }
+      self.clear();
    }
 
    fn catch(&mut self) {

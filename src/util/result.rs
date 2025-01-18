@@ -11,7 +11,7 @@ impl<N> NEResult<N> {
          NEResult::OK(n) => n,
          NEResult::ER(e) => {
             e.log();
-            panic!("this panic should be unreachable")
+            panic!("unpack panic (should be unreachable)")
          }
       }
    }
@@ -19,7 +19,7 @@ impl<N> NEResult<N> {
    pub fn is_ok(&self) -> bool {
       match self {
          NEResult::OK(_) => true,
-         NEResult::ER(_) => false,
+         _ => false,
       }
    }
    pub fn is_err(&self) -> bool {

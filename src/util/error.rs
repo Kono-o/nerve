@@ -3,7 +3,7 @@ use crate::asset::NEAssetErrKind;
 use crate::engine::NEInitErrKind;
 use crate::util::consts::ansi;
 use crate::util::misc;
-use crate::{env, log_fatal, log_warn, proc, NEOpenGLErrKind, NERendererErrKing};
+use crate::{env, log_fatal, log_warn, proc, NEOpenGLErrKind, NERendererErrKing, NEResult};
 
 #[derive(Copy, Clone)]
 pub enum NEErrorSeverity {
@@ -12,7 +12,7 @@ pub enum NEErrorSeverity {
 }
 
 pub enum NEUtilErrKind {
-   CStringFailed,
+   CstrNullByteFound,
 }
 
 pub enum NEError {
@@ -46,6 +46,9 @@ pub enum NEError {
 }
 
 impl NEError {
+   pub(crate) fn pack<N>(self) -> NEResult<N> {
+      NEResult::ER(self)
+   }
    //FILE
    pub(crate) fn file_missing(path: &str) -> NEError {
       NEError::File {
@@ -97,6 +100,13 @@ impl NEError {
       }
    }
 
+   pub(crate) fn png_invalid(path: &str, msg: String) -> NEError {
+      NEError::Asset {
+         kind: NEAssetErrKind::PNGInvalid(msg),
+         path: path.to_string(),
+      }
+   }
+
    //RENDERER
    pub(crate) fn no_glsl_validator(path: &str) -> NEError {
       NEError::Renderer {
@@ -123,9 +133,16 @@ impl NEError {
    }
 
    //UTIL
-   pub(crate) fn cstring_failed(msg: &str) -> NEError {
+   pub(crate) fn cstr_null_byte_found(src: &str, pos: usize) -> NEError {
+      let len = src.len();
+      let pad = 5;
+      let msg = if len >= pad {
+         &src[pos - pad..pos + 1]
+      } else {
+         &src[..pos + 1]
+      };
       NEError::Util {
-         kind: NEUtilErrKind::CStringFailed,
+         kind: NEUtilErrKind::CstrNullByteFound,
          msg: msg.to_string(),
       }
    }
@@ -190,6 +207,7 @@ impl NEError {
                NEAssetErrKind::VertEmpty => "has no vertex src",
                NEAssetErrKind::FragEmpty => "has no fragment src",
                NEAssetErrKind::NonTriangle(line) => &format!("mesh not triangulated at ({line})"),
+               NEAssetErrKind::PNGInvalid(msg) => &format!("png {msg}"),
             };
             severe = NEErrorSeverity::Fatal;
             format!("(asset) -> {kind_msg}! [{path}]")
@@ -214,7 +232,7 @@ impl NEError {
          }
          NEError::Util { kind, msg } => {
             let kind_msg = match kind {
-               NEUtilErrKind::CStringFailed => &format!("c string creation failed from {msg}"),
+               NEUtilErrKind::CstrNullByteFound => &format!("null byte found at \"{msg}\""),
             };
             severe = NEErrorSeverity::Fatal;
             format!("(util) -> {kind_msg}!")

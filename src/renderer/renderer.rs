@@ -1,7 +1,8 @@
 use crate::asset::ATTRInfo;
+use crate::renderer::handles::{DrawMode, NEMesh, NEShader, Uniform};
 use crate::{
-   ansi, color, log_info, DataType, DrawMode, NECamera, NEError, NEMesh, NEMeshAsset, NEResult,
-   NEShader, NEShaderAsset, NETexture, RenderAPI, Size2D, Uniform, RGB,
+   ansi, color, log_info, DataType, NECamera, NEError, NEMeshAsset, NEResult, NEShaderAsset,
+   NETexAsset, NETexture, RenderAPI, Size2D, RGB,
 };
 use cgmath::Matrix4;
 
@@ -55,7 +56,7 @@ pub(crate) trait Renderer {
    fn create_src_program(&self, vert: &str, frag: &str) -> NEResult<u32>;
    fn delete_program(&self, id: u32);
 
-   fn create_texture(&self, tex: &NETexture) -> u32;
+   fn create_texture(&self, tex: &NETexAsset) -> NEResult<u32>;
    fn delete_texture(&self, id: u32);
    fn get_uni_location(&self, id: u32, name: &str) -> u32;
 
@@ -108,7 +109,7 @@ impl NERenderer {
       api: RenderAPI,
       cam_view: Matrix4<f32>,
       cam_proj: Matrix4<f32>,
-   ) -> Self {
+   ) -> NERenderer {
       let bg_color = color::OBSIDIAN;
       core.enable_depth(true);
 
@@ -126,7 +127,7 @@ impl NERenderer {
          culling: true,
       };
       let fallback_shader_asset = NEShaderAsset::fallback().unpack();
-      renderer.fallback_shader = renderer.compile(fallback_shader_asset).unpack();
+      renderer.fallback_shader = renderer.add_shader(fallback_shader_asset).unpack();
       renderer.set_msaa(true);
       renderer.set_culling(true);
       renderer.set_wire_width(2.0);
@@ -237,24 +238,24 @@ impl NERenderer {
    pub fn fallback_shader(&self) -> NEShader {
       self.fallback_shader.clone()
    }
-   pub fn compile(&self, nshdr: NEShaderAsset) -> NEResult<NEShader> {
+
+   pub fn add_shader(&self, nshdr: NEShaderAsset) -> NEResult<NEShader> {
       let id = match self.core.create_spv_program(&nshdr) {
          NEResult::OK(id) => id,
          NEResult::ER(mut e) => {
             return match e {
-               NEError::Renderer { kind, msg, .. } => NEResult::ER(NEError::Renderer {
+               NEError::Renderer { kind, msg, .. } => NEError::Renderer {
                   kind,
                   path: nshdr.path,
                   msg,
-               }),
-               _ => NEResult::ER(e),
+               }
+               .pack(),
+               _ => e.pack(),
             }
          }
       };
-
-      self.core.bind_program(id);
-
-      let mut image_ids = Vec::new();
+      NEResult::OK(NEShader { id })
+      //let mut tex_ids = Vec::new();
       //for (i, texture) in asset.textures.iter().enumerate() {
       //   if texture.exists {
       //      let name = format!("tDif{}", i + 1);
@@ -263,16 +264,15 @@ impl NERenderer {
       //      image_ids.push(tex_id);
       //   }
       //}
-      NEResult::OK(NEShader {
-         id,
-         image_ids,
-         exists_on_gpu: true,
-      })
    }
-   pub fn delete_shader(&self, shader: NEShader) {
+   pub fn remove_shader(&self, shader: NEShader) {
       self.core.delete_shader(shader.id)
    }
-   pub fn mesh(&self, mut asset: NEMeshAsset) -> NEMesh {
+
+   //pub fn add_texture(&self, ntxtr: NETexAsset) -> NEResult<NETexture> {}
+   pub fn remove_texture(&self, tex: NETexture) {}
+
+   pub fn add_mesh(&self, mut nmesh: NEMeshAsset) -> NEMesh {
       let (vao_id, bfo_id) = self.core.create_buffer();
       let i_id = self.core.create_index_buffer();
 
@@ -287,34 +287,34 @@ impl NERenderer {
 
       let (mut ind_count, mut vert_count, mut stride) = (0, 0, 0);
 
-      let mut pos_exists = asset.pos_attr.has_data();
-      let mut col_exists = asset.col_attr.has_data();
-      let mut uvm_exists = asset.uvm_attr.has_data();
-      let mut nrm_exists = asset.nrm_attr.has_data();
-      let mut cus_exists = asset.has_custom_attrs();
+      let mut pos_exists = nmesh.pos_attr.has_data();
+      let mut col_exists = nmesh.col_attr.has_data();
+      let mut uvm_exists = nmesh.uvm_attr.has_data();
+      let mut nrm_exists = nmesh.nrm_attr.has_data();
+      let mut cus_exists = nmesh.has_custom_attrs();
 
       if pos_exists {
-         pos_info = asset.pos_attr.info();
-         pos_data = asset.pos_attr.data();
+         pos_info = nmesh.pos_attr.info();
+         pos_data = nmesh.pos_attr.data();
          stride += pos_info.elem_count * pos_info.byte_count;
       }
       if col_exists {
-         col_info = asset.col_attr.info();
-         col_data = asset.col_attr.data();
+         col_info = nmesh.col_attr.info();
+         col_data = nmesh.col_attr.data();
          stride += col_info.elem_count * col_info.byte_count;
       }
       if uvm_exists {
-         uvm_info = asset.uvm_attr.info();
-         uvm_data = asset.uvm_attr.data();
+         uvm_info = nmesh.uvm_attr.info();
+         uvm_data = nmesh.uvm_attr.data();
          stride += uvm_info.elem_count * uvm_info.byte_count;
       }
       if nrm_exists {
-         nrm_info = asset.nrm_attr.info();
-         nrm_data = asset.nrm_attr.data();
+         nrm_info = nmesh.nrm_attr.info();
+         nrm_data = nmesh.nrm_attr.data();
          stride += nrm_info.elem_count * nrm_info.byte_count;
       }
       if cus_exists {
-         for cus_attr in asset.cus_attrs.iter() {
+         for cus_attr in nmesh.cus_attrs.iter() {
             let cus_info = cus_attr.info();
             let cus_data = cus_attr.data();
             stride += cus_info.elem_count * cus_info.byte_count;
@@ -323,7 +323,7 @@ impl NERenderer {
          }
       }
       let mut end = pos_data.len();
-      if cus_exists && asset.starts_with_custom() {
+      if cus_exists && nmesh.starts_with_custom() {
          end = cus_datas[0].len() / (cus_infos[0].byte_count * cus_infos[0].elem_count);
       }
 
@@ -343,7 +343,7 @@ impl NERenderer {
             buffer.push_attr(&nrm_data[i]);
          }
          if cus_exists {
-            for (j, _attr) in asset.cus_attrs.iter().enumerate() {
+            for (j, _attr) in nmesh.cus_attrs.iter().enumerate() {
                let cus_byte_count = cus_infos[j].byte_count * cus_infos[j].elem_count;
                let cus_data = cus_datas[j];
                let start = i * cus_byte_count;
@@ -407,9 +407,9 @@ impl NERenderer {
       self.core.unbind_buffer();
 
       let mut index_buffer: Vec<u32> = Vec::new();
-      if asset.indices.has_data() {
-         ind_info = asset.indices.info();
-         ind_data = asset.indices.data();
+      if nmesh.indices.has_data() {
+         ind_info = nmesh.indices.info();
+         ind_data = nmesh.indices.data();
          ind_info.exists = true;
          for index in ind_data.iter() {
             ind_count += 1;
@@ -419,7 +419,7 @@ impl NERenderer {
          self.core.fill_index_buffer(i_id, &index_buffer);
          self.core.unbind_index_buffer();
       }
-      asset.transform.calc_matrix();
+      nmesh.transform.calc_matrix();
       NEMesh {
          alive: true,
          visible: true,
@@ -427,31 +427,29 @@ impl NERenderer {
          has_indices: ind_info.exists,
          vert_count,
          ind_count,
-         is_empty: false,
          layouts,
          buf_id: (vao_id, bfo_id),
          index_buf_id: i_id,
-         transform: asset.transform.clone(),
+         transform: nmesh.transform.clone(),
          draw_mode: DrawMode::Triangles,
       }
    }
+   pub fn remove_mesh(&self, mesh: NEMesh) {}
+
    pub fn render(&self, mesh: &mut NEMesh) {
-      if !mesh.visible || !mesh.alive {
+      if !mesh.is_renderable() {
          return;
       }
       mesh.update();
-      let s = match mesh.shader.exists_on_gpu {
-         false => self.fallback_shader.id,
-         true => mesh.shader.id,
-      };
+      let s = mesh.shader.id;
       self.core.bind_program(s);
       self.core.set_uni_m4f32(s, "uCamView", self.cam_view);
       self.core.set_uni_m4f32(s, "uCamProj", self.cam_proj);
       self.core.set_uni_m4f32(s, "uMeshTfm", mesh.matrix());
 
-      for (i, t) in mesh.shader.image_ids.iter().enumerate() {
-         self.core.bind_texture_at(*t, i as u32);
-      }
+      //for (i, t) in mesh.shader.tex_ids.iter().enumerate() {
+      //   self.core.bind_texture_at(*t, i as u32);
+      //}
 
       self.core.bind_buffer(mesh.buf_id.0, mesh.buf_id.1);
       match mesh.has_indices {
