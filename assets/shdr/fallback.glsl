@@ -39,11 +39,15 @@ layout (location = 3) uniform vec3 uLight = normalize(vec3(0.5, 1.0, 0.3));
 uniform sampler2D Tex0;
 
 void main() {
-
+    vec2 fragCoord = gl_FragCoord.xy / 20;
     float light = 1.0 - dot(normalize(fNrm), normalize(uLight));
-    vec4 texCol = texture(Tex0, fUVM * 50);
-    vec4 difCol = texCol * vec4(fCol, 1.0);
-    vec4 shadCol = difCol * 0.9;
+
+    vec4 texCol = texture(Tex0, fragCoord);
+    vec4 MAGENTA = vec4(1.0, 0.0, 1.0, 1.0);
+    vec4 PURPLE = vec4(0.5, 0.0, 0.5, 1.0);
+    vec4 difCol = mix(MAGENTA, PURPLE, texCol);
+
+    vec4 shadCol = difCol * 0.4;
 
     frag = mix(difCol, shadCol, light);
 }
