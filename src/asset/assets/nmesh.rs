@@ -102,8 +102,6 @@ impl OBJ {
       nrm_attr.calc_info();
       indices.calc_info();
 
-      println!("{:?}", uvm_attr.data);
-
       OBJ::Parsed {
          pos_attr,
          col_attr,

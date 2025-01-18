@@ -62,6 +62,16 @@ pub struct NETexture {
 }
 
 impl NETexture {
+   pub(crate) fn temporary() -> NETexture {
+      NETexture {
+         id: 0,
+         size: Size2D::empty(),
+         fmt: TexFormat::R(0),
+         filter: TexFilter::Linear,
+         wrap: TexWrap::Repeat,
+      }
+   }
+
    pub fn get_size(&self) -> Size2D {
       self.size
    }

@@ -92,15 +92,16 @@ pub struct NERenderer {
    pub(crate) cam_view: Matrix4<f32>,
    pub(crate) cam_proj: Matrix4<f32>,
 
-   pub fallback_shader: NEShader,
+   pub(crate) fallback_shader: NEShader,
+   pub(crate) fallback_texture: NETexture,
 
-   pub api: RenderAPI,
-   pub poly_mode: PolyMode,
-   pub cull_face: Cull,
-   pub bg_color: RGB,
-   pub msaa: bool,
-   pub msaa_samples: u32,
-   pub culling: bool,
+   pub(crate) api: RenderAPI,
+   pub(crate) poly_mode: PolyMode,
+   pub(crate) cull_face: Cull,
+   pub(crate) bg_color: RGB,
+   pub(crate) msaa: bool,
+   pub(crate) msaa_samples: u32,
+   pub(crate) culling: bool,
 }
 
 //PRIVATE
@@ -119,6 +120,7 @@ impl NERenderer {
          cam_view,
          cam_proj,
          fallback_shader: NEShader::temporary(),
+         fallback_texture: NETexture::temporary(),
          api,
          poly_mode: PolyMode::Filled,
          cull_face: Cull::AntiClock,
@@ -128,7 +130,15 @@ impl NERenderer {
          culling: true,
       };
       let fallback_shader_asset = NEShaderAsset::fallback().unpack();
+      let fallback_tex_asset = NETexAsset::fallback().unpack();
+
+      renderer.fallback_texture = renderer.add_texture(fallback_tex_asset);
       renderer.fallback_shader = renderer.add_shader(fallback_shader_asset).unpack();
+
+      renderer
+         .fallback_shader
+         .attach_tex(&renderer.fallback_texture);
+
       renderer.set_msaa(true);
       renderer.set_culling(true);
       renderer.set_wire_width(2.0);
@@ -411,7 +421,6 @@ impl NERenderer {
          self.core.fill_buffer(vao_id, bfo_id, &buffer);
       }
       self.core.unbind_buffer();
-
       let mut index_buffer: Vec<u32> = Vec::new();
       if nmesh.indices.has_data() {
          ind_info = nmesh.indices.info();

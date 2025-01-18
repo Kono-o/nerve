@@ -138,6 +138,10 @@ pub struct NETexAsset {
 }
 
 impl NETexAsset {
+   pub(crate) fn fallback() -> NEResult<NETexAsset> {
+      NETexAsset::from_path_raw("nerve/assets/txtr/fallback.png")
+   }
+
    pub fn from_path(path: &str) -> NEResult<NETexAsset> {
       NETexAsset::from_path_raw(&env::concat_with_asset(path))
    }
@@ -228,24 +232,6 @@ impl NETexAsset {
    }
    pub fn set_filter(&mut self, filter: TexFilter) {
       self.filter = filter
-   }
-}
-
-// Function to darken a color (reduce lightness)
-fn darken_rgb(rgb: [u8; 3], factor: f32) -> [u8; 3] {
-   let r = (rgb[0] as f32 * factor).min(255.0) as u8;
-   let g = (rgb[1] as f32 * factor).min(255.0) as u8;
-   let b = (rgb[2] as f32 * factor).min(255.0) as u8;
-   [r, g, b]
-}
-
-fn frmt(n: u8) -> String {
-   let n = n.to_string();
-
-   match n.len() {
-      1 => format!("00{n}"),
-      2 => format!("0{n}"),
-      _ => n,
    }
 }
 
