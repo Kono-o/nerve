@@ -56,7 +56,7 @@ pub(crate) trait Renderer {
    fn create_src_program(&self, vert: &str, frag: &str) -> NEResult<u32>;
    fn delete_program(&self, id: u32);
 
-   fn create_texture(&self, tex: &NETexAsset) -> NEResult<u32>;
+   fn create_texture(&self, tex: &NETexAsset) -> u32;
    fn delete_texture(&self, id: u32);
    fn get_uni_location(&self, id: u32, name: &str) -> u32;
 
@@ -102,6 +102,7 @@ pub struct NERenderer {
    pub msaa_samples: u32,
    pub culling: bool,
 }
+
 //PRIVATE
 impl NERenderer {
    pub(crate) fn from(
@@ -254,23 +255,28 @@ impl NERenderer {
             }
          }
       };
-      NEResult::OK(NEShader { id })
-      //let mut tex_ids = Vec::new();
-      //for (i, texture) in asset.textures.iter().enumerate() {
-      //   if texture.exists {
-      //      let name = format!("tDif{}", i + 1);
-      //      let tex_id = self.core.create_texture(texture);
-      //      self.core.set_uni_i32(prog_id, &name, i);
-      //      image_ids.push(tex_id);
-      //   }
-      //}
+      let mut shader = NEShader::temporary();
+      shader.id = id;
+      NEResult::OK(shader)
    }
    pub fn remove_shader(&self, shader: NEShader) {
       self.core.delete_shader(shader.id)
    }
 
-   //pub fn add_texture(&self, ntxtr: NETexAsset) -> NEResult<NETexture> {}
-   pub fn remove_texture(&self, tex: NETexture) {}
+   pub fn add_texture(&self, ntxtr: NETexAsset) -> NETexture {
+      let id = self.core.create_texture(&ntxtr);
+
+      NETexture {
+         id,
+         size: ntxtr.size,
+         fmt: ntxtr.fmt,
+         filter: ntxtr.filter,
+         wrap: ntxtr.wrap,
+      }
+   }
+   pub fn remove_texture(&self, tex: NETexture) {
+      self.core.delete_texture(tex.id)
+   }
 
    pub fn add_mesh(&self, mut nmesh: NEMeshAsset) -> NEMesh {
       let (vao_id, bfo_id) = self.core.create_buffer();
@@ -447,10 +453,14 @@ impl NERenderer {
       self.core.set_uni_m4f32(s, "uCamProj", self.cam_proj);
       self.core.set_uni_m4f32(s, "uMeshTfm", mesh.matrix());
 
-      //for (i, t) in mesh.shader.tex_ids.iter().enumerate() {
-      //   self.core.bind_texture_at(*t, i as u32);
-      //}
-
+      for (slot, tex_id) in mesh.shader.tex_ids.iter().enumerate() {
+         match tex_id {
+            None => {}
+            Some(id) => {
+               self.core.bind_texture_at(*id, slot as u32);
+            }
+         }
+      }
       self.core.bind_buffer(mesh.buf_id.0, mesh.buf_id.1);
       match mesh.has_indices {
          false => self.core.draw_array(&mesh.draw_mode, mesh.vert_count),

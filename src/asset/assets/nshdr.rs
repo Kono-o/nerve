@@ -12,7 +12,7 @@ pub(crate) enum NEAssetErrKind {
 
 enum GLSL {
    Parsed { v_src: String, f_src: String },
-   CouldntParse { v_missing: bool, f_missing: bool },
+   Failed { v_missing: bool, f_missing: bool },
 }
 impl GLSL {
    fn parse(src: &str) -> GLSL {
@@ -52,7 +52,7 @@ impl GLSL {
       }
 
       match v_missing || f_missing {
-         true => GLSL::CouldntParse {
+         true => GLSL::Failed {
             v_missing,
             f_missing,
          },
@@ -103,12 +103,12 @@ impl NEShaderAsset {
          };
          let glsl = GLSL::parse(&src);
          match glsl {
-            GLSL::CouldntParse {
+            GLSL::Failed {
                v_missing,
                f_missing,
             } => match (v_missing, f_missing) {
                (true, _) => NEError::vert_missing(raw_path),
-               (_, _) => NEError::frag_missing(raw_path),
+               _ => NEError::frag_missing(raw_path),
             }
             .pack(),
 

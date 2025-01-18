@@ -28,6 +28,15 @@ impl TexFormat {
    pub(crate) fn pixel_size(&self) -> u8 {
       self.channels() * self.bit_depth()
    }
+
+   pub(crate) fn from(channels: u8, bit_depth: u8) -> TexFormat {
+      match channels {
+         1 => TexFormat::R(bit_depth),
+         2 => TexFormat::RG(bit_depth),
+         3 => TexFormat::RGB(bit_depth),
+         _ => TexFormat::RGBA(bit_depth),
+      }
+   }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -47,7 +56,7 @@ pub enum TexWrap {
 pub struct NETexture {
    pub(crate) id: u32,
    pub(crate) size: Size2D,
-   pub(crate) format: TexFormat,
+   pub(crate) fmt: TexFormat,
    pub(crate) filter: TexFilter,
    pub(crate) wrap: TexWrap,
 }

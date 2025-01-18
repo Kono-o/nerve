@@ -101,7 +101,7 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn create_texture(&self, tex: &NETexAsset) -> NEResult<u32> {
+   fn create_texture(&self, tex: &NETexAsset) -> u32 {
       todo!()
    }
 

@@ -299,7 +299,7 @@ impl Renderer for GLRenderer {
       unsafe { self.gl.raw.DeleteProgram(id) }
    }
 
-   fn create_texture(&self, tex: &NETexAsset) -> NEResult<u32> {
+   fn create_texture(&self, tex: &NETexAsset) -> u32 {
       let mut id = 0;
       let gl = &self.gl;
       unsafe {
@@ -307,14 +307,12 @@ impl Renderer for GLRenderer {
          self.bind_texture_at(id, 0);
 
          let wrap = gl_match_tex_wrap(&tex.wrap);
-         let (min_filter, max_filter) = gl_match_tex_filter(&tex.filter);
+         let (min_fil, mag_fil) = gl_match_tex_filter(&tex.filter);
 
          gl.raw.TexParameteri(TEX, gl::TEXTURE_WRAP_S, wrap);
          gl.raw.TexParameteri(TEX, gl::TEXTURE_WRAP_T, wrap);
-         gl.raw
-            .TexParameteri(TEX, gl::TEXTURE_MIN_FILTER, min_filter);
-         gl.raw
-            .TexParameteri(TEX, gl::TEXTURE_MAG_FILTER, max_filter);
+         gl.raw.TexParameteri(TEX, gl::TEXTURE_MIN_FILTER, min_fil);
+         gl.raw.TexParameteri(TEX, gl::TEXTURE_MAG_FILTER, mag_fil);
 
          let (base, size) = gl_match_tex_format(&tex.fmt);
          let (width, height) = (tex.size.w as GLsizei, tex.size.h as GLsizei);
@@ -322,7 +320,7 @@ impl Renderer for GLRenderer {
          gl.raw.TexImage2D(
             TEX,
             0,
-            size,
+            size as GLint,
             width,
             height,
             0,
@@ -331,8 +329,9 @@ impl Renderer for GLRenderer {
             &tex.bytes[0] as *const u8 as *const c_void,
          );
          gl.raw.GenerateMipmap(TEX);
+         self.unbind_texture()
       }
-      NEResult::OK(id as u32)
+      id as u32
    }
    fn delete_texture(&self, id: u32) {
       unsafe {
@@ -488,7 +487,7 @@ fn gl_match_shader_type(t: &ShaderType) -> GLenum {
       ShaderType::Frag => gl::FRAGMENT_SHADER,
    }
 }
-fn gl_match_tex_format(tf: &TexFormat) -> (GLenum, GLint) {
+fn gl_match_tex_format(tf: &TexFormat) -> (GLenum, GLenum) {
    let (base, bd) = match tf {
       TexFormat::R(bd) => (gl::RED, bd),
       TexFormat::RG(bd) => (gl::RG, bd),
@@ -508,7 +507,7 @@ fn gl_match_tex_format(tf: &TexFormat) -> (GLenum, GLint) {
 
       _ => gl::RGB8,
    };
-   (base, sized as GLint)
+   (base, sized)
 }
 fn gl_match_tex_filter(tf: &TexFilter) -> (GLint, GLint) {
    let (min, max) = match tf {

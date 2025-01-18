@@ -102,6 +102,8 @@ impl OBJ {
       nrm_attr.calc_info();
       indices.calc_info();
 
+      println!("{:?}", uvm_attr.data);
+
       OBJ::Parsed {
          pos_attr,
          col_attr,
@@ -239,7 +241,7 @@ impl ParseWords for Vec<&str> {
       for i in 1..=N {
          elem[i - 1] = self[i].parse::<f32>().unwrap_or(0.0)
       }
-      elem[1] *= -1.0;
+      elem[1] = 1.0 - elem[1];
       elem
    }
 
