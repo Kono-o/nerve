@@ -32,22 +32,22 @@ layout (location = 0) in vec3 fCol;
 layout (location = 1) in vec3 fNrm;
 layout (location = 2) in vec2 fUVM;
 
-layout (location = 0) out vec4 frag;
+layout (location = 0) out vec4 pixel;
 
 layout (location = 3) uniform vec3 uLight = normalize(vec3(0.5, 1.0, 0.3));
 
 uniform sampler2D Tex0;
 
 void main() {
-    vec2 fragCoord = gl_FragCoord.xy / 20;
+    vec2 coord = gl_FragCoord.xy / 20;
     float light = 1.0 - dot(normalize(fNrm), normalize(uLight));
 
-    vec4 texCol = texture(Tex0, fragCoord);
-    vec4 MAGENTA = vec4(1.0, 0.0, 1.0, 1.0);
-    vec4 PURPLE = vec4(0.5, 0.0, 0.5, 1.0);
-    vec4 difCol = mix(MAGENTA, PURPLE, texCol);
+    vec4 checkerTex = texture(Tex0, coord);
+    vec4 PINK = vec4(0.93, 0.42, 1.00, 1.0);
+    vec4 PINK_DARK = vec4(0.91, 0.33, 0.99, 1.0);
 
-    vec4 shadCol = difCol * 0.4;
+    vec4 color = mix(PINK, PINK_DARK, checkerTex);
+    vec4 shadow = color * 0.75;
 
-    frag = mix(difCol, shadCol, light);
+    pixel = mix(color, shadow, light);
 }
