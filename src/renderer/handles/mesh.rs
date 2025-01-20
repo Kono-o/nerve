@@ -1,5 +1,6 @@
-use crate::{ansi, log_info};
-use crate::{NEShader, Transform};
+use crate::ansi;
+use crate::asset::ATTRInfo;
+use crate::{log_info, NEShader, Transform3D};
 use cgmath::Matrix4;
 
 #[derive(Clone, Debug, Copy)]
@@ -10,23 +11,52 @@ pub enum DrawMode {
    Strip,
 }
 
-#[derive(Clone, Debug)]
-pub struct NEMesh {
-   pub alive: bool,
-   pub visible: bool,
-   pub transform: Transform,
-   pub draw_mode: DrawMode,
+impl Default for DrawMode {
+   fn default() -> DrawMode {
+      DrawMode::Triangles
+   }
+}
 
+#[derive(Clone, Debug)]
+pub(crate) struct MeshHandle {
+   pub(crate) layouts: Vec<(ATTRInfo, u32)>,
    pub(crate) has_indices: bool,
    pub(crate) vert_count: u32,
    pub(crate) ind_count: u32,
-   pub(crate) buf_id: (u32, u32),
-   pub(crate) index_buf_id: u32,
-   pub(crate) shader: NEShader,
-   pub(crate) layouts: Vec<String>,
+   pub(crate) vao_id: u32,
+   pub(crate) buf_id: u32,
+   pub(crate) ind_id: u32,
 }
 
-impl NEMesh {
+impl MeshHandle {
+   pub(crate) fn log_info(&self) {
+      for (attr, loc) in &self.layouts {
+         let attr_str = attr.name.as_string();
+         let fmt_str = attr.fmt_as_string();
+         log_info!("{attr_str} {fmt_str} at {loc}");
+      }
+      log_info!("vertices: {}", self.vert_count);
+      log_info!(
+         "indices: {}",
+         match self.has_indices {
+            true => self.ind_count.to_string(),
+            false => "none".to_string(),
+         }
+      );
+   }
+}
+
+#[derive(Clone, Debug)]
+pub struct NEMesh3D {
+   pub(crate) visible: bool,
+   pub(crate) handle: MeshHandle,
+   pub(crate) draw_mode: DrawMode,
+   pub(crate) shader: NEShader,
+
+   pub transform: Transform3D,
+}
+
+impl NEMesh3D {
    pub fn set_shader(&mut self, shader: NEShader) {
       self.shader = shader
    }
@@ -38,20 +68,20 @@ impl NEMesh {
    }
 
    pub fn index_count(&self) -> u32 {
-      self.ind_count
+      self.handle.ind_count
    }
    pub fn vertex_count(&self) -> u32 {
-      self.vert_count
+      self.handle.vert_count
    }
    pub fn has_indices(&self) -> bool {
-      self.has_indices
+      self.handle.has_indices
    }
    pub fn is_empty(&self) -> bool {
-      self.vert_count == 0
+      self.vertex_count() == 0
    }
 
    pub fn is_renderable(&self) -> bool {
-      self.visible || self.alive || !self.is_empty()
+      self.visible || !self.is_empty()
    }
 
    pub fn set_visibility(&mut self, enable: bool) {
@@ -64,44 +94,10 @@ impl NEMesh {
    pub(crate) fn matrix(&self) -> Matrix4<f32> {
       self.transform.matrix
    }
-   pub(crate) fn update(&mut self) {
+   pub fn update(&mut self) {
       self.transform.calc_matrix()
    }
    pub fn log_info(&self) {
-      for attr in self.layouts.clone() {
-         log_info!("{}", attr);
-      }
-      log_info!(
-         "life: {}",
-         match self.alive {
-            true => {
-               let vis = match self.visible {
-                  true => "visible",
-                  false => "hidden",
-               };
-               format!("ALIVE [{}]", vis)
-            }
-            false => "DEAD".to_string(),
-         }
-      );
-      log_info!(
-         "mode: {}",
-         match self.draw_mode {
-            DrawMode::Points => "POINTS",
-            DrawMode::Lines => "LINES",
-            DrawMode::Triangles => "TRIANGLE",
-            DrawMode::Strip => "STRIP",
-         }
-      );
-      log_info!("verts: {}", self.vert_count);
-      log_info!(
-         "index: {}",
-         match self.has_indices {
-            true => {
-               format!("{} (exists)", self.ind_count)
-            }
-            false => "0, (none)".to_string(),
-         }
-      );
+      self.handle.log_info();
    }
 }

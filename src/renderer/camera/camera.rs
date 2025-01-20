@@ -1,83 +1,36 @@
-use crate::Size2D;
-use crate::Transform;
+use crate::{CamTransform, Size2D};
 use cgmath::*;
 
+#[derive(Clone, Copy, Debug)]
 pub struct ClipDist {
-   pub near: f32,
-   pub far: f32,
+   pub(crate) near: f32,
+   pub(crate) far: f32,
 }
+
+impl ClipDist {
+   pub fn from(near: f32, far: f32) -> ClipDist {
+      ClipDist { near, far }
+   }
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum CamProj {
    Ortho,
    Persp,
 }
 
 pub struct NECamera {
-   pub fov: f32,
-   pub(crate) ortho_scale: f32,
-   pub(crate) clip: (f32, f32),
-   pub(crate) size: Size2D,
-   pub(crate) proj: CamProj,
-   pub(crate) front: Vector3<f32>,
-   pub(crate) proj_matrix: Matrix4<f32>,
-   pub(crate) view_matrix: Matrix4<f32>,
-   pub(crate) transform: Transform,
+   pub(crate) transform: CamTransform,
    pub(crate) initialized: bool,
 }
 
 impl NECamera {
-   fn update_proj(&mut self) {
-      self.proj_matrix = match self.proj {
-         CamProj::Persp => perspective(
-            Deg(self.fov),
-            self.size.w as f32 / self.size.h as f32,
-            self.clip.0,
-            self.clip.1,
-         ),
-         CamProj::Ortho => {
-            let bound_w = (self.size.w as f32 / self.size.h as f32) * self.ortho_scale;
-            let bound_h = self.ortho_scale;
-            ortho(
-               -bound_w,
-               bound_w,
-               -bound_h,
-               bound_h,
-               self.clip.0,
-               self.clip.1,
-            )
-         }
-      }
-   }
-   fn update_view(&mut self) {
-      self.update_front();
-      let eye = point3(
-         self.transform.pos.x,
-         self.transform.pos.y,
-         self.transform.pos.z,
-      );
-      let centre = point3(
-         self.front.x + eye.x,
-         self.front.y + eye.y,
-         self.front.z + eye.z,
-      );
-      self.view_matrix = Matrix4::look_at_rh(eye, centre, vec3(0.0, 1.0, 0.0));
-   }
-   fn update_front(&mut self) {
-      let pitch_cos = self.transform.rot.x.to_radians().cos();
-      self.front = vec3(
-         self.transform.rot.y.to_radians().cos() * pitch_cos,
-         self.transform.rot.x.to_radians().sin(),
-         self.transform.rot.y.to_radians().sin() * pitch_cos,
-      )
-      .normalize();
-   }
-
    pub(crate) fn start(&mut self) {
       self.initialized = true
    }
 
    pub(crate) fn pre_update(&mut self) {
-      self.update_proj();
-      self.update_view()
+      self.transform.calc_matrices();
    }
 
    pub(crate) fn update(&mut self) {}
@@ -96,8 +49,7 @@ impl NECamera {
 
    pub fn from(size: Size2D, proj: CamProj) -> Self {
       let fov = 75.0;
-      let (widthf, heightf) = (size.w as f32, size.h as f32);
-      let proj_matrix = perspective(Deg(fov), widthf / heightf, 0.01, 1000.0);
+      let clip = ClipDist::from(0.01, 1000.0);
 
       let pos = vec3(0.0, 0.0, 5.0);
       let rot = vec3(0.0, -90.0, 0.0);
@@ -109,54 +61,82 @@ impl NECamera {
 
       let view_matrix = pos_inverse * rot_inverse;
 
-      Self {
+      let mut transform = CamTransform {
+         pos,
+         rot,
+         fov,
+         clip,
          size,
          proj,
-         fov,
-         ortho_scale: 2.0,
-         clip: (0.01, 1000.0),
-         front: vec3(0.0, 0.0, -1.0),
-         proj_matrix,
          view_matrix,
-         transform: Transform {
-            matrix: Matrix4::identity(),
-            pos,
-            rot,
-            scale: vec3(1.0, 1.0, 1.0),
-         },
+         ortho_scale: 2.0,
+         front: vec3(0.0, 0.0, -1.0),
+         persp_matrix: Matrix4::identity(),
+         ortho_matrix: Matrix4::identity(),
+      };
+      transform.calc_matrices();
+
+      Self {
+         transform,
          initialized: true,
       }
    }
+
+   pub fn fov(&self) -> f32 {
+      self.transform.fov
+   }
+   pub fn ortho_scale(&self) -> f32 {
+      self.transform.ortho_scale
+   }
+
+   pub fn proj(&self) -> CamProj {
+      self.transform.proj
+   }
+
+   pub fn clip(&self) -> ClipDist {
+      self.transform.clip
+   }
+
+   pub fn set_clip(&mut self, clip: ClipDist) {
+      self.transform.clip = clip
+   }
+
+   pub fn set_clip_near(&mut self, near: f32) {
+      self.transform.clip.near = near
+   }
+   pub fn set_clip_far(&mut self, far: f32) {
+      self.transform.clip.far = far
+   }
    pub fn set_size(&mut self, size: Size2D) {
-      self.size = size;
+      self.transform.size = size;
    }
    pub fn set_proj(&mut self, proj: CamProj) {
-      self.proj = proj;
+      self.transform.proj = proj;
    }
    pub fn set_fov(&mut self, fov: f32) {
-      self.fov = fov;
+      self.transform.fov = fov;
    }
    pub fn add_fov(&mut self, value: f32) {
-      self.fov += value;
+      self.transform.fov += value;
    }
    pub fn set_ortho_scale(&mut self, value: f32) {
-      self.ortho_scale = value;
+      self.transform.ortho_scale = value;
    }
    pub fn add_ortho_scale(&mut self, value: f32) {
-      self.ortho_scale += value;
+      self.transform.ortho_scale += value;
    }
 
    pub fn fly_forw(&mut self, speed: f32) {
-      self.transform.pos += speed * self.front;
+      self.transform.pos += speed * self.transform.front;
    }
    pub fn fly_back(&mut self, speed: f32) {
-      self.transform.pos -= speed * self.front;
+      self.transform.pos -= speed * self.transform.front;
    }
    pub fn fly_left(&mut self, speed: f32) {
-      self.transform.pos -= speed * self.front.cross(vec3(0.0, 1.0, 0.0).normalize());
+      self.transform.pos -= speed * self.transform.front.cross(vec3(0.0, 1.0, 0.0).normalize());
    }
    pub fn fly_right(&mut self, speed: f32) {
-      self.transform.pos += speed * self.front.cross(vec3(0.0, 1.0, 0.0).normalize());
+      self.transform.pos += speed * self.transform.front.cross(vec3(0.0, 1.0, 0.0).normalize());
    }
    pub fn fly_up(&mut self, speed: f32) {
       self.transform.move_y(speed);

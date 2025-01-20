@@ -7,7 +7,7 @@ enum OBJ {
       col_attr: ColATTR,
       uvm_attr: UVMATTR,
       nrm_attr: NrmATTR,
-      indices: Indices,
+      ind_attr: IndATTR,
    },
    NonTriangle(String),
 }
@@ -17,7 +17,7 @@ impl OBJ {
       let mut col_attr = ColATTR::empty();
       let mut uvm_attr = UVMATTR::empty();
       let mut nrm_attr = NrmATTR::empty();
-      let mut indices = Indices::empty();
+      let mut ind_attr = IndATTR::empty();
 
       let mut pos_data = Vec::new();
       let mut uvm_data = Vec::new();
@@ -74,55 +74,78 @@ impl OBJ {
          let key = (pos_index, uvm_index, nrm_index);
          if unique_verts.contains_key(&key) {
             let idx = unique_verts[&key] as u32;
-            indices.shove(idx);
+            ind_attr.push(idx);
          } else {
             let v_local = i % 3;
             let new = pos_attr.data.len();
             unique_verts.insert(key, new);
-            pos_attr.shove(match pos_index {
+            pos_attr.push(match pos_index {
                Some(id) => pos_data[id],
                None => [0.0; 3],
             });
-            uvm_attr.shove(match uvm_index {
+            uvm_attr.push(match uvm_index {
                Some(id) => uvm_data[id],
                None => def_uvm[v_local],
             });
-            nrm_attr.shove(match nrm_index {
+            nrm_attr.push(match nrm_index {
                Some(id) => nrm_data[id],
                None => def_nrm,
             });
-            col_attr.shove(def_col);
-            indices.shove(new as u32);
+            col_attr.push(def_col);
+            ind_attr.push(new as u32);
          }
       }
-
-      pos_attr.calc_info();
-      col_attr.calc_info();
-      uvm_attr.calc_info();
-      nrm_attr.calc_info();
-      indices.calc_info();
-
       OBJ::Parsed {
          pos_attr,
          col_attr,
          uvm_attr,
          nrm_attr,
-         indices,
+         ind_attr,
       }
    }
 }
 
+#[derive(Debug)]
 pub struct NEMeshAsset {
-   pub(crate) transform: Transform,
    pub(crate) pos_attr: PosATTR,
    pub(crate) col_attr: ColATTR,
    pub(crate) uvm_attr: UVMATTR,
    pub(crate) nrm_attr: NrmATTR,
-   pub(crate) indices: Indices,
+   pub(crate) ind_attr: IndATTR,
    pub(crate) cus_attrs: Vec<CustomATTR>,
 }
 
 impl NEMeshAsset {
+   pub fn empty() -> NEMeshAsset {
+      NEMeshAsset {
+         pos_attr: PosATTR::empty(),
+         col_attr: ColATTR::empty(),
+         uvm_attr: UVMATTR::empty(),
+         nrm_attr: NrmATTR::empty(),
+         ind_attr: IndATTR::empty(),
+         cus_attrs: Vec::new(),
+      }
+   }
+
+   pub fn set_pos_attr(&mut self, pos_attr: PosATTR) {
+      self.pos_attr = pos_attr
+   }
+   pub fn set_col_attr(&mut self, col_attr: ColATTR) {
+      self.col_attr = col_attr;
+   }
+
+   pub fn set_uvm_attr(&mut self, uvm_attr: UVMATTR) {
+      self.uvm_attr = uvm_attr;
+   }
+
+   pub fn set_nrm_attr(&mut self, nrm_attr: NrmATTR) {
+      self.nrm_attr = nrm_attr;
+   }
+
+   pub fn set_ind_attr(&mut self, ind_attr: IndATTR) {
+      self.ind_attr = ind_attr;
+   }
+
    pub fn from_path(path: &str) -> NEResult<NEMeshAsset> {
       NEMeshAsset::from_path_raw(&env::concat_with_asset(path))
    }
@@ -160,15 +183,14 @@ impl NEMeshAsset {
                col_attr,
                uvm_attr,
                nrm_attr,
-               indices,
+               ind_attr,
             } => NEMeshAsset {
-               transform: Transform::default(),
                cus_attrs: Vec::new(),
                pos_attr,
                col_attr,
                uvm_attr,
                nrm_attr,
-               indices,
+               ind_attr,
             },
          };
 
@@ -190,15 +212,14 @@ impl NEMeshAsset {
                col_attr,
                uvm_attr,
                nrm_attr,
-               indices,
+               ind_attr,
             } => NEMeshAsset {
-               transform: Transform::default(),
                cus_attrs: Vec::new(),
                pos_attr,
                col_attr,
                uvm_attr,
                nrm_attr,
-               indices,
+               ind_attr,
             },
          };
          NEResult::OK(nmesh)
@@ -242,7 +263,6 @@ impl ParseWords for Vec<&str> {
       elem[1] = 1.0 - elem[1];
       elem
    }
-
    fn parse_3_to_f32(&self) -> [f32; 3] {
       const N: usize = 3;
       let mut elem = [0.0; N];
@@ -251,7 +271,6 @@ impl ParseWords for Vec<&str> {
       }
       elem
    }
-
    fn parse_to_usize(&self) -> Vec<usize> {
       let mut elem: Vec<usize> = Vec::new();
       for str in self {

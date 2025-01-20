@@ -1,10 +1,10 @@
 use crate::asset::ATTRInfo;
-use crate::renderer::handles::{DrawMode, Uniform};
+use crate::renderer::handles::DrawMode;
 use crate::renderer::{Renderer, ShaderType, TexFormat};
 use crate::util::misc;
 use crate::{ansi, NEShaderAsset, NETexAsset, TexFilter, TexWrap, RGB};
 use crate::{log_info, ATTRType, Cull, NEError, NEResult, PolyMode, Size2D};
-use cgmath::{Matrix, Matrix4};
+use cgmath::{Matrix, Matrix4, Vector2};
 use glfw::{Context, PWindow};
 use gll as gl;
 use gll::types::*;
@@ -123,6 +123,15 @@ impl Renderer for GLRenderer {
          }
       }
    }
+
+   fn enable_alpha(&self, enable: bool) {
+      let gl = &self.gl;
+      unsafe {
+         gl.raw.Enable(gl::BLEND);
+         gl.raw.BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+      }
+   }
+
    fn enable_cull(&self, enable: bool) {
       let gl = &self.gl;
       unsafe {
@@ -314,7 +323,7 @@ impl Renderer for GLRenderer {
          gl.raw.TexParameteri(TEX, gl::TEXTURE_MIN_FILTER, min_fil);
          gl.raw.TexParameteri(TEX, gl::TEXTURE_MAG_FILTER, mag_fil);
 
-         let (base, size) = gl_match_tex_format(&tex.fmt);
+         let (base, size) = gl_match_tex_fmt(&tex.fmt);
          let (width, height) = (tex.size.w as GLsizei, tex.size.h as GLsizei);
 
          gl.raw.TexImage2D(
@@ -350,12 +359,6 @@ impl Renderer for GLRenderer {
          }
       }
    }
-   fn set_uni(&self, id: u32, name: &str, uniform: Uniform) {
-      match uniform {
-         Uniform::Matrix4(m) => self.set_uni_m4f32(id, name, m),
-         Uniform::Int(i) => self.set_uni_i32(id, name, i),
-      }
-   }
 
    fn set_uni_i32(&self, id: u32, name: &str, int: i32) {
       unsafe {
@@ -373,6 +376,13 @@ impl Renderer for GLRenderer {
       }
    }
 
+   fn set_uni_vec2f32(&self, id: u32, name: &str, vec2: Vector2<f32>) {
+      unsafe {
+         let loc = self.get_uni_location(id, name) as GLint;
+         self.gl.raw.Uniform2f(loc, vec2.x, vec2.y)
+      }
+   }
+
    //BUFFERS
    fn create_buffer(&self) -> (u32, u32) {
       let (mut v_id, mut b_id): (u32, u32) = (0, 0);
@@ -383,7 +393,7 @@ impl Renderer for GLRenderer {
       }
       (v_id, b_id)
    }
-   fn set_attr_layout(&self, attr: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize) {
+   fn set_attr(&self, attr: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize) {
       let gl = &self.gl;
       unsafe {
          gl.raw.VertexAttribPointer(
@@ -487,7 +497,7 @@ fn gl_match_shader_type(t: &ShaderType) -> GLenum {
       ShaderType::Frag => gl::FRAGMENT_SHADER,
    }
 }
-fn gl_match_tex_format(tf: &TexFormat) -> (GLenum, GLenum) {
+fn gl_match_tex_fmt(tf: &TexFormat) -> (GLenum, GLenum) {
    let (base, bd) = match tf {
       TexFormat::R(bd) => (gl::RED, bd),
       TexFormat::RG(bd) => (gl::RG, bd),
@@ -544,7 +554,6 @@ unsafe fn gl_shader_compile_failure(shader: GLuint, gl: &gl::Context) -> NEResul
       let mut log_len = 0;
       gl.raw
          .GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut log_len);
-      println!("shad {}", log_len);
       let mut log = Vec::new();
       log.resize(log_len as usize - 1, 0);
 
@@ -554,7 +563,6 @@ unsafe fn gl_shader_compile_failure(shader: GLuint, gl: &gl::Context) -> NEResul
          ptr::null_mut(),
          log.as_mut_ptr() as *mut GLchar,
       );
-      println!("{:?}", log);
       let log = std::str::from_utf8(&log)
          .unwrap_or("unreachable-log")
          .to_string();
@@ -571,7 +579,6 @@ unsafe fn gl_program_link_failure(program: GLuint, gl: &gl::Context) -> NEResult
       let mut log_len = 0;
       gl.raw
          .GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut log_len);
-      println!("prog {}", log_len);
       let mut log = Vec::new();
       log.resize(log_len as usize - 1, 0);
 
@@ -581,7 +588,6 @@ unsafe fn gl_program_link_failure(program: GLuint, gl: &gl::Context) -> NEResult
          ptr::null_mut(),
          log.as_mut_ptr() as *mut GLchar,
       );
-      println!("{:?}", log);
       let log = std::str::from_utf8(&log)
          .unwrap_or("unreachable-log")
          .to_string();

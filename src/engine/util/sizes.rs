@@ -21,6 +21,9 @@ impl Size2D {
          *self
       }
    }
+   pub fn aspect_ratio(&self) -> f32 {
+      self.w as f32 / self.h as f32
+   }
 }
 
 #[derive(Copy, Clone, Debug)]

@@ -1,8 +1,8 @@
 use crate::asset::ATTRInfo;
-use crate::renderer::handles::{DrawMode, Uniform};
+use crate::renderer::handles::DrawMode;
 use crate::renderer::{Renderer, ShaderType};
 use crate::{Cull, NEResult, NEShaderAsset, NETexAsset, PolyMode, Size2D, RGB};
-use cgmath::Matrix4;
+use cgmath::{Matrix4, Vector2};
 
 #[derive(Copy, Clone)]
 pub(crate) struct VKRenderer;
@@ -29,6 +29,10 @@ impl Renderer for VKRenderer {
    }
 
    fn enable_depth(&self, enable: bool) {
+      todo!()
+   }
+
+   fn enable_alpha(&self, enable: bool) {
       todo!()
    }
 
@@ -113,10 +117,6 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn set_uni(&self, id: u32, name: &str, uniform: Uniform) {
-      todo!()
-   }
-
    fn set_uni_i32(&self, id: u32, name: &str, int: i32) {
       todo!()
    }
@@ -125,11 +125,15 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
+   fn set_uni_vec2f32(&self, id: u32, name: &str, vec2: Vector2<f32>) {
+      todo!()
+   }
+
    fn create_buffer(&self) -> (u32, u32) {
       todo!()
    }
 
-   fn set_attr_layout(&self, info: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize) {
+   fn set_attr(&self, info: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize) {
       todo!()
    }
 

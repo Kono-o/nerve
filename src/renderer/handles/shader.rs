@@ -1,5 +1,4 @@
 use crate::NETexture;
-use cgmath::Matrix4;
 
 pub enum TexSlot {
    S0,
@@ -49,7 +48,6 @@ impl NEShader {
       for (slot, tex_id) in self.tex_ids.iter().enumerate() {
          match tex_id {
             None => {
-               println!("(attach) at s {} id {}", slot, tex.id);
                self.tex_ids[slot] = Some(tex.id);
                break;
             }
@@ -61,9 +59,4 @@ impl NEShader {
    pub fn set_tex_at_slot(&mut self, tex: &NETexture, slot: TexSlot) {
       self.tex_ids[slot.as_index()] = Some(tex.id)
    }
-}
-
-pub enum Uniform {
-   Matrix4(Matrix4<f32>),
-   Int(i32),
 }

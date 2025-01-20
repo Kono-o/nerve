@@ -128,6 +128,7 @@ impl PNG {
    }
 }
 
+#[derive(Debug)]
 pub struct NETexAsset {
    pub(crate) bytes: Vec<u8>,
    pub(crate) size: Size2D,
