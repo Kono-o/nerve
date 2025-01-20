@@ -49,6 +49,9 @@ impl Transform3D {
    pub fn scale(&self) -> Vector3<f32> {
       self.scale
    }
+   pub fn matrix(&self) -> Matrix4<f32> {
+      self.matrix
+   }
 
    pub fn move_all(&mut self, x: f32, y: f32, z: f32) {
       self.pos = self.pos.add(vec3(x, y, z));

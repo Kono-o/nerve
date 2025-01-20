@@ -5,7 +5,8 @@ use std::ops::Add;
 pub struct Transform2D {
    pub(crate) matrix: Matrix4<f32>,
    pub(crate) pos: Vector2<f32>,
-   pub(crate) rot: Vector2<f32>,
+   pub(crate) rot: f32,
+   pub(crate) layer: u8,
    pub(crate) scale: Vector2<f32>,
 }
 
@@ -14,7 +15,8 @@ impl Default for Transform2D {
       Transform2D {
          matrix: Matrix4::identity(),
          pos: Vector2::new(0.0, 0.0),
-         rot: Vector2::new(0.0, 0.0),
+         rot: 0.0,
+         layer: 0,
          scale: Vector2::new(1.0, 1.0),
       }
    }
@@ -27,9 +29,7 @@ impl Transform2D {
    }
 
    fn calc_rot_matrix(&self) -> Matrix4<f32> {
-      let x = Matrix4::<f32>::from_angle_x(Rad::from(Deg(self.rot.x)));
-      let y = Matrix4::<f32>::from_angle_y(Rad::from(Deg(self.rot.y)));
-      x * y
+      Matrix4::<f32>::from_angle_z(Rad::from(Deg(self.rot)))
    }
 
    fn calc_scale_matrix(&self) -> Matrix4<f32> {
@@ -43,11 +43,17 @@ impl Transform2D {
    pub fn pos(&self) -> Vector2<f32> {
       self.pos
    }
-   pub fn rot(&self) -> Vector2<f32> {
+   pub fn rot(&self) -> f32 {
       self.rot
+   }
+   pub fn layer(&self) -> u8 {
+      self.layer
    }
    pub fn scale(&self) -> Vector2<f32> {
       self.scale
+   }
+   pub fn matrix(&self) -> Matrix4<f32> {
+      self.matrix
    }
 
    pub fn move_all(&mut self, x: f32, y: f32) {
@@ -70,24 +76,16 @@ impl Transform2D {
       self.pos.y = y;
    }
 
-   pub fn rotate_all(&mut self, x: f32, y: f32) {
-      self.rot = self.rot.add(vec2(x, y));
-   }
-   pub fn rotate_x(&mut self, x: f32) {
-      self.rot.x += x;
-   }
-   pub fn rotate_y(&mut self, y: f32) {
-      self.rot.y += y;
+   pub fn rotate(&mut self, rot: f32) {
+      self.rot += rot;
    }
 
-   pub fn set_rot_all(&mut self, x: f32, y: f32) {
-      self.rot = vec2(x, y);
+   pub fn set_rot(&mut self, rot: f32) {
+      self.rot = rot;
    }
-   pub fn set_rot_x(&mut self, x: f32) {
-      self.rot.x = x;
-   }
-   pub fn set_rot_y(&mut self, y: f32) {
-      self.rot.y = y;
+
+   pub fn set_layer(&mut self, layer: u8) {
+      self.layer = layer
    }
 
    pub fn scale_all(&mut self, x: f32, y: f32) {

@@ -62,7 +62,10 @@ impl ATTRInfo {
          ATTRType::F32 => "f32",
          ATTRType::F64 => "f64",
       };
-      format!("[{typ_str};{}]", self.elem_count)
+      match self.elem_count == 1 {
+         false => format!("[{typ_str};{}]", self.elem_count),
+         _ => format!("{typ_str}"),
+      }
    }
 }
 

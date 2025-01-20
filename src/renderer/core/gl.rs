@@ -366,6 +366,14 @@ impl Renderer for GLRenderer {
          self.gl.raw.Uniform1i(loc, int)
       }
    }
+
+   fn set_uni_u32(&self, id: u32, name: &str, uint: u32) {
+      unsafe {
+         let loc = self.get_uni_location(id, name) as GLint;
+         self.gl.raw.Uniform1ui(loc, uint)
+      }
+   }
+
    fn set_uni_m4f32(&self, id: u32, name: &str, matrix: Matrix4<f32>) {
       unsafe {
          let loc = self.get_uni_location(id, name) as GLint;

@@ -2,10 +2,11 @@ use crate::asset::ATTRInfo;
 use crate::renderer::handles::{DrawMode, NEMesh3D, NEShader};
 use crate::renderer::MeshHandle;
 use crate::{
-   ansi, color, log_info, ClipDist, DataType, NECamera, NEError, NEMeshAsset, NEResult,
-   NEShaderAsset, NETexAsset, NETexture, RenderAPI, Size2D, TexFilter, TexWrap, Transform3D, RGB,
+   ansi, color, log_info, ClipDist, DataType, NECamera, NEError, NEMesh2D, NEMeshAsset, NEResult,
+   NEShaderAsset, NETexAsset, NETexture, RenderAPI, Size2D, TexFilter, TexWrap, Transform2D,
+   Transform3D, RGB,
 };
-use cgmath::{Matrix4, Vector2};
+use cgmath::{ortho, Matrix4, Vector2};
 use std::ops::Deref;
 
 #[derive(Copy, Clone)]
@@ -64,6 +65,7 @@ pub(crate) trait Renderer {
    fn get_uni_location(&self, id: u32, name: &str) -> u32;
 
    fn set_uni_i32(&self, id: u32, name: &str, int: i32);
+   fn set_uni_u32(&self, id: u32, name: &str, int: u32);
    fn set_uni_m4f32(&self, id: u32, name: &str, matrix: Matrix4<f32>);
    fn set_uni_vec2f32(&self, id: u32, name: &str, vec2: Vector2<f32>);
 
@@ -453,6 +455,18 @@ impl NERenderer {
    }
    pub fn remove_mesh3d(&self, mesh: NEMesh3D) {}
 
+   pub fn create_mesh2d(&self, nmesh: NEMeshAsset) -> NEMesh2D {
+      let handle = self.create_mesh_handle(&nmesh);
+      NEMesh2D {
+         handle,
+         visible: true,
+         shader: self.fallback_shader(),
+         transform: Transform2D::default(),
+         draw_mode: DrawMode::default(),
+      }
+   }
+   pub fn remove_mesh2d(&self, mesh: NEMesh2D) {}
+
    pub fn render3d(&self, mesh: &mut NEMesh3D) {
       if !mesh.is_renderable() {
          return;
@@ -462,7 +476,9 @@ impl NERenderer {
       self.core.bind_program(s);
       self.core.set_uni_m4f32(s, "uCamView", self.cam_view);
       self.core.set_uni_m4f32(s, "uCamProj", self.cam_proj);
-      self.core.set_uni_m4f32(s, "uMeshTfm", mesh.matrix());
+      self
+         .core
+         .set_uni_m4f32(s, "uMeshTfm", mesh.transform.matrix());
 
       for (slot, tex_id) in mesh.shader.tex_ids.iter().enumerate() {
          match tex_id {
@@ -483,7 +499,7 @@ impl NERenderer {
       }
       self.core.unbind_buffer();
    }
-   pub fn render2d(&self, mesh: &mut NEMesh3D) {
+   pub fn render2d(&self, mesh: &mut NEMesh2D) {
       if !mesh.is_renderable() {
          return;
       }
@@ -491,10 +507,16 @@ impl NERenderer {
       let handle = &mesh.handle;
       self.core.bind_program(s);
 
-      let aspect = self.size.aspect_ratio();
+      let h = 1.0;
+      let max_layers = 255;
+      let w = self.size.aspect_ratio();
+      let ortho = ortho(-w, w, -h, h, 0.0, -(max_layers + 1) as f32);
 
-      //self.core.set_uni_vec2f32(s, "uAspect", vec2(aspect, 1.0));
-      self.core.set_uni_m4f32(s, "uTfm", mesh.matrix());
+      self.core.set_uni_m4f32(s, "uProj", ortho);
+      self.core.set_uni_m4f32(s, "uTfm", mesh.transform.matrix());
+      self
+         .core
+         .set_uni_u32(s, "uLayer", mesh.transform.layer() as u32);
 
       for (slot, tex_id) in mesh.shader.tex_ids.iter().enumerate() {
          match tex_id {

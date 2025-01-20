@@ -121,6 +121,10 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
+   fn set_uni_u32(&self, id: u32, name: &str, int: u32) {
+      todo!()
+   }
+
    fn set_uni_m4f32(&self, id: u32, name: &str, matrix: Matrix4<f32>) {
       todo!()
    }
