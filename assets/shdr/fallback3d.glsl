@@ -7,20 +7,20 @@ layout (location = 1) in vec4 vCol;
 layout (location = 2) in vec2 vUVM;
 layout (location = 3) in vec3 vNrm;
 
-layout (location = 0) uniform mat4 uCamView;
-layout (location = 1) uniform mat4 uCamProj;
-layout (location = 2) uniform mat4 uMeshTfm;
+layout (location = 0) uniform mat4 uView;
+layout (location = 1) uniform mat4 uProj;
+layout (location = 2) uniform mat4 uTfm;
 
 layout (location = 0) out vec4 fCol;
 layout (location = 1) out vec3 fNrm;
 layout (location = 2) out vec2 fUVM;
 
 void main() {
-    fNrm = transpose(inverse(mat3(uMeshTfm))) * vNrm;
+    fNrm = transpose(inverse(mat3(uTfm))) * vNrm;
     fCol = vCol;
     fUVM = vUVM;
 
-    gl_Position = uCamProj * uCamView * uMeshTfm * vec4(vPos, 1.0);
+    gl_Position = uProj * uView * uTfm * vec4(vPos, 1.0);
 }
 
 

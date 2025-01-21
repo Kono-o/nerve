@@ -41,12 +41,14 @@ pub(crate) trait Renderer {
    fn set_cull_face(&self, face: Cull);
    fn set_wire_width(&self, thickness: f32);
 
-   fn bind_program(&self, id: u32);
+   fn bind_shader(&self, id: u32);
    fn unbind_program(&self);
 
    fn bind_texture_at(&self, tex_id: u32, slot: u32);
    fn unbind_texture(&self);
-   fn bind_buffer(&self, v_id: u32, b_id: u32);
+   fn bind_layouts(&self, v_id: u32);
+   fn bind_buffer(&self, b_id: u32);
+   fn unbind_layouts(&self);
    fn unbind_buffer(&self);
    fn bind_index_buffer(&self, id: u32);
    fn unbind_index_buffer(&self);
@@ -71,8 +73,8 @@ pub(crate) trait Renderer {
 
    //BUFFERS
    fn create_buffer(&self) -> (u32, u32);
-   fn set_attr(&self, info: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize);
-   fn fill_buffer(&self, v_id: u32, b_id: u32, buffer: &Vec<u8>);
+   fn set_attr_layout(&self, info: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize);
+   fn fill_buffer(&self, id: u32, buffer: &Vec<u8>);
    fn fill_index_buffer(&self, id: u32, buffer: &Vec<u32>);
    fn delete_buffer(&self, v_id: u32, b_id: u32);
    fn create_index_buffer(&self) -> u32;
@@ -379,36 +381,47 @@ impl NERenderer {
 
       let mut attr_id = 0;
       let mut local_offset = 0;
-      self.core.bind_buffer(vao_id, buf_id);
+
+      self.core.bind_layouts(vao_id);
+      self.core.bind_buffer(buf_id);
+
       let mut layouts: Vec<(ATTRInfo, u32)> = Vec::new();
       if pos_exists {
-         self.core.set_attr(&pos_info, attr_id, stride, local_offset);
+         self
+            .core
+            .set_attr_layout(&pos_info, attr_id, stride, local_offset);
          local_offset += pos_info.elem_count * pos_info.byte_count;
          layouts.push((pos_info.clone(), attr_id));
          attr_id += 1;
       }
       if col_exists {
-         self.core.set_attr(&col_info, attr_id, stride, local_offset);
+         self
+            .core
+            .set_attr_layout(&col_info, attr_id, stride, local_offset);
          local_offset += col_info.elem_count * col_info.byte_count;
          layouts.push((col_info.clone(), attr_id));
          attr_id += 1;
       }
       if uvm_exists {
-         self.core.set_attr(&uvm_info, attr_id, stride, local_offset);
+         self
+            .core
+            .set_attr_layout(&uvm_info, attr_id, stride, local_offset);
          local_offset += uvm_info.elem_count * uvm_info.byte_count;
          layouts.push((uvm_info.clone(), attr_id));
          attr_id += 1;
       }
 
       for cus_info in cus_infos.iter() {
-         self.core.set_attr(cus_info, attr_id, stride, local_offset);
+         self
+            .core
+            .set_attr_layout(cus_info, attr_id, stride, local_offset);
          local_offset += cus_info.elem_count * cus_info.byte_count;
          layouts.push((cus_info.deref().clone(), attr_id));
          attr_id += 1;
       }
 
       if buffer.len() > 0 {
-         self.core.fill_buffer(vao_id, buf_id, &buffer);
+         self.core.fill_buffer(buf_id, &buffer);
       }
       self.core.unbind_buffer();
 
@@ -518,42 +531,55 @@ impl NERenderer {
 
       let mut attr_id = 0;
       let mut local_offset = 0;
-      self.core.bind_buffer(vao_id, buf_id);
+
+      self.core.bind_layouts(vao_id);
+      self.core.bind_buffer(buf_id);
+
       let mut layouts: Vec<(ATTRInfo, u32)> = Vec::new();
       if pos_exists {
-         self.core.set_attr(&pos_info, attr_id, stride, local_offset);
+         self
+            .core
+            .set_attr_layout(&pos_info, attr_id, stride, local_offset);
          local_offset += pos_info.elem_count * pos_info.byte_count;
          layouts.push((pos_info.clone(), attr_id));
          attr_id += 1;
       }
       if col_exists {
-         self.core.set_attr(&col_info, attr_id, stride, local_offset);
+         self
+            .core
+            .set_attr_layout(&col_info, attr_id, stride, local_offset);
          local_offset += col_info.elem_count * col_info.byte_count;
          layouts.push((col_info.clone(), attr_id));
          attr_id += 1;
       }
       if uvm_exists {
-         self.core.set_attr(&uvm_info, attr_id, stride, local_offset);
+         self
+            .core
+            .set_attr_layout(&uvm_info, attr_id, stride, local_offset);
          local_offset += uvm_info.elem_count * uvm_info.byte_count;
          layouts.push((uvm_info.clone(), attr_id));
          attr_id += 1;
       }
       if nrm_exists {
-         self.core.set_attr(&nrm_info, attr_id, stride, local_offset);
+         self
+            .core
+            .set_attr_layout(&nrm_info, attr_id, stride, local_offset);
          local_offset += nrm_info.elem_count * nrm_info.byte_count;
          layouts.push((nrm_info.clone(), attr_id));
          attr_id += 1;
       }
 
       for cus_info in cus_infos.iter() {
-         self.core.set_attr(cus_info, attr_id, stride, local_offset);
+         self
+            .core
+            .set_attr_layout(cus_info, attr_id, stride, local_offset);
          local_offset += cus_info.elem_count * cus_info.byte_count;
          layouts.push((cus_info.deref().clone(), attr_id));
          attr_id += 1;
       }
 
       if buffer.len() > 0 {
-         self.core.fill_buffer(vao_id, buf_id, &buffer);
+         self.core.fill_buffer(buf_id, &buffer);
       }
       self.core.unbind_buffer();
 
@@ -614,31 +640,16 @@ impl NERenderer {
       }
       let s = mesh.shader.id;
       let handle = &mesh.handle;
-      self.core.bind_program(s);
-      self.core.set_uni_m4f32(s, "uCamView", self.cam_view);
-      self.core.set_uni_m4f32(s, "uCamProj", self.cam_proj);
-      self
-         .core
-         .set_uni_m4f32(s, "uMeshTfm", mesh.transform.matrix());
 
-      for (slot, tex_id) in mesh.shader.tex_ids.iter().enumerate() {
-         match tex_id {
-            None => {}
-            Some(id) => {
-               self.core.bind_texture_at(*id, slot as u32);
-            }
-         }
-      }
-      self.core.bind_buffer(handle.vao_id, handle.buf_id);
-      match handle.has_indices {
-         false => self.core.draw_array(&mesh.draw_mode, handle.vert_count),
-         true => {
-            self.core.bind_index_buffer(handle.ind_id);
-            self.core.draw_indexed(&mesh.draw_mode, handle.ind_count);
-            self.core.unbind_index_buffer()
-         }
-      }
-      self.core.unbind_buffer();
+      let tfm = mesh.transform.matrix();
+
+      self.core.bind_shader(s);
+      self.core.set_uni_m4f32(s, "uView", self.cam_view);
+      self.core.set_uni_m4f32(s, "uProj", self.cam_proj);
+      self.core.set_uni_m4f32(s, "uTfm", tfm);
+
+      self.bind_textures(&mesh.shader.tex_ids);
+      self.draw(handle, &mesh.draw_mode)
    }
    pub fn render2d(&self, mesh: &mut NEMesh2D) {
       if !mesh.is_renderable() {
@@ -646,20 +657,25 @@ impl NERenderer {
       }
       let s = mesh.shader.id;
       let handle = &mesh.handle;
-      self.core.bind_program(s);
 
       let scale = 1.0;
       let max_layers = 255;
+      let tfm = mesh.transform.matrix();
+      let layer = mesh.transform.layer() as u32;
       let w = self.size.aspect_ratio() * scale;
-      let ortho = ortho(-w, w, -scale, scale, 0.0, -(max_layers + 1) as f32);
+      let proj = ortho(-w, w, -scale, scale, 0.0, -(max_layers + 1) as f32);
 
-      self.core.set_uni_m4f32(s, "uProj", ortho);
-      self.core.set_uni_m4f32(s, "uTfm", mesh.transform.matrix());
-      self
-         .core
-         .set_uni_u32(s, "uLayer", mesh.transform.layer() as u32);
+      self.core.bind_shader(s);
+      self.core.set_uni_m4f32(s, "uProj", proj);
+      self.core.set_uni_m4f32(s, "uTfm", tfm);
+      self.core.set_uni_u32(s, "uLayer", layer);
 
-      for (slot, tex_id) in mesh.shader.tex_ids.iter().enumerate() {
+      self.bind_textures(&mesh.shader.tex_ids);
+      self.draw(handle, &mesh.draw_mode)
+   }
+
+   fn bind_textures(&self, tex_ids: &Vec<Option<u32>>) {
+      for (slot, tex_id) in tex_ids.iter().enumerate() {
          match tex_id {
             None => {}
             Some(id) => {
@@ -667,12 +683,15 @@ impl NERenderer {
             }
          }
       }
-      self.core.bind_buffer(handle.vao_id, handle.buf_id);
+   }
+
+   fn draw(&self, handle: &MeshHandle, draw_mode: &DrawMode) {
+      self.core.bind_layouts(handle.vao_id);
       match handle.has_indices {
-         false => self.core.draw_array(&mesh.draw_mode, handle.vert_count),
+         false => self.core.draw_array(&draw_mode, handle.vert_count),
          true => {
             self.core.bind_index_buffer(handle.ind_id);
-            self.core.draw_indexed(&mesh.draw_mode, handle.ind_count);
+            self.core.draw_indexed(&draw_mode, handle.ind_count);
          }
       }
    }

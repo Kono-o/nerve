@@ -11,7 +11,7 @@ impl Renderer for VKRenderer {
    fn log_info(&self) {
       todo!()
    }
-   //STATE
+
    fn set_clear(&self, color: RGB) {
       todo!()
    }
@@ -48,7 +48,7 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn bind_program(&self, id: u32) {
+   fn bind_shader(&self, id: u32) {
       todo!()
    }
 
@@ -64,7 +64,15 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn bind_buffer(&self, v_id: u32, b_id: u32) {
+   fn bind_layouts(&self, v_id: u32) {
+      todo!()
+   }
+
+   fn bind_buffer(&self, b_id: u32) {
+      todo!()
+   }
+
+   fn unbind_layouts(&self) {
       todo!()
    }
 
@@ -84,7 +92,6 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   //SHADERS
    fn create_src_shader(&self, src: &str, typ: ShaderType) -> NEResult<u32> {
       todo!()
    }
@@ -137,11 +144,11 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn set_attr(&self, info: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize) {
+   fn set_attr_layout(&self, info: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize) {
       todo!()
    }
 
-   fn fill_buffer(&self, v_id: u32, b_id: u32, buffer: &Vec<u8>) {
+   fn fill_buffer(&self, id: u32, buffer: &Vec<u8>) {
       todo!()
    }
 

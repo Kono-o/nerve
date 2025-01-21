@@ -157,7 +157,7 @@ impl Renderer for GLRenderer {
       unsafe { self.gl.raw.LineWidth(width) }
    }
 
-   fn bind_program(&self, prog_id: u32) {
+   fn bind_shader(&self, prog_id: u32) {
       unsafe { self.gl.raw.UseProgram(prog_id) }
    }
    fn unbind_program(&self) {
@@ -177,18 +177,24 @@ impl Renderer for GLRenderer {
       }
    }
 
-   fn bind_buffer(&self, v_id: u32, b_id: u32) {
-      let gl = &self.gl;
+   fn bind_layouts(&self, v_id: u32) {
       unsafe {
-         gl.raw.BindVertexArray(v_id);
-         gl.raw.BindBuffer(gl::ARRAY_BUFFER, b_id);
+         self.gl.raw.BindVertexArray(v_id);
+      }
+   }
+   fn bind_buffer(&self, id: u32) {
+      unsafe {
+         self.gl.raw.BindBuffer(gl::ARRAY_BUFFER, id);
+      }
+   }
+   fn unbind_layouts(&self) {
+      unsafe {
+         self.gl.raw.BindVertexArray(0);
       }
    }
    fn unbind_buffer(&self) {
-      let gl = &self.gl;
       unsafe {
-         gl.raw.BindVertexArray(0);
-         gl.raw.BindBuffer(gl::ARRAY_BUFFER, 0);
+         self.gl.raw.BindBuffer(gl::ARRAY_BUFFER, 0);
       }
    }
 
@@ -401,7 +407,7 @@ impl Renderer for GLRenderer {
       }
       (v_id, b_id)
    }
-   fn set_attr(&self, attr: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize) {
+   fn set_attr_layout(&self, attr: &ATTRInfo, attr_id: u32, stride: usize, local_offset: usize) {
       let gl = &self.gl;
       unsafe {
          gl.raw.VertexAttribPointer(
@@ -418,9 +424,10 @@ impl Renderer for GLRenderer {
          gl.raw.EnableVertexAttribArray(attr_id);
       }
    }
-   fn fill_buffer(&self, v_id: u32, b_id: u32, buffer: &Vec<u8>) {
+   fn fill_buffer(&self, id: u32, buffer: &Vec<u8>) {
       unsafe {
-         self.bind_buffer(v_id, b_id);
+         self.bind_buffer(id);
+
          self.gl.raw.BufferData(
             gl::ARRAY_BUFFER,
             buffer.len() as GLsizeiptr,
