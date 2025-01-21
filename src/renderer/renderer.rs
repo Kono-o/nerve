@@ -2,9 +2,9 @@ use crate::asset::ATTRInfo;
 use crate::renderer::handles::{DrawMode, NEMesh3D, NEShader};
 use crate::renderer::MeshHandle;
 use crate::{
-   ansi, color, log_info, ClipDist, DataType, NECamera, NEError, NEMesh2D, NEMeshAsset, NEResult,
-   NEShaderAsset, NETexAsset, NETexture, RenderAPI, Size2D, TexFilter, TexWrap, Transform2D,
-   Transform3D, RGB,
+   ansi, color, log_info, ClipDist, DataType, NECamera, NEError, NEMesh2D, NEMesh2DAsset,
+   NEMesh3DAsset, NEResult, NEShaderAsset, NETexAsset, NETexture, RenderAPI, Size2D, TexWrap,
+   Transform2D, Transform3D, RGB,
 };
 use cgmath::{ortho, Matrix4, Vector2};
 use std::ops::Deref;
@@ -100,7 +100,8 @@ pub struct NERenderer {
    pub(crate) cam_view: Matrix4<f32>,
    pub(crate) cam_proj: Matrix4<f32>,
 
-   pub(crate) fallback_shader: NEShader,
+   pub(crate) fallback_shader2d: NEShader,
+   pub(crate) fallback_shader3d: NEShader,
    pub(crate) fallback_texture: NETexture,
 
    pub(crate) api: RenderAPI,
@@ -131,19 +132,25 @@ impl NERenderer {
          poly_mode: PolyMode::Filled,
          cam_view: cam.transform.view_matrix(),
          cam_proj: cam.transform.proj_matrix(),
-         fallback_shader: NEShader::temporary(),
+         fallback_shader2d: NEShader::temporary(),
+         fallback_shader3d: NEShader::temporary(),
          fallback_texture: NETexture::temporary(),
       };
-      let fallback_shader_asset = NEShaderAsset::fallback().unpack();
+      let fallback_shader3d_asset = NEShaderAsset::fallback3d().unpack();
+      let fallback_shader2d_asset = NEShaderAsset::fallback2d().unpack();
+
       let mut fallback_tex_asset = NETexAsset::fallback().unpack();
-      fallback_tex_asset.set_filter(TexFilter::Closest);
       fallback_tex_asset.set_wrap(TexWrap::Repeat);
 
       renderer.fallback_texture = renderer.add_texture(fallback_tex_asset);
-      renderer.fallback_shader = renderer.add_shader(fallback_shader_asset).unpack();
+      renderer.fallback_shader2d = renderer.add_shader(fallback_shader2d_asset).unpack();
+      renderer.fallback_shader3d = renderer.add_shader(fallback_shader3d_asset).unpack();
 
       renderer
-         .fallback_shader
+         .fallback_shader2d
+         .attach_tex(&renderer.fallback_texture);
+      renderer
+         .fallback_shader3d
          .attach_tex(&renderer.fallback_texture);
 
       renderer.set_msaa(true);
@@ -256,8 +263,11 @@ impl NERenderer {
    pub fn set_wire_width(&mut self, width: f32) {
       self.core.set_wire_width(width);
    }
-   pub fn fallback_shader(&self) -> NEShader {
-      self.fallback_shader.clone()
+   pub fn fallback_shader3d(&self) -> NEShader {
+      self.fallback_shader3d.clone()
+   }
+   pub fn fallback_shader2d(&self) -> NEShader {
+      self.fallback_shader2d.clone()
    }
 
    pub fn add_shader(&self, nshdr: NEShaderAsset) -> NEResult<NEShader> {
@@ -298,7 +308,138 @@ impl NERenderer {
       self.core.delete_texture(tex.id)
    }
 
-   pub(crate) fn create_mesh_handle(&self, nmesh: &NEMeshAsset) -> MeshHandle {
+   pub(crate) fn create_mesh2d_handle(&self, nmesh: &NEMesh2DAsset) -> MeshHandle {
+      let (vao_id, buf_id) = self.core.create_buffer();
+      let ind_id = self.core.create_index_buffer();
+
+      let (mut pos_info, mut pos_data) = (&ATTRInfo::empty(), &Vec::new());
+      let (mut col_info, mut col_data) = (&ATTRInfo::empty(), &Vec::new());
+      let (mut uvm_info, mut uvm_data) = (&ATTRInfo::empty(), &Vec::new());
+      let (mut ind_info, mut ind_data) = (&ATTRInfo::empty(), &Vec::new());
+
+      let mut cus_infos: Vec<&ATTRInfo> = Vec::new();
+      let mut cus_datas: Vec<&Vec<u8>> = Vec::new();
+
+      let (mut ind_count, mut vert_count, mut stride) = (0, 0, 0);
+
+      let mut pos_exists = !nmesh.pos_attr.is_empty();
+      let mut col_exists = !nmesh.col_attr.is_empty();
+      let mut uvm_exists = !nmesh.uvm_attr.is_empty();
+
+      if pos_exists {
+         pos_info = &nmesh.pos_attr.info;
+         pos_data = &nmesh.pos_attr.data;
+         stride += pos_info.elem_count * pos_info.byte_count;
+      }
+      if col_exists {
+         col_info = &nmesh.col_attr.info;
+         col_data = &nmesh.col_attr.data;
+         stride += col_info.elem_count * col_info.byte_count;
+      }
+      if uvm_exists {
+         uvm_info = &nmesh.uvm_attr.info;
+         uvm_data = &nmesh.uvm_attr.data;
+         stride += uvm_info.elem_count * uvm_info.byte_count;
+      }
+
+      for cus_attr in nmesh.cus_attrs.iter() {
+         let cus_info = &cus_attr.info;
+         let cus_data = &cus_attr.data;
+         stride += cus_info.elem_count * cus_info.byte_count;
+         cus_infos.push(cus_info);
+         cus_datas.push(cus_data);
+      }
+
+      let mut end = pos_data.len();
+      if nmesh.starts_with_custom() {
+         end = cus_datas[0].len() / (cus_infos[0].byte_count * cus_infos[0].elem_count);
+      }
+
+      let mut buffer: Vec<u8> = Vec::new();
+      for i in 0..end {
+         vert_count += 1;
+         if pos_exists {
+            buffer.push_attr(&pos_data[i]);
+         }
+         if col_exists {
+            buffer.push_attr(&col_data[i]);
+         }
+         if uvm_exists {
+            buffer.push_attr(&uvm_data[i]);
+         }
+
+         for (j, _attr) in nmesh.cus_attrs.iter().enumerate() {
+            let cus_byte_count = cus_infos[j].byte_count * cus_infos[j].elem_count;
+            let cus_data = cus_datas[j];
+            let start = i * cus_byte_count;
+            let end = ((i + 1) * (cus_byte_count)) - 1;
+            buffer.push_attr(&cus_data[start..=end]);
+         }
+      }
+
+      let mut attr_id = 0;
+      let mut local_offset = 0;
+      self.core.bind_buffer(vao_id, buf_id);
+      let mut layouts: Vec<(ATTRInfo, u32)> = Vec::new();
+      if pos_exists {
+         self.core.set_attr(&pos_info, attr_id, stride, local_offset);
+         local_offset += pos_info.elem_count * pos_info.byte_count;
+         layouts.push((pos_info.clone(), attr_id));
+         attr_id += 1;
+      }
+      if col_exists {
+         self.core.set_attr(&col_info, attr_id, stride, local_offset);
+         local_offset += col_info.elem_count * col_info.byte_count;
+         layouts.push((col_info.clone(), attr_id));
+         attr_id += 1;
+      }
+      if uvm_exists {
+         self.core.set_attr(&uvm_info, attr_id, stride, local_offset);
+         local_offset += uvm_info.elem_count * uvm_info.byte_count;
+         layouts.push((uvm_info.clone(), attr_id));
+         attr_id += 1;
+      }
+
+      for cus_info in cus_infos.iter() {
+         self.core.set_attr(cus_info, attr_id, stride, local_offset);
+         local_offset += cus_info.elem_count * cus_info.byte_count;
+         layouts.push((cus_info.deref().clone(), attr_id));
+         attr_id += 1;
+      }
+
+      if buffer.len() > 0 {
+         self.core.fill_buffer(vao_id, buf_id, &buffer);
+      }
+      self.core.unbind_buffer();
+
+      let mut has_indices = false;
+      let mut index_buffer: Vec<u32> = Vec::new();
+
+      if !nmesh.ind_attr.is_empty() {
+         ind_info = &nmesh.ind_attr.info;
+         ind_data = &nmesh.ind_attr.data;
+         has_indices = true;
+         for index in ind_data.iter() {
+            ind_count += 1;
+            index_buffer.push(*index);
+         }
+         self.core.bind_index_buffer(ind_id);
+         self.core.fill_index_buffer(ind_id, &index_buffer);
+         self.core.unbind_index_buffer();
+      }
+
+      MeshHandle {
+         layouts,
+         has_indices,
+         vert_count,
+         ind_count,
+         vao_id,
+         buf_id,
+         ind_id,
+      }
+   }
+
+   pub(crate) fn create_mesh3d_handle(&self, nmesh: &NEMesh3DAsset) -> MeshHandle {
       let (vao_id, buf_id) = self.core.create_buffer();
       let ind_id = self.core.create_index_buffer();
 
@@ -443,24 +584,24 @@ impl NERenderer {
       }
    }
 
-   pub fn create_mesh3d(&self, nmesh: NEMeshAsset) -> NEMesh3D {
-      let handle = self.create_mesh_handle(&nmesh);
+   pub fn add_mesh3d(&self, nmesh: NEMesh3DAsset) -> NEMesh3D {
+      let handle = self.create_mesh3d_handle(&nmesh);
       NEMesh3D {
          handle,
          visible: true,
-         shader: self.fallback_shader(),
+         shader: self.fallback_shader3d(),
          transform: Transform3D::default(),
          draw_mode: DrawMode::default(),
       }
    }
    pub fn remove_mesh3d(&self, mesh: NEMesh3D) {}
 
-   pub fn create_mesh2d(&self, nmesh: NEMeshAsset) -> NEMesh2D {
-      let handle = self.create_mesh_handle(&nmesh);
+   pub fn add_mesh2d(&self, nmesh: NEMesh2DAsset) -> NEMesh2D {
+      let handle = self.create_mesh2d_handle(&nmesh);
       NEMesh2D {
          handle,
          visible: true,
-         shader: self.fallback_shader(),
+         shader: self.fallback_shader2d(),
          transform: Transform2D::default(),
          draw_mode: DrawMode::default(),
       }
@@ -507,10 +648,10 @@ impl NERenderer {
       let handle = &mesh.handle;
       self.core.bind_program(s);
 
-      let h = 1.0;
+      let scale = 1.0;
       let max_layers = 255;
-      let w = self.size.aspect_ratio();
-      let ortho = ortho(-w, w, -h, h, 0.0, -(max_layers + 1) as f32);
+      let w = self.size.aspect_ratio() * scale;
+      let ortho = ortho(-w, w, -scale, scale, 0.0, -(max_layers + 1) as f32);
 
       self.core.set_uni_m4f32(s, "uProj", ortho);
       self.core.set_uni_m4f32(s, "uTfm", mesh.transform.matrix());

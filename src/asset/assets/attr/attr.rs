@@ -15,7 +15,8 @@ pub enum ATTRType {
 #[derive(Clone, Debug)]
 pub(crate) enum ATTRName {
    Custom(String),
-   Pos,
+   Pos2D,
+   Pos3D,
    Col,
    UVM,
    Nrm,
@@ -25,7 +26,8 @@ pub(crate) enum ATTRName {
 impl ATTRName {
    pub(crate) fn as_string(&self) -> String {
       match self {
-         ATTRName::Pos => "position".to_string(),
+         ATTRName::Pos2D => "pos2d".to_string(),
+         ATTRName::Pos3D => "pos3d".to_string(),
          ATTRName::Col => "color".to_string(),
          ATTRName::UVM => "uv map".to_string(),
          ATTRName::Nrm => "normals".to_string(),
@@ -45,7 +47,7 @@ pub(crate) struct ATTRInfo {
 impl ATTRInfo {
    pub(crate) fn empty() -> ATTRInfo {
       ATTRInfo {
-         name: ATTRName::Pos,
+         name: ATTRName::Pos3D,
          typ: ATTRType::F32,
          byte_count: 0,
          elem_count: 0,
@@ -76,6 +78,7 @@ macro_rules! attr {
          pub(crate) data: Vec<$typ>,
          pub(crate) info: ATTRInfo,
       }
+
       impl $attr {
          pub fn empty() -> $attr {
             let mut info = ATTRInfo::empty();
@@ -109,8 +112,10 @@ macro_rules! attr {
       }
    };
 }
-attr!(PosATTR, [f32; 3], ATTRName::Pos);
-attr!(ColATTR, [f32; 3], ATTRName::Col);
+
+attr!(Pos3DATTR, [f32; 3], ATTRName::Pos3D);
+attr!(Pos2DATTR, [f32; 2], ATTRName::Pos2D);
+attr!(ColATTR, [f32; 4], ATTRName::Col);
 attr!(UVMATTR, [f32; 2], ATTRName::UVM);
 attr!(NrmATTR, [f32; 3], ATTRName::Nrm);
 attr!(IndATTR, u32, ATTRName::Ind);

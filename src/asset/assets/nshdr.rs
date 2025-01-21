@@ -68,8 +68,11 @@ pub struct NEShaderAsset {
 }
 
 impl NEShaderAsset {
-   pub(crate) fn fallback() -> NEResult<NEShaderAsset> {
-      NEShaderAsset::from_path_raw("nerve/assets/shdr/fallback.glsl")
+   pub(crate) fn fallback3d() -> NEResult<NEShaderAsset> {
+      NEShaderAsset::from_path_raw("nerve/assets/shdr/fallback3d.glsl")
+   }
+   pub(crate) fn fallback2d() -> NEResult<NEShaderAsset> {
+      NEShaderAsset::from_path_raw("nerve/assets/shdr/fallback2d.glsl")
    }
    pub fn from_path(path: &str) -> NEResult<NEShaderAsset> {
       NEShaderAsset::from_path_raw(&env::concat_with_asset(path))

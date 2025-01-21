@@ -199,7 +199,7 @@ impl NETexAsset {
                bytes,
                size,
                fmt,
-               filter: TexFilter::Linear,
+               filter: TexFilter::Closest,
                wrap: TexWrap::Clip,
             }),
          }
@@ -222,7 +222,7 @@ impl NETexAsset {
             bytes,
             size,
             fmt,
-            filter: TexFilter::Linear,
+            filter: TexFilter::Closest,
             wrap: TexWrap::Clip,
          })
       }

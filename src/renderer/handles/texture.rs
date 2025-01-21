@@ -72,18 +72,18 @@ impl NETexture {
       }
    }
 
-   pub fn get_size(&self) -> Size2D {
+   pub fn size(&self) -> Size2D {
       self.size
    }
 
-   pub fn get_wrap(&self) -> TexWrap {
+   pub fn wrap(&self) -> TexWrap {
       self.wrap
    }
    pub fn set_wrap(&mut self, wrap: TexWrap) {
       self.wrap = wrap
    }
 
-   pub fn get_filter(&self) -> TexFilter {
+   pub fn filter(&self) -> TexFilter {
       self.filter
    }
    pub fn set_filter(&mut self, filter: TexFilter) {

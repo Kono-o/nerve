@@ -1,9 +1,10 @@
 use crate::*;
+use cgmath::Vector2;
 use std::collections::HashMap;
 
 enum OBJ {
    Parsed {
-      pos_attr: PosATTR,
+      pos_attr: Pos3DATTR,
       col_attr: ColATTR,
       uvm_attr: UVMATTR,
       nrm_attr: NrmATTR,
@@ -13,7 +14,7 @@ enum OBJ {
 }
 impl OBJ {
    fn parse(src: &str) -> OBJ {
-      let mut pos_attr = PosATTR::empty();
+      let mut pos_attr = Pos3DATTR::empty();
       let mut col_attr = ColATTR::empty();
       let mut uvm_attr = UVMATTR::empty();
       let mut nrm_attr = NrmATTR::empty();
@@ -55,7 +56,7 @@ impl OBJ {
       let nrm_exists = attr_count > 2;
 
       let def_uvm = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0]];
-      let def_col = [1.0, 1.0, 1.0];
+      let def_col = [1.0, 1.0, 1.0, 1.0];
       let def_nrm = [1.0, 1.0, 1.0];
       for (i, vert) in verts.iter().enumerate() {
          let pos_index = match pos_exists {
@@ -106,8 +107,8 @@ impl OBJ {
 }
 
 #[derive(Debug)]
-pub struct NEMeshAsset {
-   pub(crate) pos_attr: PosATTR,
+pub struct NEMesh3DAsset {
+   pub(crate) pos_attr: Pos3DATTR,
    pub(crate) col_attr: ColATTR,
    pub(crate) uvm_attr: UVMATTR,
    pub(crate) nrm_attr: NrmATTR,
@@ -115,10 +116,10 @@ pub struct NEMeshAsset {
    pub(crate) cus_attrs: Vec<CustomATTR>,
 }
 
-impl NEMeshAsset {
-   pub fn empty() -> NEMeshAsset {
-      NEMeshAsset {
-         pos_attr: PosATTR::empty(),
+impl NEMesh3DAsset {
+   pub fn empty() -> NEMesh3DAsset {
+      NEMesh3DAsset {
+         pos_attr: Pos3DATTR::empty(),
          col_attr: ColATTR::empty(),
          uvm_attr: UVMATTR::empty(),
          nrm_attr: NrmATTR::empty(),
@@ -127,7 +128,7 @@ impl NEMeshAsset {
       }
    }
 
-   pub fn set_pos_attr(&mut self, pos_attr: PosATTR) {
+   pub fn set_pos_attr(&mut self, pos_attr: Pos3DATTR) {
       self.pos_attr = pos_attr
    }
    pub fn set_col_attr(&mut self, col_attr: ColATTR) {
@@ -146,10 +147,10 @@ impl NEMeshAsset {
       self.ind_attr = ind_attr;
    }
 
-   pub fn from_path(path: &str) -> NEResult<NEMeshAsset> {
-      NEMeshAsset::from_path_raw(&env::concat_with_asset(path))
+   pub fn from_path(path: &str) -> NEResult<NEMesh3DAsset> {
+      NEMesh3DAsset::from_path_raw(&env::concat_with_asset(path))
    }
-   fn from_path_raw(raw_path: &str) -> NEResult<NEMeshAsset> {
+   fn from_path_raw(raw_path: &str) -> NEResult<NEMesh3DAsset> {
       let file_name = match file::name(raw_path) {
          NEOption::Empty => return NEError::file_invalid(raw_path).pack(),
          NEOption::Exists(n) => n,
@@ -184,7 +185,7 @@ impl NEMeshAsset {
                uvm_attr,
                nrm_attr,
                ind_attr,
-            } => NEMeshAsset {
+            } => NEMesh3DAsset {
                cus_attrs: Vec::new(),
                pos_attr,
                col_attr,
@@ -213,7 +214,7 @@ impl NEMeshAsset {
                uvm_attr,
                nrm_attr,
                ind_attr,
-            } => NEMeshAsset {
+            } => NEMesh3DAsset {
                cus_attrs: Vec::new(),
                pos_attr,
                col_attr,
@@ -277,5 +278,123 @@ impl ParseWords for Vec<&str> {
          elem.push(str.parse::<usize>().unwrap_or(1) - 1);
       }
       elem
+   }
+}
+
+#[derive(Debug)]
+pub struct NEMesh2DAsset {
+   pub(crate) pos_attr: Pos2DATTR,
+   pub(crate) layer: u8,
+   pub(crate) aspect: f32,
+   pub(crate) col_attr: ColATTR,
+   pub(crate) uvm_attr: UVMATTR,
+   pub(crate) ind_attr: IndATTR,
+   pub(crate) cus_attrs: Vec<CustomATTR>,
+}
+
+pub enum Center {
+   TopLeft,
+   TopRight,
+   BottomLeft,
+   BottomRight,
+   Middle,
+   Custom(f32, f32),
+}
+
+impl Center {
+   pub(crate) fn offset(&self) -> Vector2<f32> {
+      let x = 1.0;
+      let y = 1.0;
+      let vec = match self {
+         Center::TopLeft => Vector2::new(x, -y),
+         Center::TopRight => Vector2::new(-x, -y),
+         Center::BottomRight => Vector2::new(-x, y),
+         Center::BottomLeft => Vector2::new(x, y),
+         Center::Middle => Vector2::new(0.0, 0.0),
+         Center::Custom(x, y) => Vector2::new(-x, -y),
+      };
+      vec
+   }
+}
+impl NEMesh2DAsset {
+   pub fn empty() -> NEMesh2DAsset {
+      NEMesh2DAsset {
+         pos_attr: Pos2DATTR::empty(),
+         layer: 0,
+         aspect: 1.0,
+         col_attr: ColATTR::empty(),
+         uvm_attr: UVMATTR::empty(),
+         ind_attr: IndATTR::empty(),
+         cus_attrs: Vec::new(),
+      }
+   }
+   pub(crate) fn offset_pos_by_center(&mut self, center: &Center) {
+      let offset = center.offset();
+      for mut pos in self.pos_attr.data.iter_mut() {
+         pos[0] += offset.x * self.aspect;
+         pos[1] += offset.y;
+      }
+   }
+
+   pub fn set_pos_attr(&mut self, pos_attr: Pos2DATTR) {
+      self.pos_attr = pos_attr
+   }
+
+   pub fn set_layer(&mut self, layer: u8) {
+      self.layer = layer
+   }
+
+   pub fn set_center(&mut self, center: Center) {
+      self.offset_pos_by_center(&center);
+   }
+
+   pub fn set_col_attr(&mut self, col_attr: ColATTR) {
+      self.col_attr = col_attr;
+   }
+
+   pub fn set_uvm_attr(&mut self, uvm_attr: UVMATTR) {
+      self.uvm_attr = uvm_attr;
+   }
+
+   pub fn set_ind_attr(&mut self, ind_attr: IndATTR) {
+      self.ind_attr = ind_attr;
+   }
+
+   pub fn quad(size: &Size2D) -> NEMesh2DAsset {
+      let mut mesh = NEMesh2DAsset::empty();
+
+      mesh.aspect = size.aspect_ratio();
+      let x = mesh.aspect;
+      let y = 1.0;
+      let pos_attr = Pos2DATTR::from_array(&[[-x, y], [x, y], [x, -y], [-x, -y]]);
+      mesh.set_pos_attr(pos_attr);
+      mesh.offset_pos_by_center(&Center::Middle);
+
+      let col_attr = ColATTR::from_array(&[[1.0, 1.0, 1.0, 1.0]; 4]);
+      let uvm_attr = UVMATTR::from_array(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
+      let ind_attr = IndATTR::from_array(&[0, 2, 1, 2, 0, 3]);
+
+      mesh.set_col_attr(col_attr);
+      mesh.set_uvm_attr(uvm_attr);
+      mesh.set_ind_attr(ind_attr);
+      mesh
+   }
+
+   pub fn attach_custom_attr(&mut self, cus_attr: CustomATTR) {
+      self.cus_attrs.push(cus_attr);
+   }
+
+   pub fn has_no_attr(&self) -> bool {
+      let no_attr = self.starts_with_custom();
+      let no_cus_attr = self.cus_attrs.len() == 0;
+      no_attr && no_cus_attr
+   }
+
+   pub fn starts_with_custom(&self) -> bool {
+      self.pos_attr.is_empty() && self.col_attr.is_empty() && self.uvm_attr.is_empty()
+   }
+
+   pub(crate) fn has_custom_attrs(&self) -> bool {
+      !self.cus_attrs.is_empty()
    }
 }
