@@ -4,7 +4,7 @@ use crate::renderer::core::VKRenderer;
 use crate::renderer::{gl_renderer_init, CamProj, NECamera, Renderer};
 use crate::util::{NEError, NEResult};
 use crate::{
-   NEEvents, NEGame, NERenderer, NEScene, NETime, NEWindow, ScreenCoord, ScreenOffset, Size2D,
+   Coord2D, CoordOffset, NEEvents, NEGame, NERenderer, NEScene, NETime, NEWindow, Size2D,
 };
 use glfw::{Error, Glfw, GlfwReceiver, OpenGlProfileHint, PWindow, SwapInterval, WindowHint};
 use std::fmt::{Display, Formatter};
@@ -295,18 +295,18 @@ impl NEGameBuilder {
       let (cx, cy) = (window_size.w / 2, window_size.h / 2);
       let (mx, my) = (monitor_size.w / 2, monitor_size.h / 2);
       let (wx, wy) = (mx - cx, my - cy); //centre of monitor
-      let window_coord = ScreenCoord::from(wx as f64, wy as f64);
+      let window_coord = Coord2D::from(wx as f64, wy as f64);
 
-      let cursor_coord = ScreenCoord::from(cx as f64, cy as f64);
+      let cursor_coord = Coord2D::from(cx as f64, cy as f64);
       let cursor_coord_global =
-         ScreenCoord::from(cx as f64 + window_coord.x, cy as f64 + window_coord.y);
+         Coord2D::from(cx as f64 + window_coord.x, cy as f64 + window_coord.y);
 
       let current_time = Instant::now();
       let mut window = NEWindow {
          glfw: glfw.clone(),
          window,
          prev_cursor_coord: cursor_coord,
-         cursor_offset: ScreenOffset::empty(),
+         cursor_offset: CoordOffset::empty(),
          prev_coord: window_coord,
          prev_size: window_size,
          is_cursor_hidden: false,

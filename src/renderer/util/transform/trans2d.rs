@@ -7,6 +7,7 @@ pub struct Transform2D {
    pub(crate) pos: Vector2<f32>,
    pub(crate) rot: f32,
    pub(crate) layer: u8,
+   pub(crate) aspect: f32,
    pub(crate) scale: Vector2<f32>,
 }
 
@@ -17,6 +18,7 @@ impl Default for Transform2D {
          pos: Vector2::new(0.0, 0.0),
          rot: 0.0,
          layer: 0,
+         aspect: 1.0,
          scale: Vector2::new(1.0, 1.0),
       }
    }
@@ -24,7 +26,8 @@ impl Default for Transform2D {
 
 impl Transform2D {
    fn calc_pos_matrix(&self) -> Matrix4<f32> {
-      let vec3_pos = vec3(self.pos.x, self.pos.y, 0.0);
+      let pos = self.pos * 2.0;
+      let vec3_pos = vec3((pos.x - 1.0) * self.aspect, (pos.y - 1.0), 0.0);
       Matrix4::<f32>::from_translation(vec3_pos)
    }
 
@@ -38,6 +41,14 @@ impl Transform2D {
 
    pub(crate) fn calc_matrix(&mut self) {
       self.matrix = self.calc_pos_matrix() * self.calc_rot_matrix() * self.calc_scale_matrix();
+   }
+
+   pub fn aspect(&self) -> f32 {
+      self.aspect
+   }
+
+   pub fn set_aspect(&mut self, aspect: f32) {
+      self.aspect = aspect
    }
 
    pub fn pos(&self) -> Vector2<f32> {

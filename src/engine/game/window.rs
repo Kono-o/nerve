@@ -1,36 +1,36 @@
-use crate::{ScreenCoord, ScreenOffset, Size2D};
+use crate::{Coord2D, CoordOffset, Size2D};
 use glfw::{Context, CursorMode, Glfw, PWindow, SwapInterval, WindowMode};
 
 pub struct NEWindow {
    pub(crate) glfw: Glfw,
    pub(crate) window: PWindow,
 
-   pub(crate) prev_cursor_coord: ScreenCoord,
-   pub(crate) prev_coord: ScreenCoord,
+   pub(crate) prev_cursor_coord: Coord2D,
+   pub(crate) prev_coord: Coord2D,
    pub(crate) prev_size: Size2D,
 
-   pub is_cursor_hidden: bool,
-   pub is_cursor_off: bool,
-   pub is_fullscreen: bool,
-   pub is_borderless: bool,
-   pub is_resizable: bool,
-   pub is_running: bool,
-   pub is_hidden: bool,
-   pub is_vsync: bool,
+   pub(crate) is_cursor_hidden: bool,
+   pub(crate) is_cursor_off: bool,
+   pub(crate) is_fullscreen: bool,
+   pub(crate) is_borderless: bool,
+   pub(crate) is_resizable: bool,
+   pub(crate) is_running: bool,
+   pub(crate) is_hidden: bool,
+   pub(crate) is_vsync: bool,
 
-   pub size: Size2D,
-   pub title: String,
-   pub coord: ScreenCoord,
-   pub cursor_coord: ScreenCoord,
-   pub cursor_offset: ScreenOffset,
-   pub cursor_coord_global: ScreenCoord,
+   pub(crate) size: Size2D,
+   pub(crate) title: String,
+   pub(crate) coord: Coord2D,
+   pub(crate) cursor_coord: Coord2D,
+   pub(crate) cursor_offset: CoordOffset,
+   pub(crate) cursor_coord_global: Coord2D,
 }
 
 impl NEWindow {
    pub(crate) fn set_monitor(
       &mut self,
       mode: WindowMode,
-      prev_pos: ScreenCoord,
+      prev_pos: Coord2D,
       prev_size: Size2D,
       refresh_rate: Option<u32>,
    ) {
@@ -73,21 +73,21 @@ impl NEWindow {
       let (w, h) = self.window.get_size();
       Size2D::from(w as u32, h as u32)
    }
-   fn get_coord(&self) -> ScreenCoord {
+   fn get_coord(&self) -> Coord2D {
       let (x, y) = self.window.get_pos();
-      ScreenCoord::from(x as f64, y as f64)
+      Coord2D::from(x as f64, y as f64)
    }
-   fn get_cursor_coord(&self) -> ScreenCoord {
+   fn get_cursor_coord(&self) -> Coord2D {
       let (x, y) = self.window.get_cursor_pos();
-      ScreenCoord::from(x, y)
+      Coord2D::from(x, y)
    }
-   fn get_cursor_coord_global(&self) -> ScreenCoord {
+   fn get_cursor_coord_global(&self) -> Coord2D {
       let (x, y) = self.window.get_cursor_pos();
-      ScreenCoord::from(x + self.coord.x, y + self.coord.y)
+      Coord2D::from(x + self.coord.x, y + self.coord.y)
    }
-   fn get_cursor_offset(&mut self) -> ScreenOffset {
+   fn get_cursor_offset(&mut self) -> CoordOffset {
       let coord = self.cursor_coord;
-      let cursor_offset = ScreenOffset::from(
+      let cursor_offset = CoordOffset::from(
          coord.x - self.prev_cursor_coord.x,
          self.prev_cursor_coord.y - coord.y,
       );
@@ -108,14 +108,24 @@ impl NEWindow {
       self.window.make_current()
    }
 
+   pub fn title(&self) -> &str {
+      &self.title
+   }
    pub fn set_title(&mut self, title: &str) {
       self.window.set_title(&title);
       self.title = title.to_string();
    }
+   pub fn size(&self) -> Size2D {
+      self.size
+   }
+
    pub fn set_size(&mut self, size: Size2D) {
       self.window.set_size(size.w as i32, size.h as i32);
    }
-   pub fn set_coord(&mut self, coord: ScreenCoord) {
+   pub fn coord(&self) -> Coord2D {
+      self.coord
+   }
+   pub fn set_coord(&mut self, coord: Coord2D) {
       self.coord = coord;
       self.window.set_pos(coord.x as i32, coord.y as i32);
    }
@@ -124,9 +134,25 @@ impl NEWindow {
       self.cursor_coord.is_inside(self.size)
    }
 
-   pub fn set_cursor_coord(&mut self, coord: ScreenCoord) {
+   pub fn cursor_coord(&self) -> Coord2D {
+      self.cursor_coord
+   }
+
+   pub fn cursor_coord_normalized(&self) -> Coord2D {
+      let size = self.size;
+      let mut coord = Coord2D::empty();
+      coord.x = self.cursor_coord.x / size.w as f64;
+      coord.y = 1.0 - self.cursor_coord.y / size.h as f64;
+      coord
+   }
+
+   pub fn set_cursor_coord(&mut self, coord: Coord2D) {
       self.cursor_coord = coord;
       self.window.set_cursor_pos(coord.x as f64, coord.y as f64)
+   }
+
+   pub fn cursor_offset(&self) -> CoordOffset {
+      self.cursor_offset
    }
 
    pub fn set_cursor_visibility(&mut self, hide: bool) {
@@ -159,13 +185,19 @@ impl NEWindow {
       })
    }
 
+   pub fn is_fullscreen(&self) -> bool {
+      self.is_fullscreen
+   }
+
    pub fn set_fullscreen(&mut self, enable: bool) {
       if self.is_fullscreen != enable {
          self.is_fullscreen = enable;
          self.toggle_fullscreen()
       }
    }
-
+   pub fn is_running(&self) -> bool {
+      self.is_running
+   }
    pub fn toggle_fullscreen(&mut self) {
       self.is_fullscreen = !self.is_fullscreen;
       if self.is_fullscreen {
