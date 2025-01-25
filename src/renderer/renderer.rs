@@ -618,7 +618,7 @@ impl NERenderer {
       let handle = self.create_mesh3d_handle(&nmesh);
       NEMesh3D {
          handle,
-         visible: true,
+         visibility: true,
          shader: self.fallback_shader3d(),
          transform: Transform3D::default(),
          draw_mode: DrawMode::default(),
@@ -630,7 +630,7 @@ impl NERenderer {
       let handle = self.create_mesh2d_handle(&nmesh);
       NEMesh2D {
          handle,
-         visible: true,
+         visibility: true,
          shader: self.fallback_shader2d(),
          transform: Transform2D::default(),
          draw_mode: DrawMode::default(),
@@ -639,7 +639,7 @@ impl NERenderer {
    pub fn remove_mesh2d(&self, mesh: NEMesh2D) {}
 
    pub fn render3d(&self, mesh: &NEMesh3D) {
-      if !mesh.is_renderable() {
+      if !mesh.is_visible() {
          return;
       }
       let s = mesh.shader.id;
@@ -656,7 +656,7 @@ impl NERenderer {
       self.draw(handle, &mesh.draw_mode)
    }
    pub fn render2d(&self, mesh: &NEMesh2D) {
-      if !mesh.is_renderable() {
+      if !mesh.is_visible() {
          return;
       }
       let s = mesh.shader.id;

@@ -260,6 +260,11 @@ impl NEEvents {
          Is::Held => key_in_bitmap.held,
       }
    }
+
+   pub fn key_combo(&self, key: Key, action: Is, modifier: Key) -> bool {
+      self.key(key, action) && self.key(modifier, Is::Held)
+   }
+
    pub fn mouse(&self, mouse: Mouse, action: Is) -> bool {
       let mouse_in_bitmap = &self.mouse_bitmap.0[mouse_index(&mouse)];
       match action {

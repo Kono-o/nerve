@@ -44,15 +44,11 @@ impl MeshHandle {
    }
 }
 
-struct S {
-   c: f32,
-}
-
 macro_rules! mesh_struct {
    ($mesh:ident,$transform:ty) => {
       #[derive(Clone, Debug)]
       pub struct $mesh {
-         pub(crate) visible: bool,
+         pub(crate) visibility: bool,
          pub(crate) handle: MeshHandle,
          pub(crate) draw_mode: DrawMode,
          pub(crate) shader: NEShader,
@@ -83,15 +79,15 @@ macro_rules! mesh_struct {
             self.vertex_count() == 0
          }
 
-         pub fn is_renderable(&self) -> bool {
-            self.visible || !self.is_empty()
+         pub fn is_visible(&self) -> bool {
+            self.visibility || !self.is_empty()
          }
 
          pub fn set_visibility(&mut self, enable: bool) {
-            self.visible = enable;
+            self.visibility = enable;
          }
          pub fn toggle_visibility(&mut self) {
-            self.visible = !self.visible;
+            self.visibility = !self.visibility;
          }
 
          pub fn update(&mut self) {
