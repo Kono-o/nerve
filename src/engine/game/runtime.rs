@@ -1,6 +1,6 @@
 use crate::NEGameRef;
 
-pub trait NEObject {
+pub trait NERuntime {
    //on scene load/game startup
    fn start(&mut self, game: &mut NEGameRef);
    //start of a logic tick

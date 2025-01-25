@@ -39,6 +39,7 @@ pub(crate) trait Renderer {
    fn enable_alpha(&self, enable: bool);
    fn enable_cull(&self, enable: bool);
    fn set_cull_face(&self, face: Cull);
+   fn set_point_size(&self, size: f32);
    fn set_wire_width(&self, thickness: f32);
 
    fn bind_shader(&self, id: u32);
@@ -236,6 +237,9 @@ impl NERenderer {
    pub fn set_msaa(&mut self, enable: bool) {
       self.msaa = enable;
       self.core.enable_msaa(enable);
+   }
+   pub fn set_point_size(&self, size: f32) {
+      self.core.set_point_size(size)
    }
    pub fn toggle_msaa(&mut self) {
       self.msaa = !self.msaa;
@@ -634,7 +638,7 @@ impl NERenderer {
    }
    pub fn remove_mesh2d(&self, mesh: NEMesh2D) {}
 
-   pub fn render3d(&self, mesh: &mut NEMesh3D) {
+   pub fn render3d(&self, mesh: &NEMesh3D) {
       if !mesh.is_renderable() {
          return;
       }
@@ -651,7 +655,7 @@ impl NERenderer {
       self.bind_textures(&mesh.shader.tex_ids);
       self.draw(handle, &mesh.draw_mode)
    }
-   pub fn render2d(&self, mesh: &mut NEMesh2D) {
+   pub fn render2d(&self, mesh: &NEMesh2D) {
       if !mesh.is_renderable() {
          return;
       }

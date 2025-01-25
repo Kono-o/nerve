@@ -8,6 +8,7 @@ winit = "0.30.8"
 glfw = { version = "0.59.0", features = ["vulkan"] }
 gll = { path = "../gll" }
 flate2 = "1.0.35"
+hecs = { version = "0.10.5" }
 
 cgmath = "0.18.0"
 lazy_static = "1.5.0"

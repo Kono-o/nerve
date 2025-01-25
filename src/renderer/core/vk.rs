@@ -44,6 +44,10 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
+   fn set_point_size(&self, size: f32) {
+      todo!()
+   }
+
    fn set_wire_width(&self, thickness: f32) {
       todo!()
    }

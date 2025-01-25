@@ -44,6 +44,10 @@ impl MeshHandle {
    }
 }
 
+struct S {
+   c: f32,
+}
+
 macro_rules! mesh_struct {
    ($mesh:ident,$transform:ty) => {
       #[derive(Clone, Debug)]
@@ -91,7 +95,7 @@ macro_rules! mesh_struct {
          }
 
          pub fn update(&mut self) {
-            self.transform.calc_matrix()
+            self.transform.calc_matrix();
          }
          pub fn log_info(&self) {
             self.handle.log_info();

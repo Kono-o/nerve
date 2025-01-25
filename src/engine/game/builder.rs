@@ -1,4 +1,3 @@
-use crate::engine::game::cycle::NECycle;
 use crate::engine::{ButtonState, KeyBitMap, MouseBitMap};
 use crate::renderer::core::VKRenderer;
 use crate::renderer::{gl_renderer_init, CamProj, NECamera, Renderer};
@@ -220,7 +219,6 @@ struct Game {
    pub renderer: NERenderer,
    pub window: Option<Window>,
    pub events: NEEvents,
-   pub cycle: NECycle,
    pub scene: NEScene,
    pub time: NETime,
 }
@@ -238,12 +236,6 @@ impl ApplicationHandler for Game {
 }
 
 impl NEGameBuilder {
-   //pub fn build_winit(&self) -> NEResult<Game> {
-   //   let event_loop = EventLoop::new().expect("event loop new failed");
-   //   event_loop.set_control_flow(ControlFlow::Poll);
-   //   let mut game = Game::default();
-   //}
-
    pub fn build(&self) -> NEResult<NEGame> {
       let api_str = self.render_api.api_str();
       let api_str_m = api_str.clone();
@@ -370,7 +362,6 @@ impl NEGameBuilder {
             prev_deltas_size: 128,
          },
          scene,
-         cycle: NECycle { is_paused: false },
       })
    }
 }

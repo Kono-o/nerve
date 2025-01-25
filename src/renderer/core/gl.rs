@@ -153,6 +153,13 @@ impl Renderer for GLRenderer {
          }
       }
    }
+
+   fn set_point_size(&self, size: f32) {
+      let gl = &self.gl;
+      unsafe {
+         gl.raw.PointSize(size);
+      }
+   }
    fn set_wire_width(&self, width: f32) {
       unsafe { self.gl.raw.LineWidth(width) }
    }
