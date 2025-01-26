@@ -127,7 +127,6 @@ impl NEShaderAsset {
 
                let mut nshdr = Vec::new();
 
-               let stride = 4;
                let v_spv_len = u32_to_vec_of_4_u8s(v_spv.len() as u32);
                let f_spv_len = u32_to_vec_of_4_u8s(f_spv.len() as u32);
 

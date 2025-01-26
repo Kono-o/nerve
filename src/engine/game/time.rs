@@ -1,11 +1,11 @@
 use glfw::Glfw;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub struct NETime {
-   pub fps: f64,
-   pub delta: f64,
-   pub frame: u64,
-   pub elapsed: f64,
+   pub(crate) fps: f64,
+   pub(crate) delta: f64,
+   pub(crate) frame: u64,
+   pub(crate) elapsed: f64,
 
    pub(crate) glfw: Glfw,
    pub(crate) prev_sec: Instant,
@@ -18,6 +18,32 @@ pub struct NETime {
 }
 
 impl NETime {
+   pub fn fps(&self) -> f64 {
+      self.fps
+   }
+   pub fn delta(&self) -> f64 {
+      self.delta
+   }
+
+   pub fn elapsed(&self) -> f64 {
+      self.elapsed
+   }
+
+   pub fn now(&self) -> f64 {
+      Instant::now().duration_since(self.start_time).as_secs_f64()
+   }
+   pub fn now_as_ms(&self) -> u128 {
+      Instant::now().duration_since(self.start_time).as_millis()
+   }
+   pub fn now_as_ns(&self) -> u128 {
+      Instant::now().duration_since(self.start_time).as_nanos()
+   }
+
+   pub fn sleep(&self, duration: f64) {
+      let duration = Duration::from_secs_f64(duration);
+      std::thread::sleep(duration)
+   }
+
    pub(crate) fn pre_update(&mut self) {
       self.calculate()
    }

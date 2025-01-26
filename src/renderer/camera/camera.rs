@@ -7,6 +7,12 @@ pub struct ClipDist {
    pub(crate) far: f32,
 }
 
+impl Default for ClipDist {
+   fn default() -> Self {
+      ClipDist::from(0.01, 1000.0)
+   }
+}
+
 impl ClipDist {
    pub fn from(near: f32, far: f32) -> ClipDist {
       ClipDist { near, far }
@@ -20,14 +26,11 @@ pub enum CamProj {
 }
 
 pub struct NECamera {
-   pub(crate) transform: CamTransform,
-   pub(crate) initialized: bool,
+   pub transform: CamTransform,
 }
 
 impl NECamera {
-   pub(crate) fn start(&mut self) {
-      self.initialized = true
-   }
+   pub(crate) fn start(&mut self) {}
 
    pub(crate) fn pre_update(&mut self) {
       self.transform.calc_matrices();
@@ -41,15 +44,9 @@ impl NECamera {
 }
 
 impl NECamera {
-   pub fn new() -> NECamera {
-      let mut cam = NECamera::from(Size2D { w: 1, h: 1 }, CamProj::Persp);
-      cam.initialized = false;
-      cam
-   }
-
-   pub fn from(size: Size2D, proj: CamProj) -> Self {
+   pub fn new(size: Size2D, proj: CamProj) -> Self {
       let fov = 75.0;
-      let clip = ClipDist::from(0.01, 1000.0);
+      let clip = ClipDist::default();
 
       let pos = vec3(0.0, 0.0, 5.0);
       let rot = vec3(0.0, -90.0, 0.0);
@@ -76,10 +73,7 @@ impl NECamera {
       };
       transform.calc_matrices();
 
-      Self {
-         transform,
-         initialized: true,
-      }
+      NECamera { transform }
    }
 
    pub fn fov(&self) -> f32 {
@@ -113,12 +107,21 @@ impl NECamera {
    pub fn set_proj(&mut self, proj: CamProj) {
       self.transform.proj = proj;
    }
+
+   fn floor_fov(&mut self) {
+      if self.transform.fov <= 0.0 {
+         self.transform.fov = 0.01;
+      }
+   }
    pub fn set_fov(&mut self, fov: f32) {
       self.transform.fov = fov;
+      self.floor_fov()
    }
    pub fn add_fov(&mut self, value: f32) {
       self.transform.fov += value;
+      self.floor_fov()
    }
+
    pub fn set_ortho_scale(&mut self, value: f32) {
       self.transform.ortho_scale = value;
    }

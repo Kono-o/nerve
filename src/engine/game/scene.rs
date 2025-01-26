@@ -1,31 +1,26 @@
-use crate::{ansi, log_event};
-use crate::{NECamera, NEEvents, NERenderer, NERuntime, NETime, NEWindow};
+use crate::{ansi, log_event, CamProj, NEGameRef, Size2D};
+use crate::{NECamera, NERuntime};
 
-pub struct NEGameRef<'a> {
+pub struct NESceneRef<'a> {
    pub cam: &'a mut NECamera,
    pub world: &'a mut hecs::World,
-   pub renderer: &'a mut NERenderer,
-   pub window: &'a mut NEWindow,
-   pub events: &'a mut NEEvents,
-   pub time: &'a mut NETime,
 }
 
 pub struct NEScene {
    pub(crate) name: String,
    pub(crate) world: hecs::World,
    pub(crate) runtime: Box<dyn NERuntime>,
-   pub cam: NECamera,
+   pub(crate) cam: NECamera,
 }
 
-struct DefaultRuntime;
+struct DefaultRuntime; //PLACEHOLDER
 
 impl NERuntime for DefaultRuntime {
-   fn start(&mut self, _game: &mut NEGameRef) {}
-   fn pre_update(&mut self, _game: &mut NEGameRef) {}
-   fn update(&mut self, _game: &mut NEGameRef) {}
-   fn post_update(&mut self, _game: &mut NEGameRef) {}
-   fn end(&mut self, _game: &mut NEGameRef) {}
-   fn render(&mut self, _game: &mut NEGameRef) {}
+   fn start(&mut self, _game: NEGameRef, _scene: NESceneRef) {}
+   fn pre_update(&mut self, _game: NEGameRef, _scene: NESceneRef) {}
+   fn update(&mut self, _game: NEGameRef, _scene: NESceneRef) {}
+   fn post_update(&mut self, _game: NEGameRef, _scene: NESceneRef) {}
+   fn end(&mut self, _game: NEGameRef, _scene: NESceneRef) {}
 }
 
 impl NEScene {
@@ -33,8 +28,8 @@ impl NEScene {
       NEScene {
          name: name.to_string(),
          world: hecs::World::new(),
-         runtime: Box::new(DefaultRuntime),
-         cam: NECamera::new(),
+         runtime: Box::from(DefaultRuntime),
+         cam: NECamera::new(Size2D::from(1, 1), CamProj::Persp),
       }
    }
 
@@ -47,118 +42,50 @@ impl NEScene {
 }
 
 impl NEScene {
-   pub(crate) fn start(
-      &mut self,
-      renderer: &mut NERenderer,
-      window: &mut NEWindow,
-      events: &mut NEEvents,
-      time: &mut NETime,
-   ) {
+   pub(crate) fn start(&mut self, game: NEGameRef) {
       log_event!("scene [{}] run!", self.name);
-      let mut game_ref = NEGameRef {
+      self.cam.start();
+      let scene = NESceneRef {
          cam: &mut self.cam,
          world: &mut self.world,
-         renderer,
-         window,
-         events,
-         time,
       };
-      self.runtime.start(&mut game_ref);
-      self.cam.start()
+      self.runtime.start(game, scene);
    }
 
-   pub(crate) fn pre_update(
-      &mut self,
-      renderer: &mut NERenderer,
-      window: &mut NEWindow,
-      events: &mut NEEvents,
-      time: &mut NETime,
-   ) {
-      let mut game_ref = NEGameRef {
+   pub(crate) fn pre_update(&mut self, game: NEGameRef) {
+      self.cam.pre_update();
+      let scene = NESceneRef {
          cam: &mut self.cam,
          world: &mut self.world,
-         renderer,
-         window,
-         events,
-         time,
       };
-      self.runtime.pre_update(&mut game_ref);
-      self.cam.pre_update()
+      self.runtime.pre_update(game, scene);
    }
 
-   pub(crate) fn update(
-      &mut self,
-      renderer: &mut NERenderer,
-      window: &mut NEWindow,
-      events: &mut NEEvents,
-      time: &mut NETime,
-   ) {
-      let mut game_ref = NEGameRef {
+   pub(crate) fn update(&mut self, game: NEGameRef) {
+      self.cam.update();
+      let scene = NESceneRef {
          cam: &mut self.cam,
          world: &mut self.world,
-         renderer,
-         window,
-         events,
-         time,
       };
-      self.runtime.update(&mut game_ref);
-      self.cam.update()
+      self.runtime.update(game, scene);
    }
 
-   pub(crate) fn post_update(
-      &mut self,
-      renderer: &mut NERenderer,
-      window: &mut NEWindow,
-      events: &mut NEEvents,
-      time: &mut NETime,
-   ) {
-      let mut game_ref = NEGameRef {
+   pub(crate) fn post_update(&mut self, game: NEGameRef) {
+      self.cam.post_update();
+      let scene = NESceneRef {
          cam: &mut self.cam,
          world: &mut self.world,
-         renderer,
-         window,
-         events,
-         time,
       };
-      self.runtime.post_update(&mut game_ref);
-      self.cam.post_update()
+      self.runtime.post_update(game, scene);
    }
 
-   pub(crate) fn end(
-      &mut self,
-      renderer: &mut NERenderer,
-      window: &mut NEWindow,
-      events: &mut NEEvents,
-      time: &mut NETime,
-   ) {
-      let mut game_ref = NEGameRef {
-         cam: &mut self.cam,
-         world: &mut self.world,
-         renderer,
-         window,
-         events,
-         time,
-      };
-      self.runtime.end(&mut game_ref);
+   pub(crate) fn end(&mut self, game: NEGameRef) {
       self.cam.end();
-      log_event!("scene [{}] end!", self.name);
-   }
-
-   pub fn render(
-      &mut self,
-      renderer: &mut NERenderer,
-      window: &mut NEWindow,
-      events: &mut NEEvents,
-      time: &mut NETime,
-   ) {
-      let mut game_ref = NEGameRef {
+      let scene = NESceneRef {
          cam: &mut self.cam,
          world: &mut self.world,
-         renderer,
-         window,
-         events,
-         time,
       };
-      self.runtime.render(&mut game_ref);
+      self.runtime.end(game, scene);
+      log_event!("scene [{}] end!", self.name);
    }
 }

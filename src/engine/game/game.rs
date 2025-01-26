@@ -1,6 +1,13 @@
 use crate::{ansi, log_event, proc, NERenderer, NEScene};
 use crate::{NEEvents, NETime, NEWindow, Size2D};
 
+pub struct NEGameRef<'a> {
+   pub renderer: &'a mut NERenderer,
+   pub window: &'a mut NEWindow,
+   pub events: &'a mut NEEvents,
+   pub time: &'a mut NETime,
+}
+
 pub struct NEGame {
    pub renderer: NERenderer,
    pub window: NEWindow,
@@ -15,9 +22,10 @@ impl NEGame {
       self.scene.cam.set_size(new_size);
    }
    fn handle_events(&mut self) {
-      if self.events.window_resize_event.0 {
+      let mut resized = self.events.window_resize_event.0;
+      if resized {
          self.resize_children(self.events.window_resize_event.1);
-         self.events.window_resize_event.0 = false;
+         resized = false;
       }
 
       if self.events.window_close_event {
@@ -32,73 +40,70 @@ impl NEGame {
 
    pub fn start(&mut self) {
       log_event!("game [{}] run!", self.window.title);
-      self.scene.start(
-         &mut self.renderer,
-         &mut self.window,
-         &mut self.events,
-         &mut self.time,
-      );
+      let game = NEGameRef {
+         renderer: &mut self.renderer,
+         window: &mut self.window,
+         events: &mut self.events,
+         time: &mut self.time,
+      };
+      self.scene.start(game);
       if self.window.is_hidden {
          self.window.set_visibility(true)
       }
    }
 
    pub fn pre_update(&mut self) {
-      self.renderer.pre_update(&self.scene.cam);
-      self.window.pre_update();
-      self.events.pre_update();
       self.time.pre_update();
+      self.events.pre_update();
+      self.window.pre_update();
       self.handle_events();
-      self.scene.pre_update(
-         &mut self.renderer,
-         &mut self.window,
-         &mut self.events,
-         &mut self.time,
-      );
+      self.renderer.pre_update(&self.scene.cam);
+      let game = NEGameRef {
+         renderer: &mut self.renderer,
+         window: &mut self.window,
+         events: &mut self.events,
+         time: &mut self.time,
+      };
+      self.scene.pre_update(game);
    }
 
    pub fn update(&mut self) {
-      self.scene.update(
-         &mut self.renderer,
-         &mut self.window,
-         &mut self.events,
-         &mut self.time,
-      )
+      let game = NEGameRef {
+         renderer: &mut self.renderer,
+         window: &mut self.window,
+         events: &mut self.events,
+         time: &mut self.time,
+      };
+      self.scene.update(game)
    }
 
    pub fn post_update(&mut self) {
+      let game = NEGameRef {
+         renderer: &mut self.renderer,
+         window: &mut self.window,
+         events: &mut self.events,
+         time: &mut self.time,
+      };
+      self.scene.post_update(game);
       self.renderer.post_update();
       self.window.post_update();
       self.events.post_update();
       self.time.post_update();
-      self.scene.post_update(
-         &mut self.renderer,
-         &mut self.window,
-         &mut self.events,
-         &mut self.time,
-      );
    }
    pub fn end(mut self) {
-      self.scene.end(
-         &mut self.renderer,
-         &mut self.window,
-         &mut self.events,
-         &mut self.time,
-      );
+      let game = NEGameRef {
+         renderer: &mut self.renderer,
+         window: &mut self.window,
+         events: &mut self.events,
+         time: &mut self.time,
+      };
+      self.scene.end(game);
       log_event!("game [{}] end!", self.window.title);
       drop(self);
    }
+
    pub fn end_and_exit(self) {
       self.end();
       proc::end_success()
-   }
-
-   pub fn render(&mut self) {
-      self.scene.render(
-         &mut self.renderer,
-         &mut self.window,
-         &mut self.events,
-         &mut self.time,
-      );
    }
 }
