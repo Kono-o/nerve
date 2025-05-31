@@ -2,9 +2,9 @@ use glfw::Glfw;
 use std::time::{Duration, Instant};
 
 pub struct NETime {
-   pub(crate) fps: f64,
+   pub(crate) tps: f64,
    pub(crate) delta: f64,
-   pub(crate) frame: u64,
+   pub(crate) tick_count: u64,
    pub(crate) elapsed: f64,
 
    pub(crate) glfw: Glfw,
@@ -14,12 +14,12 @@ pub struct NETime {
    pub(crate) prev_deltas_size: usize,
    pub(crate) start_time: Instant,
    pub(crate) current_time: Instant,
-   pub(crate) local_frame: u32,
+   pub(crate) local_tick: u32,
 }
 
 impl NETime {
    pub fn fps(&self) -> f64 {
-      self.fps
+      self.tps
    }
    pub fn delta(&self) -> f64 {
       self.delta
@@ -32,15 +32,25 @@ impl NETime {
    pub fn now(&self) -> f64 {
       Instant::now().duration_since(self.start_time).as_secs_f64()
    }
-   pub fn now_as_ms(&self) -> u128 {
-      Instant::now().duration_since(self.start_time).as_millis()
+   pub fn now_as_ms(&self) -> u64 {
+      Instant::now().duration_since(self.start_time).as_millis() as u64
    }
-   pub fn now_as_ns(&self) -> u128 {
-      Instant::now().duration_since(self.start_time).as_nanos()
+   pub fn now_as_ns(&self) -> u64 {
+      Instant::now().duration_since(self.start_time).as_nanos() as u64
    }
 
-   pub fn sleep(&self, duration: f64) {
-      let duration = Duration::from_secs_f64(duration);
+   pub fn sleep(&self, secs: f64) {
+      let duration = Duration::from_secs_f64(secs);
+      std::thread::sleep(duration)
+   }
+
+   pub fn sleep_ms(&self, millis: u64) {
+      let duration = Duration::from_millis(millis);
+      std::thread::sleep(duration)
+   }
+
+   pub fn sleep_ns(&self, nanos: u64) {
+      let duration = Duration::from_nanos(nanos);
       std::thread::sleep(duration)
    }
 
@@ -50,8 +60,8 @@ impl NETime {
    pub(crate) fn post_update(&mut self) {}
 
    fn calculate(&mut self) {
-      self.frame += 1;
-      self.local_frame += 1;
+      self.tick_count += 1;
+      self.local_tick += 1;
       self.current_time = Instant::now();
 
       self.elapsed = self
@@ -72,7 +82,7 @@ impl NETime {
       }
 
       let avg_delta = self.prev_deltas.iter().sum::<f64>() / self.prev_deltas.len() as f64;
-      self.fps = 1.0 / avg_delta;
+      self.tps = 1.0 / avg_delta;
 
       if self
          .current_time
@@ -80,7 +90,7 @@ impl NETime {
          .as_secs_f32()
          >= 1.0
       {
-         self.local_frame = 0;
+         self.local_tick = 0;
          self.prev_sec = self.current_time
       }
    }

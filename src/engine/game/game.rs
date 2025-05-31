@@ -33,13 +33,26 @@ impl NEGame {
       }
    }
 
-   pub fn replace_scene(&mut self, scene: NEScene) {
+   pub fn set_scene(&mut self, scene: NEScene) {
       self.scene = scene;
       self.resize_children(self.window.size)
    }
 
-   pub fn start(&mut self) {
-      log_event!("game [{}] run!", self.window.title);
+   pub fn run(mut self) {
+      self.start();
+      if self.window.is_hidden {
+         self.window.set_visibility(true)
+      }
+      while self.window.is_running() {
+         self.pre_update();
+         self.update();
+         self.post_update();
+      }
+      self.end_and_exit();
+   }
+
+   fn start(&mut self) {
+      log_event!("game [{}] begun!", self.window.title);
       let game = NEGameRef {
          renderer: &mut self.renderer,
          window: &mut self.window,
@@ -47,12 +60,9 @@ impl NEGame {
          time: &mut self.time,
       };
       self.scene.start(game);
-      if self.window.is_hidden {
-         self.window.set_visibility(true)
-      }
    }
 
-   pub fn pre_update(&mut self) {
+   fn pre_update(&mut self) {
       self.time.pre_update();
       self.events.pre_update();
       self.window.pre_update();
@@ -67,7 +77,7 @@ impl NEGame {
       self.scene.pre_update(game);
    }
 
-   pub fn update(&mut self) {
+   fn update(&mut self) {
       let game = NEGameRef {
          renderer: &mut self.renderer,
          window: &mut self.window,
@@ -77,7 +87,7 @@ impl NEGame {
       self.scene.update(game)
    }
 
-   pub fn post_update(&mut self) {
+   fn post_update(&mut self) {
       let game = NEGameRef {
          renderer: &mut self.renderer,
          window: &mut self.window,
@@ -90,7 +100,7 @@ impl NEGame {
       self.events.post_update();
       self.time.post_update();
    }
-   pub fn end(mut self) {
+   fn end(mut self) {
       let game = NEGameRef {
          renderer: &mut self.renderer,
          window: &mut self.window,
@@ -98,11 +108,11 @@ impl NEGame {
          time: &mut self.time,
       };
       self.scene.end(game);
-      log_event!("game [{}] end!", self.window.title);
+      log_event!("game [{}] ended!", self.window.title);
       drop(self);
    }
 
-   pub fn end_and_exit(self) {
+   fn end_and_exit(self) {
       self.end();
       proc::end_success()
    }

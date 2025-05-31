@@ -1,4 +1,4 @@
-use crate::{ansi, log_event, CamProj, NEGameRef, Size2D};
+use crate::{ansi, log_event, log_warn, CamProj, NEGameRef, Size2D};
 use crate::{NECamera, NERuntime};
 
 pub struct NESceneRef<'a> {
@@ -16,7 +16,11 @@ pub struct NEScene {
 struct DefaultRuntime; //PLACEHOLDER
 
 impl NERuntime for DefaultRuntime {
-   fn start(&mut self, _game: NEGameRef, _scene: NESceneRef) {}
+   fn start(&mut self, game: NEGameRef, scene: NESceneRef) {
+      log_warn!(
+         "default runtime is running!\nuse scene.replace_runtime() to add custom behaviour!"
+      );
+   }
    fn pre_update(&mut self, _game: NEGameRef, _scene: NESceneRef) {}
    fn update(&mut self, _game: NEGameRef, _scene: NESceneRef) {}
    fn post_update(&mut self, _game: NEGameRef, _scene: NESceneRef) {}
@@ -33,7 +37,7 @@ impl NEScene {
       }
    }
 
-   pub fn replace_runtime(&mut self, runtime: Box<dyn NERuntime>) {
+   pub fn set_runtime(&mut self, runtime: Box<dyn NERuntime>) {
       self.runtime = runtime
    }
    pub fn replace_cam(&mut self, cam: NECamera) {
@@ -43,7 +47,7 @@ impl NEScene {
 
 impl NEScene {
    pub(crate) fn start(&mut self, game: NEGameRef) {
-      log_event!("scene [{}] run!", self.name);
+      log_event!("scene [{}] begun!", self.name);
       self.cam.start();
       let scene = NESceneRef {
          cam: &mut self.cam,
@@ -86,6 +90,6 @@ impl NEScene {
          world: &mut self.world,
       };
       self.runtime.end(game, scene);
-      log_event!("scene [{}] end!", self.name);
+      log_event!("scene [{}] ended!", self.name);
    }
 }

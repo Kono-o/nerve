@@ -14,11 +14,11 @@ macro_rules! log_color {
 macro_rules! log_event {
     ($fmt:expr) => {
         let fmt = format!($fmt);
-        println!("{}{}{}", ansi::BOLD_BLUE.prefix, fmt, ansi::BOLD_BLUE.suffix);
+        println!("{}[EVENT] {}{}", ansi::BOLD_BLUE.prefix, fmt, ansi::BOLD_BLUE.suffix);
     };
     ($fmt:expr, $($args:tt)*) => {
         let fmt = format!($fmt, $($args)*);
-        println!("{}{}{}", ansi::BOLD_BLUE.prefix, fmt, ansi::BOLD_BLUE.suffix);
+        println!("{}[EVENT] {}{}", ansi::BOLD_BLUE.prefix, fmt, ansi::BOLD_BLUE.suffix);
     };
 }
 
@@ -26,11 +26,11 @@ macro_rules! log_event {
 macro_rules! log_info {
     ($fmt:expr) => {
         let fmt = format!($fmt);
-        println!("{}{}{}", ansi::BOLD_GREEN.prefix, fmt, ansi::BOLD_GREEN.suffix);
+        println!("{}[INFO] {}{}", ansi::BOLD_GREEN.prefix, fmt, ansi::BOLD_GREEN.suffix);
     };
     ($fmt:expr, $($args:tt)*) => {
         let fmt = format!($fmt, $($args)*);
-        println!("{}{}{}", ansi::BOLD_GREEN.prefix, fmt, ansi::BOLD_GREEN.suffix);
+        println!("{}[INFO] {}{}", ansi::BOLD_GREEN.prefix, fmt, ansi::BOLD_GREEN.suffix);
     };
 }
 
@@ -38,11 +38,11 @@ macro_rules! log_info {
 macro_rules! log_warn {
     ($fmt:expr) => {
         let fmt = format!($fmt);
-        println!("{}{}{}", ansi::BOLD_YELLOW.prefix, fmt, ansi::BOLD_YELLOW.suffix);
+        println!("{}[WARN] {}{}", ansi::BOLD_YELLOW.prefix, fmt, ansi::BOLD_YELLOW.suffix);
     };
     ($fmt:expr, $($args:tt)*) => {
         let fmt = format!($fmt, $($args)*);
-        println!("{}{}{}", ansi::BOLD_YELLOW.prefix, fmt, ansi::BOLD_YELLOW.suffix);
+        println!("{}[WARN] {}{}", ansi::BOLD_YELLOW.prefix, fmt, ansi::BOLD_YELLOW.suffix);
     };
 }
 
@@ -50,10 +50,10 @@ macro_rules! log_warn {
 macro_rules! log_fatal {
     ($fmt:expr) => {
         let fmt = format!($fmt);
-        println!("{}{}{}", ansi::BOLD_RED.prefix, fmt, ansi::BOLD_RED.suffix);
+        println!("{}[FATAL] {}{}", ansi::BOLD_RED.prefix, fmt, ansi::BOLD_RED.suffix);
     };
     ($fmt:expr, $($args:tt)*) => {
         let fmt = format!($fmt, $($args)*);
-        println!("{}{}{}", ansi::BOLD_RED.prefix, fmt, ansi::BOLD_RED.suffix);
+        println!("{}[FATAL] {}{}", ansi::BOLD_RED.prefix, fmt, ansi::BOLD_RED.suffix);
     };
 }

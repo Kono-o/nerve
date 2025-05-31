@@ -11,7 +11,7 @@ impl<N> NEResult<N> {
          NEResult::OK(n) => n,
          NEResult::ER(e) => {
             e.log();
-            panic!("unpack panic (should be unreachable)")
+            panic!("unpack panic! (you should not be seeing this, this arm is unreachable)")
          }
       }
    }
