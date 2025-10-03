@@ -4,7 +4,7 @@ use crate::renderer::MeshHandle;
 use crate::{
    ansi, color, log_info, ClipDist, DataType, NECamera, NEError, NEMesh2D, NEMesh2DAsset,
    NEMesh3DAsset, NEResult, NEShaderAsset, NETexAsset, NETexture, RenderAPI, Size2D, TexWrap,
-   Transform2D, Transform3D, RGB,
+   Transform2D, Transform3D, RGBA,
 };
 use cgmath::{ortho, Matrix4, Vector2};
 use std::ops::Deref;
@@ -31,7 +31,7 @@ pub(crate) trait Renderer {
    fn log_info(&self);
 
    //STATE
-   fn set_clear(&self, color: RGB);
+   fn set_clear(&self, color: RGBA);
    fn resize(&self, size: Size2D);
    fn poly_mode(&self, mode: PolyMode);
    fn enable_msaa(&self, enable: bool);
@@ -110,7 +110,7 @@ pub struct NERenderer {
    pub(crate) api: RenderAPI,
    pub(crate) poly_mode: PolyMode,
    pub(crate) cull_face: Cull,
-   pub(crate) bg_color: RGB,
+   pub(crate) bg_color: RGBA,
    pub(crate) msaa: bool,
    pub(crate) msaa_samples: u32,
    pub(crate) culling: bool,
@@ -119,7 +119,7 @@ pub struct NERenderer {
 //PRIVATE
 impl NERenderer {
    pub(crate) fn from(core: Box<dyn Renderer>, api: RenderAPI, cam: &NECamera) -> NERenderer {
-      let bg_color = color::OBSIDIAN;
+      let bg_color = color::OBSIDIAN.to_rgba(1.0);
       core.enable_depth(true);
 
       let mut renderer = NERenderer {
@@ -219,7 +219,7 @@ impl NERenderer {
    pub fn set_msaa_samples(&mut self, samples: u32) {
       self.msaa_samples = samples
    }
-   pub fn set_bg_color(&mut self, color: RGB) {
+   pub fn set_bg_color(&mut self, color: RGBA) {
       self.bg_color = color;
       self.core.set_clear(color);
    }

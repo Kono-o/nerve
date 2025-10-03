@@ -1,7 +1,7 @@
 use crate::asset::ATTRInfo;
 use crate::renderer::handles::DrawMode;
 use crate::renderer::{Renderer, ShaderType};
-use crate::{Cull, NEResult, NEShaderAsset, NETexAsset, PolyMode, Size2D, RGB};
+use crate::{Cull, NEResult, NEShaderAsset, NETexAsset, PolyMode, Size2D, RGBA};
 use cgmath::{Matrix4, Vector2};
 
 #[derive(Copy, Clone)]
@@ -12,7 +12,7 @@ impl Renderer for VKRenderer {
       todo!()
    }
 
-   fn set_clear(&self, color: RGB) {
+   fn set_clear(&self, color: RGBA) {
       todo!()
    }
 

@@ -2,7 +2,7 @@ use crate::asset::ATTRInfo;
 use crate::renderer::handles::DrawMode;
 use crate::renderer::{Renderer, ShaderType, TexFormat};
 use crate::util::misc;
-use crate::{ansi, NEShaderAsset, NETexAsset, TexFilter, TexWrap, RGB};
+use crate::{ansi, NEShaderAsset, NETexAsset, TexFilter, TexWrap, RGBA};
 use crate::{log_info, ATTRType, Cull, NEError, NEResult, PolyMode, Size2D};
 use cgmath::{Matrix, Matrix4, Vector2};
 use glfw::{Context, PWindow};
@@ -82,9 +82,9 @@ impl Renderer for GLRenderer {
    }
 
    //STATE
-   fn set_clear(&self, color: RGB) {
+   fn set_clear(&self, color: RGBA) {
       unsafe {
-         self.gl.raw.ClearColor(color.0, color.1, color.2, 1.0);
+         self.gl.raw.ClearColor(color.0, color.1, color.2, color.3);
       }
    }
    fn resize(&self, size: Size2D) {

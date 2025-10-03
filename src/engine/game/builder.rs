@@ -161,6 +161,7 @@ fn init_nerve(
          glfw.window_hint(WindowHint::Decorated(decorated));
          glfw.window_hint(WindowHint::Visible(false));
          glfw.window_hint(WindowHint::CenterCursor(true));
+         glfw.window_hint(WindowHint::TransparentFramebuffer(true));
 
          let (mut window, events, is_full, size, monitor_size) =
             match window_from(glfw, mode, title) {
